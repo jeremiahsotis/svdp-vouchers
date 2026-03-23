@@ -163,7 +163,6 @@ $all_organizations = $wpdb->get_results("
                     <option value="all">All Types</option>
                     <option value="clothing">Clothing</option>
                     <option value="furniture">Furniture</option>
-                    <option value="household">Household</option>
                 </select>
             </div>
         </div>

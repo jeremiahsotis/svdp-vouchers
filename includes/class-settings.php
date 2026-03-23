@@ -105,13 +105,118 @@ class SVDP_Settings {
     }
 
     /**
+     * Normalize a single voucher type to the locked root types.
+     *
+     * @param string $voucher_type Raw voucher type.
+     * @return string Normalized voucher type or empty string when unsupported.
+     */
+    public static function normalize_voucher_type($voucher_type) {
+        $voucher_type = strtolower(trim((string) $voucher_type));
+
+        if ($voucher_type === '' || $voucher_type === 'regular') {
+            return 'clothing';
+        }
+
+        if ($voucher_type === 'household') {
+            return 'furniture';
+        }
+
+        if ($voucher_type === 'clothing' || $voucher_type === 'furniture') {
+            return $voucher_type;
+        }
+
+        return '';
+    }
+
+    /**
+     * Normalize a voucher type list from JSON, CSV, or array input.
+     *
+     * @param mixed $types Raw voucher type collection.
+     * @param array $default Default types when input is empty.
+     * @return array
+     */
+    public static function normalize_voucher_types($types, $default = ['clothing']) {
+        if (is_string($types)) {
+            $decoded = json_decode($types, true);
+            if (is_array($decoded)) {
+                $types = $decoded;
+            } else {
+                $types = array_map('trim', explode(',', $types));
+            }
+        }
+
+        if (!is_array($types)) {
+            $types = [];
+        }
+
+        $normalized = [];
+        foreach ($types as $type) {
+            $normalized_type = self::normalize_voucher_type($type);
+            if ($normalized_type === '' || in_array($normalized_type, $normalized, true)) {
+                continue;
+            }
+
+            $normalized[] = $normalized_type;
+        }
+
+        if (!empty($normalized)) {
+            return $normalized;
+        }
+
+        $fallback = [];
+        foreach ((array) $default as $type) {
+            $normalized_type = self::normalize_voucher_type($type);
+            if ($normalized_type === '' || in_array($normalized_type, $fallback, true)) {
+                continue;
+            }
+
+            $fallback[] = $normalized_type;
+        }
+
+        return !empty($fallback) ? $fallback : ['clothing'];
+    }
+
+    /**
+     * Serialize a voucher type list into the settings CSV format.
+     *
+     * @param mixed $types Raw voucher type collection.
+     * @param array $default Default types when input is empty.
+     * @return string
+     */
+    public static function serialize_voucher_types($types, $default = ['clothing']) {
+        return implode(',', self::normalize_voucher_types($types, $default));
+    }
+
+    /**
+     * Encode a voucher type list into the conference JSON format.
+     *
+     * @param mixed $types Raw voucher type collection.
+     * @param array $default Default types when input is empty.
+     * @return string
+     */
+    public static function encode_voucher_types($types, $default = ['clothing']) {
+        return wp_json_encode(self::normalize_voucher_types($types, $default));
+    }
+
+    /**
      * Get available voucher types
      *
      * @return array Array of voucher type strings
      */
     public static function get_available_voucher_types() {
-        $types_string = self::get_setting('available_voucher_types', 'clothing');
-        return array_map('trim', explode(',', $types_string));
+        return self::normalize_voucher_types(
+            self::get_setting('available_voucher_types', 'clothing,furniture'),
+            ['clothing', 'furniture']
+        );
+    }
+
+    /**
+     * Public request form can expose the globally available root voucher types.
+     *
+     * @return array
+     */
+    public static function get_public_request_voucher_types() {
+        return self::get_available_voucher_types();
     }
 
     /**

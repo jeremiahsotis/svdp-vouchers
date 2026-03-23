@@ -6,7 +6,7 @@
     $child_item_value = SVDP_Settings::get_setting('child_item_value', '3.00');
     $store_hours = SVDP_Settings::get_setting('store_hours', 'Monday-Friday 9am-5pm');
     $redemption_instructions = SVDP_Settings::get_setting('redemption_instructions', 'Neighbors should visit the store and provide their first name, last name, and date of birth at the counter.');
-    $available_voucher_types = SVDP_Settings::get_setting('available_voucher_types', 'clothing,furniture,household');
+    $available_voucher_types = implode(',', SVDP_Settings::get_available_voucher_types());
     ?>
 
     <div class="svdp-card">
@@ -55,7 +55,7 @@
                     <input type="text" id="available_voucher_types" name="available_voucher_types"
                            value="<?php echo esc_attr($available_voucher_types); ?>"
                            class="regular-text" />
-                    <p class="description">Comma-separated list of available types (e.g., clothing,furniture,household)</p>
+                    <p class="description">Comma-separated list of available root types (e.g., clothing,furniture)</p>
                 </td>
             </tr>
         </table>

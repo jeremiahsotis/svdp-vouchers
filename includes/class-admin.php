@@ -18,6 +18,12 @@ class SVDP_Admin {
         add_action('wp_ajax_svdp_get_custom_text', [$this, 'ajax_get_custom_text']);
         add_action('wp_ajax_svdp_save_custom_text', [$this, 'ajax_save_custom_text']);
         add_action('wp_ajax_svdp_apply_analytics_filters', [$this, 'ajax_apply_analytics_filters']);
+        add_action('wp_ajax_svdp_add_furniture_catalog_item', [$this, 'ajax_add_furniture_catalog_item']);
+        add_action('wp_ajax_svdp_update_furniture_catalog_item', [$this, 'ajax_update_furniture_catalog_item']);
+        add_action('wp_ajax_svdp_set_furniture_catalog_item_active', [$this, 'ajax_set_furniture_catalog_item_active']);
+        add_action('wp_ajax_svdp_add_furniture_cancellation_reason', [$this, 'ajax_add_furniture_cancellation_reason']);
+        add_action('wp_ajax_svdp_update_furniture_cancellation_reason', [$this, 'ajax_update_furniture_cancellation_reason']);
+        add_action('wp_ajax_svdp_set_furniture_cancellation_reason_active', [$this, 'ajax_set_furniture_cancellation_reason_active']);
 
         // Manager AJAX
         add_action('wp_ajax_svdp_add_manager', [$this, 'ajax_add_manager']);
@@ -68,12 +74,16 @@ class SVDP_Admin {
 
         wp_enqueue_style('svdp-vouchers-admin', SVDP_VOUCHERS_PLUGIN_URL . 'admin/css/admin.css', [], SVDP_VOUCHERS_VERSION);
         wp_enqueue_script('svdp-vouchers-admin', SVDP_VOUCHERS_PLUGIN_URL . 'admin/js/admin.js', ['jquery'], SVDP_VOUCHERS_VERSION, true);
+        wp_enqueue_script('svdp-furniture-admin', SVDP_VOUCHERS_PLUGIN_URL . 'admin/js/furniture-admin.js', ['jquery'], SVDP_VOUCHERS_VERSION, true);
+        wp_enqueue_script('svdp-accounting-admin', SVDP_VOUCHERS_PLUGIN_URL . 'admin/js/accounting-admin.js', ['jquery', 'svdp-vouchers-admin'], SVDP_VOUCHERS_VERSION, true);
         wp_enqueue_script('svdp-managers', SVDP_VOUCHERS_PLUGIN_URL . 'admin/js/managers.js', ['jquery'], SVDP_VOUCHERS_VERSION, true);
         wp_enqueue_script('svdp-override-reasons', SVDP_VOUCHERS_PLUGIN_URL . 'admin/js/override-reasons.js', ['jquery', 'jquery-ui-sortable'], SVDP_VOUCHERS_VERSION, true);
 
         wp_localize_script('svdp-vouchers-admin', 'svdpAdmin', [
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('svdp_admin_nonce'),
+            'restUrl' => esc_url_raw(rest_url('svdp/v1/')),
+            'restNonce' => wp_create_nonce('wp_rest'),
         ]);
     }
     
@@ -172,13 +182,18 @@ class SVDP_Admin {
             wp_send_json_error('Permission denied');
         }
 
+        $available_voucher_types = SVDP_Settings::serialize_voucher_types(
+            sanitize_text_field($_POST['available_voucher_types']),
+            ['clothing', 'furniture']
+        );
+
         // Sanitize and save each setting
         $settings = [
             'adult_item_value' => ['value' => sanitize_text_field($_POST['adult_item_value']), 'type' => 'decimal'],
             'child_item_value' => ['value' => sanitize_text_field($_POST['child_item_value']), 'type' => 'decimal'],
             'store_hours' => ['value' => sanitize_text_field($_POST['store_hours']), 'type' => 'text'],
             'redemption_instructions' => ['value' => sanitize_textarea_field($_POST['redemption_instructions']), 'type' => 'textarea'],
-            'available_voucher_types' => ['value' => sanitize_text_field($_POST['available_voucher_types']), 'type' => 'text'],
+            'available_voucher_types' => ['value' => $available_voucher_types, 'type' => 'text'],
         ];
 
         $success = true;
@@ -363,6 +378,132 @@ class SVDP_Admin {
         $stats['organizations'] = $org_stats;
 
         wp_send_json_success($stats);
+    }
+
+    /**
+     * AJAX: Add furniture catalog item.
+     */
+    public function ajax_add_furniture_catalog_item() {
+        check_ajax_referer('svdp_admin_nonce', 'nonce');
+
+        if (!SVDP_Permissions::user_can_manage_furniture_catalog()) {
+            wp_send_json_error('Permission denied');
+        }
+
+        $result = SVDP_Furniture_Catalog::create($_POST);
+
+        if (is_wp_error($result)) {
+            wp_send_json_error($result->get_error_message());
+        }
+
+        wp_send_json_success([
+            'id' => $result,
+            'message' => 'Catalog item created.',
+        ]);
+    }
+
+    /**
+     * AJAX: Update furniture catalog item.
+     */
+    public function ajax_update_furniture_catalog_item() {
+        check_ajax_referer('svdp_admin_nonce', 'nonce');
+
+        if (!SVDP_Permissions::user_can_manage_furniture_catalog()) {
+            wp_send_json_error('Permission denied');
+        }
+
+        $id = intval($_POST['id'] ?? 0);
+        $result = SVDP_Furniture_Catalog::update($id, $_POST);
+
+        if (is_wp_error($result)) {
+            wp_send_json_error($result->get_error_message());
+        }
+
+        wp_send_json_success('Catalog item updated.');
+    }
+
+    /**
+     * AJAX: Archive or restore furniture catalog item.
+     */
+    public function ajax_set_furniture_catalog_item_active() {
+        check_ajax_referer('svdp_admin_nonce', 'nonce');
+
+        if (!SVDP_Permissions::user_can_manage_furniture_catalog()) {
+            wp_send_json_error('Permission denied');
+        }
+
+        $id = intval($_POST['id'] ?? 0);
+        $active = intval($_POST['active'] ?? 0);
+        $result = SVDP_Furniture_Catalog::set_active($id, $active);
+
+        if (is_wp_error($result)) {
+            wp_send_json_error($result->get_error_message());
+        }
+
+        wp_send_json_success($active ? 'Catalog item restored.' : 'Catalog item archived.');
+    }
+
+    /**
+     * AJAX: Add furniture cancellation reason.
+     */
+    public function ajax_add_furniture_cancellation_reason() {
+        check_ajax_referer('svdp_admin_nonce', 'nonce');
+
+        if (!SVDP_Permissions::user_can_manage_furniture_catalog()) {
+            wp_send_json_error('Permission denied');
+        }
+
+        $result = SVDP_Furniture_Cancellation_Reason::create($_POST);
+
+        if (is_wp_error($result)) {
+            wp_send_json_error($result->get_error_message());
+        }
+
+        wp_send_json_success([
+            'id' => $result,
+            'message' => 'Furniture cancellation reason created.',
+        ]);
+    }
+
+    /**
+     * AJAX: Update furniture cancellation reason.
+     */
+    public function ajax_update_furniture_cancellation_reason() {
+        check_ajax_referer('svdp_admin_nonce', 'nonce');
+
+        if (!SVDP_Permissions::user_can_manage_furniture_catalog()) {
+            wp_send_json_error('Permission denied');
+        }
+
+        $id = intval($_POST['id'] ?? 0);
+        $result = SVDP_Furniture_Cancellation_Reason::update($id, $_POST);
+
+        if (is_wp_error($result)) {
+            wp_send_json_error($result->get_error_message());
+        }
+
+        wp_send_json_success('Furniture cancellation reason updated.');
+    }
+
+    /**
+     * AJAX: Archive or restore furniture cancellation reason.
+     */
+    public function ajax_set_furniture_cancellation_reason_active() {
+        check_ajax_referer('svdp_admin_nonce', 'nonce');
+
+        if (!SVDP_Permissions::user_can_manage_furniture_catalog()) {
+            wp_send_json_error('Permission denied');
+        }
+
+        $id = intval($_POST['id'] ?? 0);
+        $active = intval($_POST['active'] ?? 0);
+        $result = SVDP_Furniture_Cancellation_Reason::set_active($id, $active);
+
+        if (is_wp_error($result)) {
+            wp_send_json_error($result->get_error_message());
+        }
+
+        wp_send_json_success($active ? 'Furniture cancellation reason restored.' : 'Furniture cancellation reason archived.');
     }
 
     /**
