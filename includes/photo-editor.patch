@@ -1,0 +1,91 @@
+diff --git a/includes/class-furniture-photo-storage.php b/includes/class-furniture-photo-storage.php
+index 193bc52..fc653e8 100644
+--- a/includes/class-furniture-photo-storage.php
++++ b/includes/class-furniture-photo-storage.php
+@@ -50,9 +50,25 @@ class SVDP_Furniture_Photo_Storage {
+         $filename = wp_unique_filename($paths['absolute_dir'], $source_basename . '.jpg');
+         $absolute_path = trailingslashit($paths['absolute_dir']) . $filename;
+         $relative_path = trailingslashit($paths['relative_dir']) . $filename;
++        $source_extension = strtolower((string) pathinfo((string) $file['name'], PATHINFO_EXTENSION));
++        if ($source_extension === '') {
++            $source_extension = 'upload';
++        }
++
++        $staged_source_name = wp_unique_filename($paths['absolute_dir'], $source_basename . '-source.' . $source_extension);
++        $staged_source_path = trailingslashit($paths['absolute_dir']) . $staged_source_name;
++
++        $staged = self::stage_uploaded_source($file['tmp_name'], $staged_source_path);
++        if (is_wp_error($staged)) {
++            return $staged;
++        }
+ 
+-        $normalized = self::normalize_image($file['tmp_name'], $absolute_path, self::MAX_LONG_EDGE);
++        $normalized = self::normalize_image($staged_source_path, $absolute_path, self::MAX_LONG_EDGE);
+         if (is_wp_error($normalized)) {
++            if (file_exists($staged_source_path)) {
++                wp_delete_file($staged_source_path);
++            }
++
+             return $normalized;
+         }
+ 
+@@ -61,9 +77,16 @@ class SVDP_Furniture_Photo_Storage {
+         $thumb_result = self::normalize_image($absolute_path, $thumb_absolute_path, self::THUMB_LONG_EDGE);
+         if (is_wp_error($thumb_result)) {
+             self::delete_relative_path($relative_path);
++            if (file_exists($staged_source_path)) {
++                wp_delete_file($staged_source_path);
++            }
+             return $thumb_result;
+         }
+ 
++        if (file_exists($staged_source_path)) {
++            wp_delete_file($staged_source_path);
++        }
++
+         return [
+             'file_path' => $relative_path,
+             'file_name' => basename($relative_path),
+@@ -206,6 +229,42 @@ class SVDP_Furniture_Photo_Storage {
+         return $saved;
+     }
+ 
++    /**
++     * Move the uploaded temp file into a stable managed path before image editing.
++     *
++     * @param string $source_path Original uploaded temp file path.
++     * @param string $destination_path Managed staging path.
++     * @return true|WP_Error
++     */
++    private static function stage_uploaded_source($source_path, $destination_path) {
++        $source_path = (string) $source_path;
++        $destination_path = (string) $destination_path;
++
++        if ($source_path === '' || !is_file($source_path) || !is_readable($source_path)) {
++            return new WP_Error('photo_temp_unavailable', 'The uploaded photo temporary file could not be read before processing.', ['status' => 500]);
++        }
++
++        $staged = false;
++
++        if (function_exists('is_uploaded_file') && function_exists('move_uploaded_file') && is_uploaded_file($source_path)) {
++            $staged = @move_uploaded_file($source_path, $destination_path);
++        }
++
++        if (!$staged) {
++            $staged = @copy($source_path, $destination_path);
++        }
++
++        if (!$staged) {
++            return new WP_Error('photo_stage_failed', 'The uploaded photo could not be staged for processing.', ['status' => 500]);
++        }
++
++        if (!is_file($destination_path) || !is_readable($destination_path)) {
++            return new WP_Error('photo_stage_failed', 'The staged photo file could not be read for processing.', ['status' => 500]);
++        }
++
++        return true;
++    }
++
+     /**
+      * Build a cashier-visible message from a WordPress image editor failure.
+      *
