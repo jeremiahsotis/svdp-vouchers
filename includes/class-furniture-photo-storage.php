@@ -72,15 +72,49 @@ class SVDP_Furniture_Photo_Storage {
             return $normalized;
         }
 
+                $normalized_absolute_path = (string) ($normalized['path'] ?? $absolute_path);
+        if (!is_file($normalized_absolute_path) || !is_readable($normalized_absolute_path)) {
+            if (file_exists($staged_source_path)) {
+                wp_delete_file($staged_source_path);
+            }
+
+            return new WP_Error(
+                'photo_normalized_missing',
+                'The normalized photo file could not be found after saving.',
+                ['status' => 500]
+            );
+        }
+
+        $normalized_relative_path = self::relative_path_from_absolute($normalized_absolute_path);
+        if ($normalized_relative_path === null) {
+            if (file_exists($staged_source_path)) {
+                wp_delete_file($staged_source_path);
+            }
+
+            return new WP_Error(
+                'photo_normalized_path_invalid',
+                'The normalized photo path could not be resolved inside uploads.',
+                ['status' => 500]
+            );
+        }
+
+        $relative_path = $normalized_relative_path;
+
         $thumb_relative_path = self::get_thumbnail_relative_path($relative_path);
         $thumb_absolute_path = self::absolute_path_from_relative($thumb_relative_path);
-        $thumb_result = self::normalize_image($absolute_path, $thumb_absolute_path, self::THUMB_LONG_EDGE);
+        $thumb_result = self::normalize_image($normalized_absolute_path, $thumb_absolute_path, self::THUMB_LONG_EDGE);
         if (is_wp_error($thumb_result)) {
             self::delete_relative_path($relative_path);
             if (file_exists($staged_source_path)) {
                 wp_delete_file($staged_source_path);
             }
             return $thumb_result;
+        }
+
+        $thumb_absolute_path = (string) ($thumb_result['path'] ?? $thumb_absolute_path);
+        $resolved_thumb_relative_path = self::relative_path_from_absolute($thumb_absolute_path);
+        if ($resolved_thumb_relative_path !== null) {
+            $thumb_relative_path = $resolved_thumb_relative_path;
         }
 
         if (file_exists($staged_source_path)) {
@@ -90,13 +124,14 @@ class SVDP_Furniture_Photo_Storage {
         return [
             'file_path' => $relative_path,
             'file_name' => basename($relative_path),
-            'mime_type' => 'image/jpeg',
-            'file_size' => filesize($absolute_path),
+            'mime_type' => (string) ($normalized['mime-type'] ?? 'image/jpeg'),
+            'file_size' => intval($normalized['filesize'] ?? filesize($normalized_absolute_path)),
             'image_width' => intval($normalized['width'] ?? 0),
             'image_height' => intval($normalized['height'] ?? 0),
             'url' => self::public_url_from_relative($relative_path),
             'thumbnail_url' => self::public_url_from_relative($thumb_relative_path),
         ];
+
     }
 
     /**
@@ -197,7 +232,7 @@ class SVDP_Furniture_Photo_Storage {
         if (is_wp_error($editor)) {
             return new WP_Error(
                 'photo_editor_unavailable',
-                self::build_editor_error_message($editor),
+                self::build_editor_error_message($editor, $source_path),
                 [
                     'status' => 500,
                     'editor_error_code' => $editor->get_error_code(),
@@ -269,16 +304,45 @@ class SVDP_Furniture_Photo_Storage {
      * Build a cashier-visible message from a WordPress image editor failure.
      *
      * @param WP_Error $error WordPress image editor error.
+     * @param string   $source_path Image path being opened.
      * @return string
      */
-    private static function build_editor_error_message($error) {
+    private static function build_editor_error_message($error, $source_path = '') {
         $message = trim((string) $error->get_error_message());
+        $details = self::describe_source_file($source_path);
+
         if ($message === '') {
-            return 'Image processing is unavailable for this upload.';
+            return 'Image processing is unavailable for this upload. Debug: ' . $details;
         }
 
-        return 'Image processing is unavailable for this upload. WordPress reported: ' . $message;
+        return 'Image processing is unavailable for this upload. WordPress reported: ' . $message . '. Debug: ' . $details;
     }
+
+    /**
+     * Describe the current source image path for upload debugging.
+     *
+     * @param string $source_path Image path being opened.
+     * @return string
+     */
+    private static function describe_source_file($source_path) {
+        $source_path = (string) $source_path;
+        $real_path = $source_path !== '' ? realpath($source_path) : false;
+        $is_file = $source_path !== '' && is_file($source_path);
+        $is_readable = $source_path !== '' && is_readable($source_path);
+        $size = $is_file ? @filesize($source_path) : false;
+        $mime = $is_file ? @wp_get_image_mime($source_path) : false;
+
+        return sprintf(
+            'path=%s; realpath=%s; is_file=%s; is_readable=%s; size=%s; mime=%s',
+            $source_path === '' ? '[empty]' : $source_path,
+            $real_path === false ? '[false]' : $real_path,
+            $is_file ? 'true' : 'false',
+            $is_readable ? 'true' : 'false',
+            $size === false ? '[false]' : (string) $size,
+            $mime === false || $mime === '' ? '[false]' : $mime
+        );
+    }
+
 
     /**
      * Ensure the plugin-managed item directory exists in uploads.
@@ -346,6 +410,29 @@ class SVDP_Furniture_Photo_Storage {
         $uploads = wp_upload_dir();
         return trailingslashit($uploads['basedir']) . $relative_path;
     }
+
+    /**
+     * Resolve one managed relative uploads path from an absolute path.
+     *
+     * @param string $absolute_path Absolute uploads path.
+     * @return string|null
+     */
+    private static function relative_path_from_absolute($absolute_path) {
+        $absolute_path = wp_normalize_path((string) $absolute_path);
+        if ($absolute_path === '') {
+            return null;
+        }
+
+        $uploads = wp_upload_dir();
+        $base_dir = trailingslashit(wp_normalize_path((string) $uploads['basedir']));
+        if ($base_dir === '' || strpos($absolute_path, $base_dir) !== 0) {
+            return null;
+        }
+
+        $relative_path = substr($absolute_path, strlen($base_dir));
+        return self::normalize_managed_relative_path($relative_path);
+    }
+
 
     /**
      * Resolve a public uploads URL from one stored relative path.

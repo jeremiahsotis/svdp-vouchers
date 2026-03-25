@@ -1,0 +1,49 @@
+diff --git a/includes/class-furniture-photo-storage.php b/includes/class-furniture-photo-storage.php
+--- a/includes/class-furniture-photo-storage.php
++++ b/includes/class-furniture-photo-storage.php
+@@
+-        $editor = wp_get_image_editor($source_path);
++        $editor = wp_get_image_editor($source_path);
+         if (is_wp_error($editor)) {
+             return new WP_Error(
+                 'photo_editor_unavailable',
+-                self::build_editor_error_message($editor),
++                self::build_editor_error_message($editor, $source_path),
+                 [
+                     'status' => 500,
+                     'editor_error_code' => $editor->get_error_code(),
+                 ]
+             );
+         }
+@@
+-    private static function build_editor_error_message($error) {
++    private static function build_editor_error_message($error, $source_path = '') {
+         $message = trim((string) $error->get_error_message());
++        $details = self::describe_source_file($source_path);
+         if ($message === '') {
+-            return 'Image processing is unavailable for this upload.';
++            return 'Image processing is unavailable for this upload. Debug: ' . $details;
+         }
+ 
+-        return 'Image processing is unavailable for this upload. WordPress reported: ' . $message;
++        return 'Image processing is unavailable for this upload. WordPress reported: ' . $message . '. Debug: ' . $details;
++    }
++
++    private static function describe_source_file($source_path) {
++        $source_path = (string) $source_path;
++        $real_path = $source_path !== '' ? realpath($source_path) : false;
++        $is_file = $source_path !== '' && is_file($source_path);
++        $is_readable = $source_path !== '' && is_readable($source_path);
++        $size = $is_file ? @filesize($source_path) : false;
++        $mime = $is_file ? @wp_get_image_mime($source_path) : false;
++
++        return sprintf(
++            'path=%s; realpath=%s; is_file=%s; is_readable=%s; size=%s; mime=%s',
++            $source_path === '' ? '[empty]' : $source_path,
++            $real_path === false ? '[false]' : $real_path,
++            $is_file ? 'true' : 'false',
++            $is_readable ? 'true' : 'false',
++            $size === false ? '[false]' : (string) $size,
++            $mime === false || $mime === '' ? '[false]' : $mime
++        );
+     }
