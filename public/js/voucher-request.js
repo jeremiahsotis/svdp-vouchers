@@ -9,9 +9,13 @@
 
         const messageDiv = $('#svdpFormMessage');
         const catalogContainer = $('#svdpFurnitureCatalog');
+        const catalogLoadingState = $('#svdpFurnitureCatalogLoading');
+        const searchInput = $('#svdpFurnitureSearch');
+        const searchEmptyState = $('#svdpFurnitureSearchEmpty');
         const deliveryRequiredInput = $('#svdpDeliveryRequired');
         const deliveryAddressFields = $('#svdpDeliveryAddressFields');
         const deliveryFeeNote = $('#svdpDeliveryFeeNote');
+        const summaryDeliveryFee = $('#svdpSummaryDeliveryFee');
         const allVoucherTypes = form.find('[name="voucherType"]').map(function() {
             return $(this).val();
         }).get().filter(function(type, index, array) {
@@ -21,7 +25,10 @@
             catalogLoaded: false,
             catalogLoading: false,
             catalogCategories: [],
+            catalogByCategory: {},
             catalogById: {},
+            openCategories: {},
+            searchQuery: '',
             selectedItems: {},
             currentVoucherType: form.data('default-voucher-type') || 'clothing'
         };
@@ -29,9 +36,11 @@
         initializeDateInput();
         initializeVoucherTypeControls();
         initializeConferenceControls();
+        initializeSearchControls();
         initializeDeliveryControls();
         syncVoucherTypeAvailability();
         syncVoucherBranch();
+        syncDeliveryControls();
         updateFurnitureSummary();
 
         form.on('submit', function(e) {
@@ -128,6 +137,17 @@
                 syncVoucherBranch();
             });
 
+            catalogContainer.on('click', '[data-category-card]', function() {
+                const categoryKey = $(this).attr('data-category-card');
+
+                if (!categoryKey) {
+                    return;
+                }
+
+                state.openCategories[categoryKey] = !state.openCategories[categoryKey];
+                syncCategorySectionState();
+            });
+
             catalogContainer.on('click', '[data-catalog-adjust]', function() {
                 const button = $(this);
                 const itemId = Number(button.attr('data-catalog-item-id'));
@@ -154,12 +174,37 @@
             });
         }
 
+        function initializeSearchControls() {
+            searchInput.on('input', function() {
+                state.searchQuery = normalizeSearchQuery($(this).val());
+
+                if (state.catalogLoaded) {
+                    renderCatalog();
+                    updateFurnitureSummary();
+                }
+            });
+        }
+
         function initializeDeliveryControls() {
             deliveryRequiredInput.on('change', function() {
-                const showDeliveryFields = $(this).is(':checked');
-                deliveryAddressFields.prop('hidden', !showDeliveryFields);
-                deliveryFeeNote.prop('hidden', !showDeliveryFields);
+                syncDeliveryControls();
                 updateFurnitureSummary();
+            });
+        }
+
+        function syncDeliveryControls() {
+            const voucherType = getCurrentVoucherType();
+            const showDeliveryFields = voucherType === 'furniture' && deliveryRequiredInput.is(':checked');
+            const requiredDeliveryFields = ['deliveryLine1', 'deliveryCity', 'deliveryState', 'deliveryZip'];
+
+            deliveryAddressFields
+                .prop('hidden', !showDeliveryFields)
+                .attr('aria-hidden', showDeliveryFields ? 'false' : 'true');
+
+            deliveryAddressFields.find('input').prop('disabled', !showDeliveryFields);
+
+            requiredDeliveryFields.forEach(function(fieldName) {
+                form.find('[name="' + fieldName + '"]').prop('required', showDeliveryFields);
             });
         }
 
@@ -265,6 +310,7 @@
                 ensureCatalogLoaded();
             }
 
+            syncDeliveryControls();
             updateFurnitureSummary();
         }
 
@@ -283,24 +329,30 @@
                 },
                 success: function(response) {
                     state.catalogCategories = response.categories || [];
+                    state.catalogByCategory = {};
                     state.catalogById = {};
 
                     state.catalogCategories.forEach(function(category) {
+                        state.catalogByCategory[category.key] = category;
+
                         (category.items || []).forEach(function(item) {
                             state.catalogById[Number(item.id)] = item;
                         });
                     });
 
                     state.catalogLoaded = true;
+                    searchInput.prop('disabled', false);
                     renderCatalog();
                     updateFurnitureSummary();
                 },
                 error: function() {
-                    catalogContainer.html(
-                        '<div class="svdp-message error">' +
+                    catalogLoadingState.prop('hidden', true);
+                    catalogContainer.prepend(
+                        '<div class="svdp-message error svdp-furniture-shell-error">' +
                             'Unable to load furniture catalog items right now. Please try again.' +
                         '</div>'
                     );
+                    searchInput.prop('disabled', true);
                 },
                 complete: function() {
                     state.catalogLoading = false;
@@ -309,45 +361,120 @@
         }
 
         function renderCatalog() {
-            if (!state.catalogCategories.length) {
-                catalogContainer.html(
-                    '<div class="svdp-empty-state">' +
-                        '<div class="svdp-empty-icon">🪑</div>' +
-                        '<div class="svdp-empty-text">No furniture catalog items are active yet.</div>' +
-                    '</div>'
+            const visibleCounts = {};
+            const searchActive = state.searchQuery !== '';
+            let totalVisibleMatches = 0;
+
+            catalogContainer.find('.svdp-furniture-shell-error').remove();
+
+            state.catalogCategories.forEach(function(category) {
+                const visibleItems = getVisibleItemsForCategory(category);
+                visibleCounts[category.key] = visibleItems.length;
+                totalVisibleMatches += visibleItems.length;
+            });
+
+            catalogContainer.find('[data-category-card]').each(function() {
+                const card = $(this);
+                const categoryKey = card.attr('data-category-card');
+                const visibleCount = Number(visibleCounts[categoryKey] || 0);
+
+                card.toggleClass('is-empty', !searchActive && visibleCount === 0);
+                card.toggleClass('is-filtered-out', searchActive && visibleCount === 0);
+                card.prop('hidden', searchActive && visibleCount === 0);
+                card.find('[data-category-available-count]').text(
+                    searchActive ? formatMatchCount(visibleCount) : formatAvailableCount(visibleCount)
                 );
-                return;
+            });
+
+            catalogContainer.find('[data-category-section]').each(function() {
+                const section = $(this);
+                const categoryKey = section.attr('data-category-section');
+                const category = state.catalogByCategory[categoryKey] || { items: [] };
+                const items = getVisibleItemsForCategory(category);
+                const visibleCount = Number(visibleCounts[categoryKey] || 0);
+
+                section.toggleClass('is-empty', visibleCount === 0);
+                section.find('[data-category-pill]').text(
+                    searchActive ? formatMatchCount(visibleCount) : (visibleCount > 0 ? formatAvailableCount(visibleCount) : 'No active items')
+                );
+                section.attr('data-visible-item-count', String(visibleCount));
+
+                section.find('.svdp-furniture-category-section-body').html(
+                    renderCategorySectionBody(items, categoryKey)
+                );
+            });
+
+            searchEmptyState.prop('hidden', !searchActive || totalVisibleMatches > 0);
+            catalogContainer.attr('data-catalog-loaded', 'true');
+            catalogLoadingState.prop('hidden', true);
+            syncCategorySectionState();
+            updateCatalogQuantities();
+            updateCategorySelectedCounts();
+        }
+
+        function getVisibleItemsForCategory(category) {
+            const items = category && Array.isArray(category.items) ? category.items : [];
+
+            if (!state.searchQuery) {
+                return items;
             }
 
-            const html = state.catalogCategories.map(function(category) {
-                const itemsHtml = (category.items || []).map(function(item) {
-                    const itemId = Number(item.id);
-                    const quantity = Number(state.selectedItems[itemId] || 0);
+            return items.filter(function(item) {
+                const searchableText = normalizeSearchQuery([
+                    item.name,
+                    item.categoryLabel,
+                    item.priceDisplay
+                ].join(' '));
 
-                    return '' +
-                        '<article class="svdp-catalog-item" data-catalog-item="' + itemId + '">' +
-                            '<div class="svdp-catalog-item-copy">' +
-                                '<h4>' + escapeHtml(item.name) + '</h4>' +
-                                '<p>' + escapeHtml(item.priceDisplay) + '</p>' +
-                            '</div>' +
-                            '<div class="svdp-catalog-item-controls">' +
-                                '<button type="button" class="svdp-qty-btn" data-catalog-adjust="decrement" data-catalog-item-id="' + itemId + '" aria-label="Remove one ' + escapeHtml(item.name) + '">-</button>' +
-                                '<span class="svdp-qty-value" data-catalog-qty="' + itemId + '">' + quantity + '</span>' +
-                                '<button type="button" class="svdp-qty-btn" data-catalog-adjust="increment" data-catalog-item-id="' + itemId + '" aria-label="Add one ' + escapeHtml(item.name) + '">+</button>' +
-                            '</div>' +
-                        '</article>';
-                }).join('');
+                return searchableText.indexOf(state.searchQuery) !== -1;
+            });
+        }
+
+        function renderCategorySectionBody(items, categoryKey) {
+            if (!items.length) {
+                return '' +
+                    '<p class="svdp-furniture-category-placeholder" data-category-placeholder="' + escapeHtml(categoryKey) + '">' +
+                        (state.searchQuery
+                            ? 'No items in this category match the current search.'
+                            : 'No active catalog items are currently available in this category.') +
+                    '</p>';
+            }
+
+            return items.map(function(item) {
+                const itemId = Number(item.id);
+                const quantity = Number(state.selectedItems[itemId] || 0);
 
                 return '' +
-                    '<section class="svdp-catalog-category">' +
-                        '<div class="svdp-catalog-category-header">' +
-                            '<h4>' + escapeHtml(category.label) + '</h4>' +
+                    '<article class="svdp-catalog-item' + (quantity > 0 ? ' is-selected' : '') + '" data-catalog-item="' + itemId + '">' +
+                        '<div class="svdp-catalog-item-copy">' +
+                            '<h5>' + escapeHtml(item.name) + '</h5>' +
+                            '<p>' + escapeHtml(item.priceDisplay) + '</p>' +
                         '</div>' +
-                        '<div class="svdp-catalog-category-items">' + itemsHtml + '</div>' +
-                    '</section>';
+                        '<div class="svdp-catalog-item-controls">' +
+                            '<button type="button" class="svdp-qty-btn" data-catalog-adjust="decrement" data-catalog-item-id="' + itemId + '" aria-label="Remove one ' + escapeHtml(item.name) + '"' + (quantity === 0 ? ' disabled' : '') + '>-</button>' +
+                            '<span class="svdp-qty-value" data-catalog-qty="' + itemId + '">' + quantity + '</span>' +
+                            '<button type="button" class="svdp-qty-btn" data-catalog-adjust="increment" data-catalog-item-id="' + itemId + '" aria-label="Add one ' + escapeHtml(item.name) + '">+</button>' +
+                        '</div>' +
+                    '</article>';
             }).join('');
+        }
 
-            catalogContainer.html(html);
+        function syncCategorySectionState() {
+            const searchActive = state.searchQuery !== '';
+
+            catalogContainer.find('[data-category-card]').each(function() {
+                const card = $(this);
+                const categoryKey = card.attr('data-category-card');
+                const section = catalogContainer.find('[data-category-section="' + categoryKey + '"]');
+                const visibleCount = Number(section.attr('data-visible-item-count') || 0);
+                const isOpen = searchActive ? visibleCount > 0 : !!state.openCategories[categoryKey];
+                const shouldShowSection = searchActive ? visibleCount > 0 : isOpen;
+
+                card.attr('aria-expanded', isOpen ? 'true' : 'false');
+                card.toggleClass('is-open', isOpen);
+                section.prop('hidden', !shouldShowSection);
+                section.toggleClass('is-open', shouldShowSection);
+            });
         }
 
         function updateCatalogQuantities() {
@@ -355,7 +482,12 @@
                 const quantityNode = $(this);
                 const itemId = Number(quantityNode.attr('data-catalog-qty'));
                 const quantity = Number(state.selectedItems[itemId] || 0);
+
                 quantityNode.text(quantity);
+
+                const itemRow = catalogContainer.find('[data-catalog-item="' + itemId + '"]');
+                itemRow.toggleClass('is-selected', quantity > 0);
+                itemRow.find('[data-catalog-adjust="decrement"]').prop('disabled', quantity === 0);
             });
         }
 
@@ -405,13 +537,42 @@
                 }
             });
 
-            const deliveryFee = deliveryRequiredInput.is(':checked') ? Number(svdpVouchers.deliveryFee || 50) : 0;
+            const deliveryFee = getCurrentVoucherType() === 'furniture' && deliveryRequiredInput.is(':checked')
+                ? Number(svdpVouchers.deliveryFee || 50)
+                : 0;
             const requestorMin = (estimatedTotalMin * 0.5) + deliveryFee;
             const requestorMax = (estimatedTotalMax * 0.5) + deliveryFee;
 
             summaryCount.text(itemCount);
             summaryTotal.text(formatMoneyRange(estimatedTotalMin, estimatedTotalMax));
             summaryRequestor.text(formatMoneyRange(requestorMin, requestorMax));
+            summaryDeliveryFee.text('$' + deliveryFee.toFixed(2));
+            deliveryFeeNote.prop('hidden', deliveryFee === 0);
+            updateCategorySelectedCounts();
+        }
+
+        function updateCategorySelectedCounts() {
+            const categorySelectedCounts = {};
+
+            Object.keys(state.selectedItems).forEach(function(key) {
+                const itemId = Number(key);
+                const quantity = Number(state.selectedItems[key] || 0);
+                const item = state.catalogById[itemId];
+
+                if (!item || quantity <= 0) {
+                    return;
+                }
+
+                categorySelectedCounts[item.category] = Number(categorySelectedCounts[item.category] || 0) + quantity;
+            });
+
+            catalogContainer.find('[data-category-selected-count]').each(function() {
+                const counter = $(this);
+                const categoryKey = counter.attr('data-category-selected-count');
+                const selectedCount = Number(categorySelectedCounts[categoryKey] || 0);
+
+                counter.text(selectedCount === 1 ? '1 selected' : selectedCount + ' selected');
+            });
         }
 
         function validateFurnitureSelection() {
@@ -573,7 +734,7 @@
             message += '<strong>Request Summary:</strong><br>';
             message += '• Selected items: <strong>' + escapeHtml(String(response.itemCount || 0)) + '</strong><br>';
             message += '• Estimated total: <strong>' + escapeHtml(formatMoneyRange(response.estimatedTotalMin || 0, response.estimatedTotalMax || 0)) + '</strong><br>';
-            message += '• Estimated requestor portion: <strong>' + escapeHtml(formatMoneyRange(response.estimatedRequestorPortionMin || 0, response.estimatedRequestorPortionMax || 0)) + '</strong><br>';
+            message += '• Estimated Conference portion: <strong>' + escapeHtml(formatMoneyRange(response.estimatedRequestorPortionMin || 0, response.estimatedRequestorPortionMax || 0)) + '</strong><br>';
 
             if (response.deliveryRequired) {
                 message += '• Delivery fee included: <strong>$' + escapeHtml(Number(response.deliveryFee || 0).toFixed(2)) + '</strong><br>';
@@ -587,12 +748,21 @@
 
         function resetFormState() {
             form[0].reset();
+            state.openCategories = {};
+            state.searchQuery = '';
             state.selectedItems = {};
-            updateCatalogQuantities();
-            deliveryAddressFields.prop('hidden', true);
-            deliveryFeeNote.prop('hidden', true);
+            searchInput.val('');
             setCurrentVoucherType(form.data('default-voucher-type') || 'clothing');
             syncVoucherTypeAvailability();
+            syncDeliveryControls();
+
+            if (state.catalogLoaded) {
+                renderCatalog();
+            } else {
+                syncCategorySectionState();
+                updateCatalogQuantities();
+            }
+
             updateFurnitureSummary();
         }
 
@@ -613,6 +783,22 @@
             }
 
             return '$' + normalizedMin.toFixed(2) + ' - $' + normalizedMax.toFixed(2);
+        }
+
+        function formatAvailableCount(count) {
+            return count === 1 ? '1 item ready' : count + ' items ready';
+        }
+
+        function formatMatchCount(count) {
+            if (count === 0) {
+                return 'No matches';
+            }
+
+            return count === 1 ? '1 match' : count + ' matches';
+        }
+
+        function normalizeSearchQuery(value) {
+            return $.trim(String(value || '')).toLowerCase();
         }
 
         function escapeHtml(value) {

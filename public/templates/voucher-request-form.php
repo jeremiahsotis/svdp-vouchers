@@ -32,6 +32,20 @@
         'clothing' => 'Keep the current clothing voucher request flow.',
         'furniture' => 'Select requested furniture items, capture delivery needs, and save the estimate range.',
     ];
+    $furniture_categories = class_exists('SVDP_Furniture_Catalog')
+        ? SVDP_Furniture_Catalog::get_categories()
+        : [
+            'used_furniture' => 'Used Furniture',
+            'handmade_furniture' => 'Handmade Furniture',
+            'mattresses_frames' => 'Mattresses & Frames',
+            'household_goods' => 'Household Goods',
+        ];
+    $furniture_category_hints = [
+        'used_furniture' => 'Sofas, tables, chairs, and more',
+        'handmade_furniture' => 'Built pieces and restored essentials',
+        'mattresses_frames' => 'Beds, bunks, frames, and supports',
+        'household_goods' => 'Kitchen, bath, and daily-use goods',
+    ];
     ?>
 
     <?php if (!empty($store_hours) || !empty($redemption_instructions)): ?>
@@ -143,10 +157,78 @@
                         <strong>Furniture Request</strong>
                         <span>Select one or more items by category. Final fulfilled pricing may vary from the estimate shown here.</span>
                     </div>
-                    <div id="svdpFurnitureCatalog" class="svdp-furniture-catalog">
-                        <div class="svdp-loading">
-                            <div class="svdp-spinner"></div>
-                            <p>Loading furniture catalog...</p>
+                    <div class="svdp-furniture-browser">
+                        <div class="svdp-form-group svdp-furniture-search-shell">
+                            <label for="svdpFurnitureSearch">Search Furniture Catalog</label>
+                            <input
+                                type="search"
+                                id="svdpFurnitureSearch"
+                                class="svdp-furniture-search-input"
+                                placeholder="Search across all furniture items"
+                                autocomplete="off"
+                                disabled
+                            >
+                            <small class="svdp-help-text">Search across all furniture categories. Clearing the search restores category browsing.</small>
+                        </div>
+
+                        <div id="svdpFurnitureCatalog" class="svdp-furniture-catalog" data-catalog-loaded="false">
+                            <div id="svdpFurnitureCategoryCards" class="svdp-furniture-category-grid">
+                                <?php foreach ($furniture_categories as $category_key => $category_label): ?>
+                                    <button
+                                        type="button"
+                                        class="svdp-furniture-category-card"
+                                        data-category-card="<?php echo esc_attr($category_key); ?>"
+                                        aria-controls="svdpFurnitureCategorySection-<?php echo esc_attr($category_key); ?>"
+                                        aria-expanded="false"
+                                    >
+                                        <span class="svdp-furniture-category-card-copy">
+                                            <span class="svdp-furniture-category-card-title"><?php echo esc_html($category_label); ?></span>
+                                            <span class="svdp-furniture-category-card-hint">
+                                                <?php echo esc_html($furniture_category_hints[$category_key] ?? 'Browse this category'); ?>
+                                            </span>
+                                        </span>
+                                        <span class="svdp-furniture-category-card-meta">
+                                            <span class="svdp-furniture-category-card-count" data-category-selected-count="<?php echo esc_attr($category_key); ?>">0 selected</span>
+                                            <span class="svdp-furniture-category-card-status" data-category-available-count="<?php echo esc_attr($category_key); ?>">Loading items</span>
+                                        </span>
+                                    </button>
+                                <?php endforeach; ?>
+                            </div>
+
+                            <div id="svdpFurnitureCategorySections" class="svdp-furniture-category-sections">
+                                <?php foreach ($furniture_categories as $category_key => $category_label): ?>
+                                    <section
+                                        id="svdpFurnitureCategorySection-<?php echo esc_attr($category_key); ?>"
+                                        class="svdp-furniture-category-section"
+                                        data-category-section="<?php echo esc_attr($category_key); ?>"
+                                        hidden
+                                    >
+                                        <div class="svdp-furniture-category-section-header">
+                                            <div class="svdp-furniture-category-section-copy">
+                                                <h4><?php echo esc_html($category_label); ?></h4>
+                                                <p><?php echo esc_html($furniture_category_hints[$category_key] ?? ''); ?></p>
+                                            </div>
+                                            <span class="svdp-furniture-category-section-pill" data-category-pill="<?php echo esc_attr($category_key); ?>">Loading...</span>
+                                        </div>
+
+                                        <div class="svdp-furniture-category-section-body">
+                                            <p class="svdp-furniture-category-placeholder" data-category-placeholder="<?php echo esc_attr($category_key); ?>">
+                                                Catalog items for this category will appear here once the shell is hydrated.
+                                            </p>
+                                        </div>
+                                    </section>
+                                <?php endforeach; ?>
+                            </div>
+
+                            <div id="svdpFurnitureSearchEmpty" class="svdp-empty-state svdp-furniture-search-empty" hidden>
+                                <div class="svdp-empty-icon">🔎</div>
+                                <div class="svdp-empty-text">No furniture items match that search yet.</div>
+                            </div>
+
+                            <div id="svdpFurnitureCatalogLoading" class="svdp-loading">
+                                <div class="svdp-spinner"></div>
+                                <p>Loading furniture catalog...</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -162,7 +244,7 @@
                         <strong id="svdpSummaryTotal">$0.00</strong>
                     </div>
                     <div class="svdp-summary-row">
-                        <span>Requestor Portion</span>
+                        <span>Estimated Conference Portion</span>
                         <strong id="svdpSummaryRequestor">$0.00</strong>
                     </div>
 
@@ -171,8 +253,9 @@
                         <span>Add Delivery (+$50.00)</span>
                     </label>
 
-                    <div id="svdpDeliveryFeeNote" class="svdp-delivery-note" hidden>
-                        Delivery fee applied: $50.00
+                    <div id="svdpDeliveryFeeNote" class="svdp-summary-row svdp-summary-row-delivery" hidden>
+                        <span>Delivery Fee</span>
+                        <strong id="svdpSummaryDeliveryFee">$50.00</strong>
                     </div>
 
                     <div id="svdpDeliveryAddressFields" class="svdp-delivery-address-fields" hidden>
@@ -200,7 +283,7 @@
                         </div>
                     </div>
 
-                    <p class="svdp-help-text">The requestor portion is estimated at 50% of the selected item range, plus delivery when selected.</p>
+                    <p class="svdp-help-text">The Conference portion currently uses the existing 50% estimate, plus delivery when selected.</p>
                 </aside>
             </div>
         </div>
