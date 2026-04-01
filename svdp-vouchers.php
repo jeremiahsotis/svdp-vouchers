@@ -22,8 +22,17 @@ define('SVDP_VOUCHERS_PLUGIN_URL', plugin_dir_url(__FILE__));
 // Include required files
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-database.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-settings.php';
+require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-permissions.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-conference.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-voucher.php';
+require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-furniture-catalog.php';
+require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-furniture-cancellation-reason.php';
+require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-furniture-photo-storage.php';
+require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-furniture-receipt.php';
+require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-invoice.php';
+require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-statement.php';
+require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-furniture-voucher.php';
+require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-cashier-shell.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-shortcodes.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-admin.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-manager.php';
@@ -54,20 +63,18 @@ class SVDP_Vouchers_Plugin {
 
         // REST API authentication for long-running sessions
         add_filter('rest_authentication_errors', [$this, 'handle_rest_authentication'], 99);
+        add_filter('rest_pre_serve_request', [$this, 'serve_cashier_html_fragments'], 10, 4);
+
+        // Extend cashier sessions beyond the default WordPress cookie lifetime
+        add_filter('auth_cookie_expiration', [$this, 'extend_cashier_auth_cookie'], 10, 3);
     }
     
     /**
      * Plugin activation
      */
     public function activate() {
-        // Create database tables
-        SVDP_Database::create_tables();
-
-        // Run migration for existing databases
-        SVDP_Database::migrate_to_v2();
-
-        // Create cashier role
-        $this->create_cashier_role();
+        SVDP_Database::maybe_upgrade();
+        SVDP_Permissions::register_roles_and_capabilities();
 
         // Flush rewrite rules
         flush_rewrite_rules();
@@ -82,20 +89,12 @@ class SVDP_Vouchers_Plugin {
     }
     
     /**
-     * Create cashier role
-     */
-    private function create_cashier_role() {
-        // Add custom role for cashiers
-        add_role('svdp_cashier', 'SVdP Cashier', [
-            'read' => true,
-            'access_cashier_station' => true,
-        ]);
-    }
-    
-    /**
      * Initialize plugin components
      */
     public function init() {
+        SVDP_Database::maybe_upgrade();
+        SVDP_Permissions::register_roles_and_capabilities();
+
         // Initialize shortcodes
         new SVDP_Shortcodes();
         
@@ -127,6 +126,13 @@ class SVDP_Vouchers_Plugin {
         register_rest_route('svdp/v1', '/vouchers/create', [
             'methods' => 'POST',
             'callback' => ['SVDP_Voucher', 'create_voucher'],
+            'permission_callback' => '__return_true'
+        ]);
+
+        // Get active catalog items for the public furniture request flow
+        register_rest_route('svdp/v1', '/catalog-items', [
+            'methods' => 'GET',
+            'callback' => ['SVDP_Furniture_Catalog', 'get_public_catalog_items'],
             'permission_callback' => '__return_true'
         ]);
         
@@ -182,6 +188,79 @@ class SVDP_Vouchers_Plugin {
             'permission_callback' => '__return_true'
         ]);
 
+        // Cashier shell fragments
+        register_rest_route('svdp/v1', '/cashier/ping', [
+            'methods' => 'POST',
+            'callback' => ['SVDP_Cashier_Shell', 'ping'],
+            'permission_callback' => [$this, 'user_can_access_cashier']
+        ]);
+
+        register_rest_route('svdp/v1', '/cashier/vouchers', [
+            'methods' => 'GET',
+            'callback' => ['SVDP_Cashier_Shell', 'get_vouchers_fragment'],
+            'permission_callback' => [$this, 'user_can_access_cashier']
+        ]);
+
+        register_rest_route('svdp/v1', '/cashier/vouchers/(?P<id>\d+)', [
+            'methods' => 'GET',
+            'callback' => ['SVDP_Cashier_Shell', 'get_voucher_detail_fragment'],
+            'permission_callback' => [$this, 'user_can_access_cashier']
+        ]);
+
+        register_rest_route('svdp/v1', '/cashier/vouchers/(?P<id>\d+)/items/(?P<item_id>\d+)/photo', [
+            'methods' => 'POST',
+            'callback' => ['SVDP_Furniture_Voucher', 'upload_item_photo'],
+            'permission_callback' => [$this, 'user_can_redeem_furniture_vouchers']
+        ]);
+
+        register_rest_route('svdp/v1', '/cashier/vouchers/(?P<id>\d+)/items/(?P<item_id>\d+)/complete', [
+            'methods' => 'POST',
+            'callback' => ['SVDP_Furniture_Voucher', 'complete_item'],
+            'permission_callback' => [$this, 'user_can_redeem_furniture_vouchers']
+        ]);
+
+        register_rest_route('svdp/v1', '/cashier/vouchers/(?P<id>\d+)/items/(?P<item_id>\d+)/substitute', [
+            'methods' => 'POST',
+            'callback' => ['SVDP_Furniture_Voucher', 'substitute_item'],
+            'permission_callback' => [$this, 'user_can_redeem_furniture_vouchers']
+        ]);
+
+        register_rest_route('svdp/v1', '/cashier/vouchers/(?P<id>\d+)/items/(?P<item_id>\d+)/cancel', [
+            'methods' => 'POST',
+            'callback' => ['SVDP_Furniture_Voucher', 'cancel_item'],
+            'permission_callback' => [$this, 'user_can_redeem_furniture_vouchers']
+        ]);
+
+        register_rest_route('svdp/v1', '/cashier/vouchers/(?P<id>\d+)/complete', [
+            'methods' => 'POST',
+            'callback' => ['SVDP_Furniture_Voucher', 'complete_voucher'],
+            'permission_callback' => [$this, 'user_can_redeem_furniture_vouchers']
+        ]);
+
+        register_rest_route('svdp/v1', '/admin/invoices', [
+            'methods' => 'GET',
+            'callback' => ['SVDP_Invoice', 'get_admin_invoices'],
+            'permission_callback' => [$this, 'user_can_manage_admin']
+        ]);
+
+        register_rest_route('svdp/v1', '/admin/statements/default-range', [
+            'methods' => 'GET',
+            'callback' => ['SVDP_Statement', 'get_default_range'],
+            'permission_callback' => [$this, 'user_can_manage_admin']
+        ]);
+
+        register_rest_route('svdp/v1', '/admin/statements/generate', [
+            'methods' => 'POST',
+            'callback' => ['SVDP_Statement', 'generate_statement'],
+            'permission_callback' => [$this, 'user_can_manage_admin']
+        ]);
+
+        register_rest_route('svdp/v1', '/admin/statements/(?P<id>\d+)', [
+            'methods' => 'GET',
+            'callback' => ['SVDP_Statement', 'get_statement'],
+            'permission_callback' => [$this, 'user_can_manage_admin']
+        ]);
+
     }
 
     /**
@@ -226,43 +305,145 @@ class SVDP_Vouchers_Plugin {
      * allowing cookie-only authentication for long sessions.
      */
     public function handle_rest_authentication($result) {
-        // If another plugin has already handled auth, respect that
-        if ($result !== null) {
+        $rest_route = $this->get_current_rest_route();
+        if (!$this->is_svdp_rest_route($rest_route)) {
             return $result;
         }
 
-        // Only apply to SVDP REST routes
-        $rest_route = $GLOBALS['wp']->query_vars['rest_route'] ?? '';
-        if (strpos($rest_route, '/svdp/v1/') !== 0) {
-            return $result; // Let WordPress handle other routes normally
-        }
-
-        // For SVDP routes, validate the cookie manually
-        // This bypasses the nonce check but still requires valid login
         $user_id = wp_validate_auth_cookie('', 'logged_in');
-
-        if ($user_id) {
-            // Valid cookie - set the current user
-            wp_set_current_user($user_id);
-            return true; // Authentication successful
+        if (!$user_id) {
+            return $result;
         }
 
-        // No valid cookie - let WordPress continue with normal auth
-        // (which will fail, returning 401/403 as expected)
-        return $result;
+        wp_set_current_user($user_id);
+
+        if ($result instanceof WP_Error) {
+            $recoverable_errors = [
+                'rest_cookie_invalid_nonce',
+                'rest_not_logged_in',
+            ];
+
+            $error_codes = $result->get_error_codes();
+            $has_recoverable_error = count(array_intersect($recoverable_errors, $error_codes)) > 0;
+
+            if (!$has_recoverable_error) {
+                return $result;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Serve cashier fragment routes as raw HTML so HTMX can swap them directly.
+     */
+    public function serve_cashier_html_fragments($served, $result, $request, $server) {
+        $route = $request->get_route();
+        if (strpos($route, '/svdp/v1/cashier/') !== 0) {
+            return $served;
+        }
+
+        $headers = $result->get_headers();
+        $content_type = isset($headers['Content-Type']) ? $headers['Content-Type'] : '';
+        if (strpos($content_type, 'text/html') !== 0) {
+            return $served;
+        }
+
+        $server->send_header('Content-Type', $content_type);
+        $server->send_header('X-Robots-Tag', 'noindex');
+        status_header($result->get_status());
+        echo $result->get_data();
+
+        return true;
     }
 
     /**
      * Check if current user has cashier access
      */
     public function user_can_access_cashier() {
-        if (!is_user_logged_in()) {
-            return false;
+        return SVDP_Permissions::user_can_access_cashier();
+    }
+
+    /**
+     * Check whether the current user can mutate furniture voucher items.
+     *
+     * @return bool
+     */
+    public function user_can_redeem_furniture_vouchers() {
+        return SVDP_Permissions::user_can_access_cashier()
+            && SVDP_Permissions::user_can_redeem_furniture_vouchers();
+    }
+
+    /**
+     * Check whether the current user can access admin accounting routes.
+     *
+     * @return bool
+     */
+    public function user_can_manage_admin() {
+        return current_user_can('manage_options');
+    }
+
+    /**
+     * Determine whether the current request is one of the plugin REST routes.
+     *
+     * @param string $rest_route Route path.
+     * @return bool
+     */
+    private function is_svdp_rest_route($rest_route) {
+        return is_string($rest_route) && strpos($rest_route, '/svdp/v1/') === 0;
+    }
+
+    /**
+     * Resolve the current REST route for both pretty and query-string API URLs.
+     *
+     * @return string
+     */
+    private function get_current_rest_route() {
+        $rest_route = $GLOBALS['wp']->query_vars['rest_route'] ?? '';
+        if (is_string($rest_route) && $rest_route !== '') {
+            return '/' . ltrim($rest_route, '/');
         }
 
-        $user = wp_get_current_user();
-        return in_array('svdp_cashier', $user->roles) ||
-               in_array('administrator', $user->roles);
+        if (isset($_GET['rest_route'])) {
+            $rest_route = wp_unslash($_GET['rest_route']);
+            if (is_string($rest_route) && $rest_route !== '') {
+                return '/' . ltrim($rest_route, '/');
+            }
+        }
+
+        $request_uri = isset($_SERVER['REQUEST_URI']) ? wp_unslash($_SERVER['REQUEST_URI']) : '';
+        if (!is_string($request_uri) || $request_uri === '') {
+            return '';
+        }
+
+        $request_path = wp_parse_url($request_uri, PHP_URL_PATH);
+        if (!is_string($request_path) || $request_path === '') {
+            return '';
+        }
+
+        $rest_prefix = '/' . trim(rest_get_url_prefix(), '/');
+        $prefix_position = strpos($request_path, $rest_prefix . '/');
+        if ($prefix_position === false) {
+            return '';
+        }
+
+        return substr($request_path, $prefix_position + strlen($rest_prefix));
+    }
+
+    /**
+     * Keep cashier auth cookies alive for longer staffed sessions.
+     */
+    public function extend_cashier_auth_cookie($length, $user_id, $remember) {
+        $user = get_userdata($user_id);
+        if (!$user) {
+            return $length;
+        }
+
+        if (SVDP_Permissions::user_can_access_cashier($user)) {
+            return 14 * DAY_IN_SECONDS;
+        }
+
+        return $length;
     }
 
     /**
@@ -291,31 +472,85 @@ class SVDP_Vouchers_Plugin {
         if (is_admin()) {
             return;
         }
-        
-        // Always enqueue CSS (version bumped to bust cache after card redesign)
-        wp_enqueue_style('svdp-vouchers-public', SVDP_VOUCHERS_PLUGIN_URL . 'public/css/voucher-forms.css', [], '1.1.0');
 
-        // Enqueue WordPress Heartbeat API for session management
-        wp_enqueue_script('heartbeat');
+        $has_request_form = $this->page_has_shortcode('svdp_voucher_request');
+        $has_cashier_shell = $this->page_has_shortcode('svdp_cashier_station');
 
-        // Enqueue both JS files (they only activate on their respective pages)
-        wp_enqueue_script('svdp-vouchers-request', SVDP_VOUCHERS_PLUGIN_URL . 'public/js/voucher-request.js', ['jquery'], SVDP_VOUCHERS_VERSION, true);
-        wp_enqueue_script('svdp-vouchers-cashier', SVDP_VOUCHERS_PLUGIN_URL . 'public/js/cashier-station.js', ['jquery', 'heartbeat'], '1.1.0', true);
-        
-        // Localize scripts
+        if (!$has_request_form && !$has_cashier_shell) {
+            return;
+        }
+
+        wp_enqueue_style('svdp-vouchers-public', SVDP_VOUCHERS_PLUGIN_URL . 'public/css/voucher-forms.css', [], SVDP_VOUCHERS_VERSION);
+
         $item_values = SVDP_Settings::get_item_values();
         $script_data = [
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'restUrl' => rest_url(),
             'nonce' => wp_create_nonce('wp_rest'),
+            'deliveryFee' => 50,
             'itemValues' => [
                 'adult' => floatval($item_values['adult']),
                 'child' => floatval($item_values['child'])
             ]
         ];
 
-        wp_localize_script('svdp-vouchers-request', 'svdpVouchers', $script_data);
-        wp_localize_script('svdp-vouchers-cashier', 'svdpVouchers', $script_data);
+        if ($has_request_form) {
+            wp_enqueue_script('svdp-vouchers-request', SVDP_VOUCHERS_PLUGIN_URL . 'public/js/voucher-request.js', ['jquery'], SVDP_VOUCHERS_VERSION, true);
+            wp_localize_script('svdp-vouchers-request', 'svdpVouchers', $script_data);
+        }
+
+        if ($has_cashier_shell) {
+            wp_enqueue_script('svdp-htmx', SVDP_VOUCHERS_PLUGIN_URL . 'public/vendor/htmx.min.js', [], '1.9.12', true);
+            wp_enqueue_script('svdp-alpine', SVDP_VOUCHERS_PLUGIN_URL . 'public/vendor/alpine.min.js', [], '3.14.9', true);
+            wp_script_add_data('svdp-alpine', 'defer', true);
+            wp_add_inline_script('svdp-alpine', <<<'JS'
+document.addEventListener('alpine:init', function() {
+    if (!window.Alpine || window.Alpine.store('cashier')) {
+        return;
+    }
+
+    window.Alpine.store('cashier', {
+        sessionLost: false,
+        keepaliveState: 'idle',
+        keepaliveLabel: 'Connecting',
+        emergencyOpen: false,
+        activePanel: null,
+        overrideOpen: false,
+        selectedVoucherId: null
+    });
+});
+JS, 'before');
+            wp_enqueue_script('svdp-cashier-shell', SVDP_VOUCHERS_PLUGIN_URL . 'public/js/cashier-shell.js', ['svdp-htmx', 'svdp-alpine'], SVDP_VOUCHERS_VERSION, true);
+            wp_localize_script('svdp-cashier-shell', 'svdpCashierShell', [
+                'restUrl' => rest_url(),
+                'nonce' => wp_create_nonce('wp_rest'),
+                'loginUrl' => wp_login_url($this->current_frontend_url()),
+                'pingInterval' => 60000,
+            ]);
+        }
+    }
+
+    /**
+     * Check the active frontend post for a shortcode.
+     */
+    private function page_has_shortcode($shortcode) {
+        global $post;
+
+        return is_a($post, 'WP_Post') && has_shortcode($post->post_content, $shortcode);
+    }
+
+    /**
+     * Build a login return URL for cashier re-auth.
+     */
+    private function current_frontend_url() {
+        if (is_singular()) {
+            $permalink = get_permalink();
+            if ($permalink) {
+                return $permalink;
+            }
+        }
+
+        return home_url('/');
     }
 }
 

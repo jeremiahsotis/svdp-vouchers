@@ -45,7 +45,7 @@ class SVDP_Shortcodes {
         }
         
         $user = wp_get_current_user();
-        if (!in_array('svdp_cashier', $user->roles) && !in_array('administrator', $user->roles)) {
+        if (!SVDP_Permissions::user_can_access_cashier($user)) {
             return '<p>You do not have permission to access the cashier station.</p>';
         }
         

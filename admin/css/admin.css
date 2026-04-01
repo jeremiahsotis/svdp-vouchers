@@ -93,6 +93,81 @@ tr.inactive td {
     margin: 10px 0;
 }
 
+.svdp-admin-grid {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    margin-bottom: 16px;
+}
+
+.svdp-admin-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.svdp-inline-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.svdp-space-between {
+    justify-content: space-between;
+}
+
+.svdp-furniture-form {
+    margin-top: 16px;
+}
+
+.svdp-accounting-admin-section .notice.inline {
+    margin: 16px 0 0;
+}
+
+.svdp-results-summary {
+    color: #50575e;
+    font-weight: 600;
+}
+
+.svdp-inline-loading {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #50575e;
+}
+
+.svdp-inline-loading .spinner {
+    float: none;
+    margin: 0;
+}
+
+.svdp-modal {
+    display: none;
+    position: fixed;
+    z-index: 100000;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.svdp-modal-content {
+    background-color: #fff;
+    margin: 8% auto;
+    padding: 30px;
+    border: 1px solid #888;
+    width: 720px;
+    max-width: calc(100% - 32px);
+    border-radius: 5px;
+}
+
+.manager-status-active {
+    color: #46b450;
+}
+
+.manager-status-inactive {
+    color: #dc3232;
+}
+
 /* Responsive */
 @media (max-width: 782px) {
     .svdp-card {
@@ -101,5 +176,9 @@ tr.inactive td {
     
     .shortcode-input {
         font-size: 11px;
+    }
+
+    .svdp-admin-grid {
+        grid-template-columns: 1fr;
     }
 }

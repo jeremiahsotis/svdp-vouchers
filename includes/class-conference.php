@@ -55,6 +55,10 @@ class SVDP_Conference {
             $slug = sanitize_title($name);
         }
 
+        $default_voucher_types = $organization_type === 'store'
+            ? ['clothing']
+            : ['clothing', 'furniture'];
+
         $result = $wpdb->insert($table, [
             'name' => sanitize_text_field($name),
             'slug' => sanitize_title($slug),
@@ -63,7 +67,7 @@ class SVDP_Conference {
             'eligibility_days' => intval($eligibility_days),
             'regular_items_per_person' => intval($regular_items),
             'emergency_items_per_person' => 3, // Default for emergency vouchers
-            'allowed_voucher_types' => json_encode(['clothing']), // Default
+            'allowed_voucher_types' => wp_json_encode($default_voucher_types),
             'active' => 1,
         ]);
 
@@ -108,7 +112,11 @@ class SVDP_Conference {
         }
 
         if (isset($data['allowed_voucher_types'])) {
-            $update_data['allowed_voucher_types'] = $data['allowed_voucher_types']; // Already JSON
+            $existing_conference = self::get_by_id($id);
+            $default_types = ($existing_conference && $existing_conference->organization_type === 'store')
+                ? ['clothing']
+                : ['clothing', 'furniture'];
+            $update_data['allowed_voucher_types'] = SVDP_Settings::encode_voucher_types($data['allowed_voucher_types'], $default_types);
         }
 
         if (isset($data['custom_form_text'])) {

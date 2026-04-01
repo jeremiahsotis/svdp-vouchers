@@ -109,10 +109,11 @@
                     <?php
 
                     foreach ($grouped[$type] as $conference):
-                        $allowed_types = !empty($conference->allowed_voucher_types)
-                            ? json_decode($conference->allowed_voucher_types, true)
-                            : ['clothing'];
                         $is_store = $conference->organization_type === 'store';
+                        $allowed_types = SVDP_Settings::normalize_voucher_types(
+                            $conference->allowed_voucher_types,
+                            $is_store ? ['clothing'] : ['clothing', 'furniture']
+                        );
                 ?>
                 <tr data-id="<?php echo $conference->id; ?>"
                     data-org-type="<?php echo esc_attr($conference->organization_type); ?>"
@@ -264,7 +265,7 @@ jQuery(document).ready(function($) {
     let currentEditId = null;
 
     // Load available voucher types from settings
-    const availableTypes = <?php echo json_encode(explode(',', SVDP_Settings::get_setting('available_voucher_types', 'clothing,furniture,household'))); ?>;
+    const availableTypes = <?php echo wp_json_encode(SVDP_Settings::get_available_voucher_types()); ?>;
 
     // Voucher Types Modal
     $('.edit-voucher-types').on('click', function() {
