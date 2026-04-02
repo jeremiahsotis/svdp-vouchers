@@ -46,16 +46,25 @@ class SVDP_Cashier_Shell {
     public static function get_voucher_detail_fragment($request) {
         $voucher_id = intval($request['id']);
         $voucher = SVDP_Voucher::get_cashier_voucher($voucher_id);
+        $view = sanitize_key((string) $request->get_param('view'));
         $can_mutate_furniture = SVDP_Permissions::user_can_redeem_furniture_vouchers();
         $furniture_catalog_items = [];
         $cancellation_reasons = [];
 
         if (!$voucher) {
+            if ($view === 'neighbor-document') {
+                return new WP_Error('voucher_not_found', 'Voucher not found.', ['status' => 404]);
+            }
+
             $html = self::render_template('public/templates/cashier/partials/detail-empty.php', [
                 'message' => 'Select a voucher from the list to view its details.',
             ]);
 
             return self::html_response($html);
+        }
+
+        if ($view === 'neighbor-document') {
+            return self::get_neighbor_document_response($voucher, $request);
         }
 
         if (($voucher['voucher_type'] ?? 'clothing') === 'furniture') {
@@ -71,6 +80,35 @@ class SVDP_Cashier_Shell {
         ]);
 
         return self::html_response($html);
+    }
+
+    /**
+     * Email the shared neighbor-facing voucher PDF from the cashier action flow.
+     */
+    public static function email_neighbor_document($request) {
+        $voucher_id = intval($request['id']);
+        $voucher = SVDP_Voucher::get_cashier_voucher($voucher_id);
+
+        if (!$voucher) {
+            return new WP_Error('voucher_not_found', 'Voucher not found.', ['status' => 404]);
+        }
+
+        $language = SVDP_Voucher_I18n::normalize_language($request->get_param('language'));
+        $result = SVDP_Neighbor_Voucher_Document::email_for_voucher($voucher, [
+            'language' => $language,
+        ]);
+
+        if (is_wp_error($result)) {
+            return $result;
+        }
+
+        return rest_ensure_response([
+            'success' => true,
+            'voucherId' => (int) $voucher['id'],
+            'language' => $result['language'],
+            'recipientEmail' => $result['recipient_email'],
+            'fileUrl' => $result['file_url'],
+        ]);
     }
 
     /**
@@ -137,6 +175,26 @@ class SVDP_Cashier_Shell {
     }
 
     /**
+     * Render the shared neighbor-facing voucher document for cashier open/print actions.
+     */
+    private static function get_neighbor_document_response($voucher, $request) {
+        $language = SVDP_Voucher_I18n::normalize_language($request->get_param('language'));
+        $html = SVDP_Neighbor_Voucher_Document::render_html($voucher, [
+            'language' => $language,
+        ]);
+
+        if (is_wp_error($html)) {
+            return $html;
+        }
+
+        if (rest_sanitize_boolean($request->get_param('auto_print'))) {
+            $html = self::inject_auto_print_script($html);
+        }
+
+        return self::html_response($html);
+    }
+
+    /**
      * Build cashier dashboard metrics.
      */
     private static function build_stats($all_vouchers, $filtered_vouchers) {
@@ -190,5 +248,18 @@ class SVDP_Cashier_Shell {
         return new WP_REST_Response($html, 200, [
             'Content-Type' => 'text/html; charset=' . get_option('blog_charset'),
         ]);
+    }
+
+    /**
+     * Trigger the browser print dialog when the cashier opened the document in print mode.
+     */
+    private static function inject_auto_print_script($html) {
+        $script = '<script>window.addEventListener("load",function(){window.print();});</script>';
+
+        if (stripos($html, '</body>') !== false) {
+            return preg_replace('/<\/body>/i', $script . '</body>', $html, 1);
+        }
+
+        return $html . $script;
     }
 }

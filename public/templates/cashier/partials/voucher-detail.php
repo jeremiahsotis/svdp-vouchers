@@ -86,6 +86,8 @@ $show_coat_panel = in_array($voucher['status'], ['Active', 'Redeemed'], true)
         <div class="svdp-coat-info eligible">Coat Available</div>
     <?php endif; ?>
 
+    <?php include SVDP_VOUCHERS_PLUGIN_DIR . 'public/templates/cashier/partials/neighbor-voucher-actions.php'; ?>
+
     <?php if ($show_redeem_panel || $show_coat_panel): ?>
         <div class="svdp-cashier-action-stack">
             <?php if ($show_redeem_panel): ?>

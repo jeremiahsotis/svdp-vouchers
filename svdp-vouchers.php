@@ -20,11 +20,14 @@ define('SVDP_VOUCHERS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SVDP_VOUCHERS_PLUGIN_URL', plugin_dir_url(__FILE__));
 
 // Include required files
+require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-pdf-dependency.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-database.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-settings.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-permissions.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-conference.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-voucher.php';
+require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-voucher-i18n.php';
+require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-neighbor-voucher-document.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-furniture-catalog.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-furniture-cancellation-reason.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-furniture-photo-storage.php';
@@ -37,6 +40,9 @@ require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-shortcodes.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-admin.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-manager.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-override-reason.php';
+
+// Load plugin-local PDF support before document features attempt to use it.
+SVDP_PDF_Dependency::bootstrap();
 
 /**
  * Main plugin class
@@ -204,6 +210,12 @@ class SVDP_Vouchers_Plugin {
         register_rest_route('svdp/v1', '/cashier/vouchers/(?P<id>\d+)', [
             'methods' => 'GET',
             'callback' => ['SVDP_Cashier_Shell', 'get_voucher_detail_fragment'],
+            'permission_callback' => [$this, 'user_can_access_cashier']
+        ]);
+
+        register_rest_route('svdp/v1', '/cashier/vouchers/(?P<id>\d+)/email', [
+            'methods' => 'POST',
+            'callback' => ['SVDP_Cashier_Shell', 'email_neighbor_document'],
             'permission_callback' => [$this, 'user_can_access_cashier']
         ]);
 

@@ -96,6 +96,8 @@ $detail_refresh_trigger = $can_mutate_furniture
         <?php endif; ?>
     </section>
 
+    <?php include SVDP_VOUCHERS_PLUGIN_DIR . 'public/templates/cashier/partials/neighbor-voucher-actions.php'; ?>
+
     <section class="svdp-cashier-info-panel">
         <div class="svdp-cashier-panel-header">
             <div>
@@ -381,7 +383,7 @@ $detail_refresh_trigger = $can_mutate_furniture
 
     <?php if ($voucher['status'] === 'Redeemed'): ?>
         <section class="svdp-cashier-info-panel">
-            <h3>Completion Documents</h3>
+            <h3>Completion Records</h3>
             <?php if (!empty($voucher['furniture_completed_at'])): ?>
                 <p><strong>Completed:</strong> <?php echo esc_html(date('m/d/Y g:i A', strtotime($voucher['furniture_completed_at']))); ?></p>
             <?php endif; ?>
@@ -392,9 +394,6 @@ $detail_refresh_trigger = $can_mutate_furniture
                 <p><strong>Invoice Amount:</strong> $<?php echo esc_html(number_format((float) $voucher['invoice_amount'], 2)); ?></p>
             <?php endif; ?>
             <div class="svdp-document-links">
-                <?php if (!empty($voucher['receipt_file_url'])): ?>
-                    <a class="svdp-document-link" href="<?php echo esc_url($voucher['receipt_file_url']); ?>" target="_blank" rel="noopener noreferrer">Open Neighbor Receipt</a>
-                <?php endif; ?>
                 <?php if (!empty($voucher['invoice_file_url'])): ?>
                     <a class="svdp-document-link" href="<?php echo esc_url($voucher['invoice_file_url']); ?>" target="_blank" rel="noopener noreferrer">Open Conference Invoice</a>
                 <?php endif; ?>
@@ -403,7 +402,7 @@ $detail_refresh_trigger = $can_mutate_furniture
     <?php elseif ($remaining_items === 0 && $can_mutate_furniture): ?>
         <section class="svdp-cashier-info-panel">
             <h3>Complete Voucher</h3>
-            <p>All requested items are resolved. Completing this voucher will generate the neighbor receipt and stored conference invoice.</p>
+            <p>All requested items are resolved. Completing this voucher will finalize the request and generate the stored conference invoice.</p>
             <form class="svdp-form" data-cashier-action="furniture-voucher-complete" data-voucher-id="<?php echo esc_attr($voucher['id']); ?>">
                 <div class="svdp-cashier-inline-summary">
                     <span>Items total: <?php echo esc_html(intval($item_progress['total'])); ?></span>
