@@ -11,7 +11,7 @@ class SVDP_Database {
      */
     public static function maybe_upgrade() {
         $current_version = get_option('svdp_vouchers_schema_version', '');
-        if ($current_version === self::SCHEMA_VERSION) {
+        if ($current_version === self::SCHEMA_VERSION && self::has_current_schema()) {
             return;
         }
 
@@ -29,6 +29,33 @@ class SVDP_Database {
         self::normalize_furniture_coverage_data();
 
         update_option('svdp_vouchers_schema_version', self::SCHEMA_VERSION);
+    }
+
+    /**
+     * Confirm the current schema version also has the latest required columns.
+     *
+     * This protects long-running installs if the stored schema version is current
+     * but one or more furniture columns were not added successfully.
+     *
+     * @return bool
+     */
+    private static function has_current_schema() {
+        global $wpdb;
+
+        $catalog_items_table = $wpdb->prefix . 'svdp_catalog_items';
+        $voucher_items_table = $wpdb->prefix . 'svdp_voucher_items';
+
+        if (!self::table_exists($catalog_items_table) || !self::table_exists($voucher_items_table)) {
+            return false;
+        }
+
+        return self::column_exists($catalog_items_table, 'show_price_as_max')
+            && self::column_exists($catalog_items_table, 'discount_type')
+            && self::column_exists($catalog_items_table, 'discount_value')
+            && self::column_exists($voucher_items_table, 'discount_type_snapshot')
+            && self::column_exists($voucher_items_table, 'discount_value_snapshot')
+            && self::column_exists($voucher_items_table, 'conference_share_amount')
+            && self::column_exists($voucher_items_table, 'store_share_amount');
     }
 
     /**
