@@ -253,9 +253,9 @@
                         <span>Add Delivery (+$50.00)</span>
                     </label>
 
-                    <div id="svdpDeliveryFeeNote" class="svdp-summary-row svdp-summary-row-delivery" hidden>
+                    <div id="svdpDeliveryFeeNote" class="svdp-summary-row svdp-summary-row-delivery">
                         <span>Delivery Fee</span>
-                        <strong id="svdpSummaryDeliveryFee">$50.00</strong>
+                        <strong id="svdpSummaryDeliveryFee">$0.00</strong>
                     </div>
 
                     <div id="svdpDeliveryAddressFields" class="svdp-delivery-address-fields" hidden>
@@ -283,7 +283,7 @@
                         </div>
                     </div>
 
-                    <p class="svdp-help-text">The Conference portion currently uses the existing 50% estimate, plus delivery when selected.</p>
+                    <p class="svdp-help-text">Conference coverage is based on each catalog item. Delivery is added separately when selected.</p>
                 </aside>
             </div>
         </div>
