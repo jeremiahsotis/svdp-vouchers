@@ -1,14 +1,18 @@
 <?php
 $requested_items = is_array($document['requested_items'] ?? null) ? $document['requested_items'] : [];
 $show_delivery_note = !empty($document['delivery_required']);
+$copy = is_array($document['copy'] ?? null) ? $document['copy'] : [];
+$font_family = trim((string) ($document['font_family'] ?? 'DejaVu Sans, Helvetica, Arial, sans-serif'));
+$html_lang = trim((string) ($document['html_lang'] ?? $document['language'] ?? 'en'));
+$uppercase_labels = !empty($document['uppercase_labels']);
 ?>
 <!DOCTYPE html>
-<html lang="<?php echo esc_attr($document['language'] ?? 'en'); ?>">
+<html lang="<?php echo esc_attr($html_lang); ?>">
 <head>
     <meta charset="UTF-8">
-    <title>Neighbor Voucher</title>
+    <title><?php echo esc_html($copy['document_title'] ?? 'Neighbor Voucher'); ?></title>
     <style>
-        body { font-family: Arial, sans-serif; color: #1f3442; margin: 0; padding: 32px; background: #f5f8fa; }
+        body { font-family: <?php echo esc_html($font_family); ?>; color: #1f3442; margin: 0; padding: 32px; background: #f5f8fa; }
         .sheet { max-width: 860px; margin: 0 auto; background: #fff; border: 1px solid #d8e4eb; border-radius: 18px; overflow: hidden; }
         .header { padding: 28px 32px; background: #0f537d; color: #fff; }
         .header h1 { margin: 0 0 8px; font-size: 30px; }
@@ -17,10 +21,39 @@ $show_delivery_note = !empty($document['delivery_required']);
         .section-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; }
         .section-header h2 { margin: 0; color: #12344d; font-size: 22px; }
         .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-        .label { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #5b7282; margin-bottom: 6px; }
+        .label {
+            display: block;
+            font-size: 12px;
+            color: #5b7282;
+            margin-bottom: 6px;
+            <?php if ($uppercase_labels): ?>
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            <?php else: ?>
+                text-transform: none;
+                letter-spacing: normal;
+                font-weight: 700;
+            <?php endif; ?>
+        }
         .value { font-size: 16px; color: #12344d; }
         .value-amount { font-size: 24px; font-weight: 700; color: #0f537d; }
-        .pill { display: inline-flex; align-items: center; padding: 6px 12px; border-radius: 999px; background: #eef2f5; color: #355062; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: #eef2f5;
+            color: #355062;
+            font-size: 12px;
+            font-weight: 700;
+            <?php if ($uppercase_labels): ?>
+                text-transform: uppercase;
+                letter-spacing: 0.04em;
+            <?php else: ?>
+                text-transform: none;
+                letter-spacing: normal;
+            <?php endif; ?>
+        }
         .note { margin: 16px 0 0; padding: 12px 14px; border-radius: 12px; background: #eef7ff; border: 1px solid #d5e8f7; color: #184f71; }
         .item { padding: 16px 18px; border: 1px solid #d8e4eb; border-radius: 14px; margin-bottom: 14px; }
         .item:last-child { margin-bottom: 0; }
@@ -39,66 +72,66 @@ $show_delivery_note = !empty($document['delivery_required']);
 <body>
     <div class="sheet">
         <header class="header">
-            <h1>Neighbor Voucher</h1>
-            <p>Bring this voucher with you when you arrive for pickup or delivery.</p>
+            <h1><?php echo esc_html($copy['document_heading'] ?? 'Neighbor Voucher'); ?></h1>
+            <p><?php echo esc_html($copy['document_intro'] ?? 'Bring this voucher with you when you arrive for pickup or delivery.'); ?></p>
         </header>
 
         <section class="section">
             <div class="grid">
                 <div>
-                    <span class="label">Neighbor</span>
+                    <span class="label"><?php echo esc_html($copy['label_neighbor'] ?? 'Neighbor'); ?></span>
                     <span class="value"><?php echo esc_html($document['neighbor_name'] ?? ''); ?></span>
                 </div>
                 <div>
-                    <span class="label">Date of Birth</span>
+                    <span class="label"><?php echo esc_html($copy['label_date_of_birth'] ?? 'Date of Birth'); ?></span>
                     <span class="value"><?php echo esc_html($document['date_of_birth_display'] ?? ''); ?></span>
                 </div>
                 <div>
-                    <span class="label">Conference</span>
+                    <span class="label"><?php echo esc_html($copy['label_conference'] ?? 'Conference'); ?></span>
                     <span class="value"><?php echo esc_html($document['conference_name'] ?? ''); ?></span>
                 </div>
                 <div>
-                    <span class="label">Voucher Type</span>
+                    <span class="label"><?php echo esc_html($copy['label_voucher_type'] ?? 'Voucher Type'); ?></span>
                     <span class="value"><?php echo esc_html($document['voucher_type_label'] ?? ''); ?></span>
                 </div>
                 <div>
-                    <span class="label">Household</span>
+                    <span class="label"><?php echo esc_html($copy['label_household'] ?? 'Household'); ?></span>
                     <span class="value"><?php echo esc_html($document['household_display'] ?? ''); ?></span>
                 </div>
                 <div>
-                    <span class="label">Delivery</span>
+                    <span class="label"><?php echo esc_html($copy['label_delivery'] ?? 'Delivery'); ?></span>
                     <span class="value"><?php echo esc_html($document['delivery_label'] ?? ''); ?></span>
                 </div>
                 <div>
-                    <span class="label">Created</span>
+                    <span class="label"><?php echo esc_html($copy['label_created'] ?? 'Created'); ?></span>
                     <span class="value"><?php echo esc_html($document['created_date_display'] ?? ''); ?></span>
                 </div>
                 <div>
-                    <span class="label">Valid Through</span>
+                    <span class="label"><?php echo esc_html($copy['label_valid_through'] ?? 'Valid Through'); ?></span>
                     <span class="value"><?php echo esc_html($document['valid_through_display'] ?? ''); ?></span>
                 </div>
             </div>
 
             <div class="note">
-                <span class="label">Estimated Amount Approved</span>
+                <span class="label"><?php echo esc_html($copy['label_estimated_amount_approved'] ?? 'Estimated Amount Approved'); ?></span>
                 <div class="value value-amount"><?php echo esc_html($document['approved_amount_display'] ?? ''); ?></div>
             </div>
 
             <?php if ($show_delivery_note): ?>
-                <div class="note">Delivery is included with this voucher.</div>
+                <div class="note"><?php echo esc_html($copy['delivery_included_note'] ?? 'Delivery is included with this voucher.'); ?></div>
             <?php endif; ?>
         </section>
 
         <section class="section">
             <div class="section-header">
-                <h2>Requested Items</h2>
+                <h2><?php echo esc_html($copy['heading_requested_items'] ?? 'Requested Items'); ?></h2>
                 <?php if (!empty($document['requested_items_total'])): ?>
                     <span class="pill"><?php echo esc_html($document['requested_items_total_label'] ?? ''); ?></span>
                 <?php endif; ?>
             </div>
 
             <?php if (empty($requested_items)): ?>
-                <p class="empty">No requested items were recorded for this voucher.</p>
+                <p class="empty"><?php echo esc_html($copy['empty_requested_items'] ?? 'No requested items were recorded for this voucher.'); ?></p>
             <?php else: ?>
                 <?php foreach ($requested_items as $item): ?>
                     <article class="item">
@@ -116,7 +149,7 @@ $show_delivery_note = !empty($document['delivery_required']);
         </section>
 
         <div class="footer">
-            <p>This neighbor-facing voucher includes the approved amount, delivery status, and requested items only.</p>
+            <p><?php echo esc_html($copy['footer_note'] ?? 'This neighbor-facing voucher includes the approved amount, delivery status, and requested items only.'); ?></p>
         </div>
     </div>
 </body>

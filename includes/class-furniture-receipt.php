@@ -13,12 +13,14 @@ class SVDP_Furniture_Receipt {
      * Generate and store one neighbor-facing document for a furniture voucher.
      *
      * @param array $voucher Formatted cashier voucher data.
+     * @param array $args Optional generation arguments.
      * @return array|WP_Error
      */
-    public static function create_for_voucher($voucher) {
-        return SVDP_Neighbor_Voucher_Document::create_for_voucher($voucher, [
-            'file_name' => 'neighbor-receipt.html',
-        ]);
+    public static function create_for_voucher($voucher, $args = []) {
+        $args = is_array($args) ? $args : [];
+        $args['file_name'] = !empty($args['file_name']) ? $args['file_name'] : 'neighbor-receipt.html';
+
+        return SVDP_Neighbor_Voucher_Document::create_for_voucher($voucher, $args);
     }
 
     /**

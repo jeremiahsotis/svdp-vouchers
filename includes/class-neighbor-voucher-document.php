@@ -85,31 +85,36 @@ class SVDP_Neighbor_Voucher_Document {
             return $voucher;
         }
 
+        $language = self::resolve_document_language($voucher, $args);
         $voucher_type = SVDP_Voucher::normalize_voucher_type($voucher['voucher_type'] ?? 'clothing');
         $requested_items = $voucher_type === 'furniture'
-            ? self::build_furniture_requested_items($voucher)
-            : self::build_clothing_requested_items($voucher);
+            ? self::build_furniture_requested_items($voucher, $language)
+            : self::build_clothing_requested_items($voucher, $language);
         $requested_items_total = array_reduce($requested_items, function($carry, $item) {
             return $carry + intval($item['quantity'] ?? 0);
         }, 0);
 
         return [
-            'language' => sanitize_key($args['language'] ?? 'en'),
+            'language' => $language,
+            'html_lang' => SVDP_Voucher_I18n::get_html_lang($language),
+            'font_family' => SVDP_Voucher_I18n::get_font_family($language),
+            'uppercase_labels' => SVDP_Voucher_I18n::should_uppercase_labels($language),
+            'copy' => SVDP_Voucher_I18n::get_neighbor_voucher_copy($language),
             'voucher_id' => (int) $voucher['id'],
             'voucher_type' => $voucher_type,
-            'voucher_type_label' => sanitize_text_field($voucher['voucher_type_label'] ?? ucfirst($voucher_type)),
+            'voucher_type_label' => SVDP_Voucher_I18n::get_voucher_type_label($voucher_type, $language),
             'neighbor_name' => self::format_neighbor_name($voucher),
             'date_of_birth_display' => self::format_date($voucher['dob'] ?? null),
             'conference_name' => sanitize_text_field((string) ($voucher['conference_name'] ?? '')),
-            'household_display' => self::format_household_display($voucher),
+            'household_display' => self::format_household_display($voucher, $language),
             'created_date_display' => self::format_date($voucher['voucher_created_date'] ?? null),
             'valid_through_display' => self::format_expiration_date($voucher['voucher_created_date'] ?? null),
             'approved_amount_display' => self::build_approved_amount_display($voucher),
             'delivery_required' => !empty($voucher['delivery_required']),
-            'delivery_label' => !empty($voucher['delivery_required']) ? 'Included' : 'Not included',
+            'delivery_label' => SVDP_Voucher_I18n::get_delivery_label(!empty($voucher['delivery_required']), $language),
             'requested_items' => $requested_items,
             'requested_items_total' => $requested_items_total,
-            'requested_items_total_label' => self::format_item_count($requested_items_total),
+            'requested_items_total_label' => self::format_item_count($requested_items_total, $language),
         ];
     }
 
@@ -178,17 +183,17 @@ class SVDP_Neighbor_Voucher_Document {
      * @param array $voucher Formatted cashier voucher.
      * @return array
      */
-    private static function build_clothing_requested_items($voucher) {
+    private static function build_clothing_requested_items($voucher, $language) {
         $item_count = max(0, intval($voucher['voucher_items_count'] ?? 0));
         if ($item_count <= 0) {
             return [];
         }
 
         return [[
-            'name' => 'Clothing voucher items',
+            'name' => SVDP_Voucher_I18n::get_neighbor_voucher_copy($language)['clothing_voucher_items'],
             'quantity' => $item_count,
-            'quantity_label' => self::format_item_count($item_count),
-            'description' => self::format_household_display($voucher),
+            'quantity_label' => self::format_item_count($item_count, $language),
+            'description' => self::format_household_display($voucher, $language),
         ]];
     }
 
@@ -198,7 +203,7 @@ class SVDP_Neighbor_Voucher_Document {
      * @param array $voucher Formatted cashier voucher.
      * @return array
      */
-    private static function build_furniture_requested_items($voucher) {
+    private static function build_furniture_requested_items($voucher, $language) {
         $grouped_items = [];
 
         foreach ((array) ($voucher['items'] ?? []) as $item) {
@@ -233,15 +238,15 @@ class SVDP_Neighbor_Voucher_Document {
             }
 
             return [[
-                'name' => 'Requested furniture items',
+                'name' => SVDP_Voucher_I18n::get_neighbor_voucher_copy($language)['requested_furniture_items'],
                 'quantity' => $item_count,
-                'quantity_label' => self::format_item_count($item_count),
+                'quantity_label' => self::format_item_count($item_count, $language),
                 'description' => null,
             ]];
         }
 
         foreach ($grouped_items as &$item) {
-            $item['quantity_label'] = self::format_item_count($item['quantity']);
+            $item['quantity_label'] = self::format_item_count($item['quantity'], $language);
         }
         unset($item);
 
@@ -275,16 +280,11 @@ class SVDP_Neighbor_Voucher_Document {
      * @param array $voucher Formatted cashier voucher.
      * @return string
      */
-    private static function format_household_display($voucher) {
-        $adults = max(0, intval($voucher['adults'] ?? 0));
-        $children = max(0, intval($voucher['children'] ?? 0));
-
-        return sprintf(
-            '%d adult%s, %d child%s',
-            $adults,
-            $adults === 1 ? '' : 's',
-            $children,
-            $children === 1 ? '' : 'ren'
+    private static function format_household_display($voucher, $language) {
+        return SVDP_Voucher_I18n::format_household(
+            $voucher['adults'] ?? 0,
+            $voucher['children'] ?? 0,
+            $language
         );
     }
 
@@ -375,9 +375,8 @@ class SVDP_Neighbor_Voucher_Document {
      * @param int $count Item count.
      * @return string
      */
-    private static function format_item_count($count) {
-        $count = max(0, intval($count));
-        return sprintf('%d item%s', $count, $count === 1 ? '' : 's');
+    private static function format_item_count($count, $language) {
+        return SVDP_Voucher_I18n::format_item_count($count, $language);
     }
 
     /**
@@ -392,6 +391,19 @@ class SVDP_Neighbor_Voucher_Document {
         }
 
         return (float) $value;
+    }
+
+    /**
+     * Resolve the preferred document language from explicit args or voucher data.
+     *
+     * @param array $voucher Formatted cashier voucher.
+     * @param array $args Optional rendering arguments.
+     * @return string
+     */
+    private static function resolve_document_language($voucher, $args) {
+        $requested_language = $args['language'] ?? $voucher['document_language'] ?? $voucher['language'] ?? null;
+
+        return SVDP_Voucher_I18n::normalize_language($requested_language);
     }
 
     /**
