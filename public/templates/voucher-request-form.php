@@ -357,19 +357,31 @@
 
             <div class="svdp-summary-row">
                 <span>Estimated item total</span>
-                <strong id="svdpApprovalEstimatedTotal">$0.00</strong>
+                <strong
+                    id="svdpApprovalEstimatedTotal"
+                    style="color: #111 !important; font-weight: 700 !important; opacity: 1 !important; -webkit-text-fill-color: #111 !important;"
+                >$0.00</strong>
             </div>
             <div class="svdp-summary-row">
                 <span>Estimated Conference portion</span>
-                <strong id="svdpApprovalConferencePortion">$0.00</strong>
+                <strong
+                    id="svdpApprovalConferencePortion"
+                    style="color: #111 !important; font-weight: 700 !important; opacity: 1 !important; -webkit-text-fill-color: #111 !important;"
+                >$0.00</strong>
             </div>
             <div class="svdp-summary-row">
                 <span>Delivery fee</span>
-                <strong id="svdpApprovalDeliveryFee">$0.00</strong>
+                <strong
+                    id="svdpApprovalDeliveryFee"
+                    style="color: #111 !important; font-weight: 700 !important; opacity: 1 !important; -webkit-text-fill-color: #111 !important;"
+                >$0.00</strong>
             </div>
             <div class="svdp-summary-row">
                 <span>Estimated total Conference commitment</span>
-                <strong id="svdpApprovalTotalCommitment">$0.00</strong>
+                <strong
+                    id="svdpApprovalTotalCommitment"
+                    style="color: #111 !important; font-weight: 700 !important; opacity: 1 !important; -webkit-text-fill-color: #111 !important;"
+                >$0.00</strong>
             </div>
 
             <div class="svdp-modal-buttons">
