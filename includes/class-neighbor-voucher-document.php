@@ -25,6 +25,18 @@ class SVDP_Neighbor_Voucher_Document {
     const DEFAULT_FILE_NAME = 'neighbor-voucher.html';
 
     /**
+     * Default stored PDF file name for one rendered voucher document.
+     */
+    const DEFAULT_PDF_FILE_NAME = 'neighbor-voucher.pdf';
+
+    /**
+     * Cache dynamically-registered TCPDF font names by absolute font path.
+     *
+     * @var array
+     */
+    private static $registered_pdf_fonts = [];
+
+    /**
      * Generate and store one shared neighbor-facing voucher document.
      *
      * @param array|int $voucher Formatted cashier voucher array or voucher ID.
@@ -52,6 +64,116 @@ class SVDP_Neighbor_Voucher_Document {
             : self::DEFAULT_FILE_NAME;
 
         return self::store_document($voucher_id, $file_name, $html);
+    }
+
+    /**
+     * Generate and store one shared neighbor-facing voucher PDF.
+     *
+     * @param array|int $voucher Formatted cashier voucher array or voucher ID.
+     * @param array     $args Optional generation arguments.
+     * @return array|WP_Error
+     */
+    public static function create_pdf_for_voucher($voucher, $args = []) {
+        $voucher = self::normalize_voucher_payload($voucher);
+        if (is_wp_error($voucher)) {
+            return $voucher;
+        }
+
+        if (!SVDP_PDF_Dependency::bootstrap()) {
+            return new WP_Error('neighbor_voucher_pdf_unavailable', 'PDF support is not available for voucher delivery.', ['status' => 500]);
+        }
+
+        $language = self::resolve_document_language($voucher, $args);
+        $pdf_font_family = self::resolve_pdf_font_family($language);
+        $html = self::render_html($voucher, [
+            'language' => $language,
+            'font_family' => $pdf_font_family,
+            'pdf' => true,
+        ]);
+
+        if (is_wp_error($html)) {
+            return $html;
+        }
+
+        $copy = SVDP_Voucher_I18n::get_neighbor_voucher_copy($language);
+        $pdf = new TCPDF('P', 'mm', 'LETTER', true, 'UTF-8', false);
+        $pdf->SetCreator(get_bloginfo('name'));
+        $pdf->SetAuthor(get_bloginfo('name'));
+        $pdf->SetTitle($copy['document_title'] ?? 'Neighbor Voucher');
+        $pdf->SetSubject($copy['document_heading'] ?? 'Neighbor Voucher');
+        $pdf->setPrintHeader(false);
+        $pdf->setPrintFooter(false);
+        $pdf->SetMargins(12, 12, 12);
+        $pdf->SetAutoPageBreak(true, 12);
+        $pdf->setImageScale(1.25);
+        $pdf->setFontSubsetting(true);
+        $pdf->AddPage();
+        $pdf->SetFont($pdf_font_family, '', 10, '', true);
+        $pdf->writeHTML($html, true, false, true, false, '');
+
+        $pdf_contents = $pdf->Output('', 'S');
+        if (!is_string($pdf_contents) || $pdf_contents === '') {
+            return new WP_Error('neighbor_voucher_pdf_failed', 'The voucher PDF could not be generated.', ['status' => 500]);
+        }
+
+        $default_pdf_base_name = pathinfo(self::DEFAULT_PDF_FILE_NAME, PATHINFO_FILENAME);
+        $file_name = !empty($args['file_name'])
+            ? sanitize_file_name($args['file_name'])
+            : sanitize_file_name(sprintf('%s-%s.pdf', $default_pdf_base_name, $language));
+
+        return self::store_document($voucher['id'], $file_name, $pdf_contents, 'neighbor_voucher_pdf');
+    }
+
+    /**
+     * Generate and email one shared neighbor-facing voucher PDF.
+     *
+     * @param array|int $voucher Formatted cashier voucher array or voucher ID.
+     * @param array     $args Optional email arguments.
+     * @return array|WP_Error
+     */
+    public static function email_for_voucher($voucher, $args = []) {
+        $voucher = self::normalize_voucher_payload($voucher);
+        if (is_wp_error($voucher)) {
+            return $voucher;
+        }
+
+        $language = self::resolve_document_language($voucher, $args);
+        $recipient_email = sanitize_email((string) ($args['to_email'] ?? $voucher['vincentian_email'] ?? ''));
+        if ($recipient_email === '' || !is_email($recipient_email)) {
+            return new WP_Error('neighbor_voucher_email_missing', 'No requestor email is stored for this voucher.', ['status' => 400]);
+        }
+
+        $pdf_document = self::create_pdf_for_voucher($voucher, [
+            'language' => $language,
+        ]);
+        if (is_wp_error($pdf_document)) {
+            return $pdf_document;
+        }
+
+        $copy = SVDP_Voucher_I18n::get_neighbor_voucher_email_copy($language);
+        $neighbor_name = self::format_neighbor_name($voucher);
+        $subject = trim((string) ($copy['email_subject'] ?? $copy['document_title'] ?? 'Neighbor Voucher'));
+        if ($neighbor_name !== '') {
+            $subject .= ' - ' . $neighbor_name;
+        }
+
+        $message = self::render_email_body($voucher, $copy, $language);
+        $headers = [
+            'Content-Type: text/html; charset=UTF-8',
+            'From: ' . get_bloginfo('name') . ' <' . get_bloginfo('admin_email') . '>',
+        ];
+
+        $sent = wp_mail($recipient_email, $subject, $message, $headers, [$pdf_document['absolute_path']]);
+        if (!$sent) {
+            return new WP_Error('neighbor_voucher_email_failed', 'The voucher email could not be sent.', ['status' => 500]);
+        }
+
+        return [
+            'recipient_email' => $recipient_email,
+            'language' => $language,
+            'file_path' => $pdf_document['file_path'],
+            'file_url' => $pdf_document['url'],
+        ];
     }
 
     /**
@@ -97,9 +219,12 @@ class SVDP_Neighbor_Voucher_Document {
         return [
             'language' => $language,
             'html_lang' => SVDP_Voucher_I18n::get_html_lang($language),
-            'font_family' => SVDP_Voucher_I18n::get_font_family($language),
+            'font_family' => !empty($args['font_family'])
+                ? sanitize_text_field((string) $args['font_family'])
+                : SVDP_Voucher_I18n::get_font_family($language),
             'uppercase_labels' => SVDP_Voucher_I18n::should_uppercase_labels($language),
             'copy' => SVDP_Voucher_I18n::get_neighbor_voucher_copy($language),
+            'is_pdf' => !empty($args['pdf']),
             'voucher_id' => (int) $voucher['id'],
             'voucher_type' => $voucher_type,
             'voucher_type_label' => SVDP_Voucher_I18n::get_voucher_type_label($voucher_type, $language),
@@ -426,39 +551,129 @@ class SVDP_Neighbor_Voucher_Document {
     }
 
     /**
-     * Store one rendered document under the voucher-specific uploads directory.
+     * Store one generated document under the voucher-specific uploads directory.
      *
      * @param int    $voucher_id Root voucher ID.
      * @param string $file_name Target file name.
-     * @param string $html Rendered HTML payload.
+     * @param string $contents Rendered file payload.
+     * @param string $error_prefix WP_Error code prefix.
      * @return array|WP_Error
      */
-    private static function store_document($voucher_id, $file_name, $html) {
+    private static function store_document($voucher_id, $file_name, $contents, $error_prefix = 'neighbor_voucher') {
         $uploads = wp_upload_dir();
         if (!empty($uploads['error'])) {
-            return new WP_Error('neighbor_voucher_uploads_unavailable', 'The uploads directory is not available for neighbor voucher storage.', ['status' => 500]);
+            return new WP_Error($error_prefix . '_uploads_unavailable', 'The uploads directory is not available for neighbor voucher storage.', ['status' => 500]);
         }
 
         $relative_dir = trailingslashit(self::BASE_SUBDIR . '/' . intval($voucher_id)) . 'documents';
         $absolute_dir = trailingslashit($uploads['basedir']) . $relative_dir;
 
         if (!wp_mkdir_p($absolute_dir)) {
-            return new WP_Error('neighbor_voucher_directory_failed', 'The neighbor voucher storage directory could not be created.', ['status' => 500]);
+            return new WP_Error($error_prefix . '_directory_failed', 'The neighbor voucher storage directory could not be created.', ['status' => 500]);
         }
 
         $sanitized_file_name = sanitize_file_name($file_name);
         $relative_path = trailingslashit($relative_dir) . $sanitized_file_name;
         $absolute_path = trailingslashit($absolute_dir) . $sanitized_file_name;
-        $bytes_written = file_put_contents($absolute_path, $html);
+        $bytes_written = file_put_contents($absolute_path, $contents);
 
         if ($bytes_written === false) {
-            return new WP_Error('neighbor_voucher_write_failed', 'The neighbor voucher file could not be written to storage.', ['status' => 500]);
+            return new WP_Error($error_prefix . '_write_failed', 'The neighbor voucher file could not be written to storage.', ['status' => 500]);
         }
 
         return [
             'file_path' => $relative_path,
             'url' => self::public_url_from_relative_path($relative_path),
+            'absolute_path' => $absolute_path,
         ];
+    }
+
+    /**
+     * Build the email body used for voucher delivery.
+     *
+     * @param array  $voucher Formatted cashier voucher.
+     * @param array  $copy Localized copy map.
+     * @param string $language Normalized language code.
+     * @return string
+     */
+    private static function render_email_body($voucher, $copy, $language) {
+        $font_family = SVDP_Voucher_I18n::get_font_family($language);
+        $neighbor_name = self::format_neighbor_name($voucher);
+
+        ob_start();
+        ?>
+        <!DOCTYPE html>
+        <html lang="<?php echo esc_attr(SVDP_Voucher_I18n::get_html_lang($language)); ?>">
+        <body style="font-family: <?php echo esc_attr($font_family); ?>; color: #12344d; line-height: 1.6;">
+            <p><?php echo esc_html($copy['email_body'] ?? 'Attached is the neighbor voucher PDF for this request.'); ?></p>
+            <?php if ($neighbor_name !== ''): ?>
+                <p>
+                    <strong><?php echo esc_html($copy['label_neighbor'] ?? 'Neighbor'); ?>:</strong>
+                    <?php echo esc_html($neighbor_name); ?>
+                </p>
+            <?php endif; ?>
+            <p><?php echo esc_html($copy['email_footer'] ?? 'This message was sent by the SVdP voucher system.'); ?></p>
+        </body>
+        </html>
+        <?php
+
+        return ob_get_clean();
+    }
+
+    /**
+     * Resolve the TCPDF font family to use for one PDF language.
+     *
+     * @param mixed $language Raw language input.
+     * @return string
+     */
+    private static function resolve_pdf_font_family($language) {
+        $language = SVDP_Voucher_I18n::normalize_language($language);
+
+        if ($language !== 'my') {
+            return 'dejavusans';
+        }
+
+        $font_candidates = [
+            '/System/Library/Fonts/NotoSansMyanmar.ttc',
+            '/System/Library/Fonts/NotoSerifMyanmar.ttc',
+            '/System/Library/Fonts/Supplemental/Myanmar MN.ttc',
+            '/System/Library/Fonts/Supplemental/Myanmar Sangam MN.ttc',
+            '/Library/Fonts/Arial Unicode.ttf',
+            '/System/Library/Fonts/Supplemental/Arial Unicode.ttf',
+        ];
+
+        foreach ($font_candidates as $font_path) {
+            $registered_font = self::register_pdf_font($font_path);
+            if ($registered_font !== null) {
+                return $registered_font;
+            }
+        }
+
+        return 'dejavusans';
+    }
+
+    /**
+     * Register one local TTF font with TCPDF the first time it is requested.
+     *
+     * @param string $font_path Absolute system font path.
+     * @return string|null
+     */
+    private static function register_pdf_font($font_path) {
+        $font_path = trim((string) $font_path);
+        if ($font_path === '' || !file_exists($font_path)) {
+            return null;
+        }
+
+        if (array_key_exists($font_path, self::$registered_pdf_fonts)) {
+            return self::$registered_pdf_fonts[$font_path];
+        }
+
+        $registered_font = TCPDF_FONTS::addTTFfont($font_path, 'TrueTypeUnicode', '', 32);
+        self::$registered_pdf_fonts[$font_path] = is_string($registered_font) && $registered_font !== ''
+            ? $registered_font
+            : null;
+
+        return self::$registered_pdf_fonts[$font_path];
     }
 
     /**

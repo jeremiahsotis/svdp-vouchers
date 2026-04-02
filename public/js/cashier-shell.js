@@ -279,6 +279,12 @@
     function handleNeighborDocumentAction(actionElement) {
         const action = actionElement.getAttribute('data-neighbor-document-action');
         const language = resolveNeighborVoucherLanguage(actionElement);
+
+        if (action === 'email') {
+            emailNeighborVoucher(actionElement, language);
+            return;
+        }
+
         const url = buildNeighborVoucherDocumentUrl(actionElement, language, action === 'print');
 
         if (!url) {
@@ -293,6 +299,35 @@
         }
 
         savePreferredNeighborVoucherLanguage(language);
+    }
+
+    async function emailNeighborVoucher(actionElement, language) {
+        const emailUrl = actionElement.getAttribute('data-email-url');
+        if (!emailUrl) {
+            showFlash('error', 'Neighbor voucher email is unavailable for this record.');
+            return;
+        }
+
+        const recipientEmail = actionElement.getAttribute('data-email-recipient') || 'the stored requestor email';
+        const originalLabel = actionElement.getAttribute('data-idle-label') || actionElement.textContent.trim() || 'Email Neighbor Voucher';
+
+        setButtonState(actionElement, true, 'Sending...');
+
+        try {
+            const response = await requestJSON(emailUrl, {
+                method: 'POST',
+                data: {
+                    language: language
+                }
+            });
+
+            savePreferredNeighborVoucherLanguage(language);
+            showFlash('success', 'Neighbor voucher PDF emailed to ' + (response.recipientEmail || recipientEmail) + '.');
+        } catch (error) {
+            showFlash('error', extractErrorMessage(error, 'Failed to email the neighbor voucher PDF.'));
+        } finally {
+            setButtonState(actionElement, false, originalLabel);
+        }
     }
 
     function resolveNeighborVoucherLanguage(actionElement) {

@@ -83,6 +83,35 @@ class SVDP_Cashier_Shell {
     }
 
     /**
+     * Email the shared neighbor-facing voucher PDF from the cashier action flow.
+     */
+    public static function email_neighbor_document($request) {
+        $voucher_id = intval($request['id']);
+        $voucher = SVDP_Voucher::get_cashier_voucher($voucher_id);
+
+        if (!$voucher) {
+            return new WP_Error('voucher_not_found', 'Voucher not found.', ['status' => 404]);
+        }
+
+        $language = SVDP_Voucher_I18n::normalize_language($request->get_param('language'));
+        $result = SVDP_Neighbor_Voucher_Document::email_for_voucher($voucher, [
+            'language' => $language,
+        ]);
+
+        if (is_wp_error($result)) {
+            return $result;
+        }
+
+        return rest_ensure_response([
+            'success' => true,
+            'voucherId' => (int) $voucher['id'],
+            'language' => $result['language'],
+            'recipientEmail' => $result['recipient_email'],
+            'fileUrl' => $result['file_url'],
+        ]);
+    }
+
+    /**
      * Apply list filters in PHP so the fragment can stay server rendered.
      */
     private static function filter_vouchers($vouchers, $filters) {

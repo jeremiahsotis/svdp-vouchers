@@ -5,6 +5,7 @@ $copy = is_array($document['copy'] ?? null) ? $document['copy'] : [];
 $font_family = trim((string) ($document['font_family'] ?? 'DejaVu Sans, Helvetica, Arial, sans-serif'));
 $html_lang = trim((string) ($document['html_lang'] ?? $document['language'] ?? 'en'));
 $uppercase_labels = !empty($document['uppercase_labels']);
+$is_pdf = !empty($document['is_pdf']);
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo esc_attr($html_lang); ?>">
@@ -63,6 +64,14 @@ $uppercase_labels = !empty($document['uppercase_labels']);
         .item p { margin: 8px 0 0; line-height: 1.5; color: #476170; }
         .empty { margin: 0; color: #5b7282; line-height: 1.6; }
         .footer { padding: 20px 32px 28px; color: #5b7282; line-height: 1.6; }
+        <?php if ($is_pdf): ?>
+            .section-header { display: block; }
+            .section-header h2 { margin-bottom: 10px; }
+            .grid { display: block; }
+            .grid > div { margin-bottom: 14px; }
+            .item-header { display: block; }
+            .item-count { display: inline-block; margin-top: 8px; }
+        <?php endif; ?>
         @media print {
             body { padding: 0; background: #fff; }
             .sheet { border: none; border-radius: 0; }

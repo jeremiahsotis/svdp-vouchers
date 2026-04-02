@@ -128,6 +128,16 @@ class SVDP_Voucher_I18n {
     }
 
     /**
+     * Return translated copy for voucher email delivery.
+     *
+     * @param mixed $language Raw language input.
+     * @return array
+     */
+    public static function get_neighbor_voucher_email_copy($language) {
+        return self::get_neighbor_voucher_copy($language);
+    }
+
+    /**
      * Translate one normalized voucher type for the document.
      *
      * @param string $voucher_type Voucher type slug.
@@ -232,6 +242,9 @@ class SVDP_Voucher_I18n {
                     'document_title' => 'Vale para el vecino',
                     'document_heading' => 'Vale para el vecino',
                     'document_intro' => 'Traiga este vale cuando llegue para recoger sus artículos o recibir la entrega.',
+                    'email_subject' => 'Vale para el vecino',
+                    'email_body' => 'Se adjunta el PDF del vale para el vecino para esta solicitud.',
+                    'email_footer' => 'Este mensaje fue enviado por el sistema de vales de SVdP.',
                     'label_neighbor' => 'Vecino',
                     'label_date_of_birth' => 'Fecha de nacimiento',
                     'label_conference' => 'Conferencia',
@@ -258,6 +271,9 @@ class SVDP_Voucher_I18n {
                     'document_title' => 'အိမ်နီးချင်းအတွက် ဘောက်ချာ',
                     'document_heading' => 'အိမ်နီးချင်းအတွက် ဘောက်ချာ',
                     'document_intro' => 'ပစ္စည်းလာယူရန် သို့မဟုတ် ပို့ဆောင်မှုလက်ခံရန် လာသောအခါ ဤဘောက်ချာကို ယူဆောင်လာပါ။',
+                    'email_subject' => 'အိမ်နီးချင်းအတွက် ဘောက်ချာ',
+                    'email_body' => 'ဤတောင်းဆိုမှုအတွက် အိမ်နီးချင်းအတွက် ဘောက်ချာ PDF ကို ပူးတွဲပေးပို့ထားပါသည်။',
+                    'email_footer' => 'ဤစာကို SVdP ဘောက်ချာစနစ်မှ ပေးပို့ထားပါသည်။',
                     'label_neighbor' => 'အိမ်နီးချင်း',
                     'label_date_of_birth' => 'မွေးသက္ကရာဇ်',
                     'label_conference' => 'ကွန်ဖရင့်',
@@ -285,6 +301,9 @@ class SVDP_Voucher_I18n {
                     'document_title' => 'Neighbor Voucher',
                     'document_heading' => 'Neighbor Voucher',
                     'document_intro' => 'Bring this voucher with you when you arrive for pickup or delivery.',
+                    'email_subject' => 'Neighbor Voucher',
+                    'email_body' => 'Attached is the neighbor voucher PDF for this request.',
+                    'email_footer' => 'This message was sent by the SVdP voucher system.',
                     'label_neighbor' => 'Neighbor',
                     'label_date_of_birth' => 'Date of Birth',
                     'label_conference' => 'Conference',

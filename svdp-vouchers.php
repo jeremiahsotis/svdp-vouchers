@@ -213,6 +213,12 @@ class SVDP_Vouchers_Plugin {
             'permission_callback' => [$this, 'user_can_access_cashier']
         ]);
 
+        register_rest_route('svdp/v1', '/cashier/vouchers/(?P<id>\d+)/email', [
+            'methods' => 'POST',
+            'callback' => ['SVDP_Cashier_Shell', 'email_neighbor_document'],
+            'permission_callback' => [$this, 'user_can_access_cashier']
+        ]);
+
         register_rest_route('svdp/v1', '/cashier/vouchers/(?P<id>\d+)/items/(?P<item_id>\d+)/photo', [
             'methods' => 'POST',
             'callback' => ['SVDP_Furniture_Voucher', 'upload_item_photo'],

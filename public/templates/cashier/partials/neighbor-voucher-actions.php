@@ -16,13 +16,16 @@ $print_document_url = add_query_arg([
     'language' => $default_document_language,
     'auto_print' => '1',
 ], $document_url);
+$email_document_url = rest_url('svdp/v1/cashier/vouchers/' . $voucher_id . '/email');
+$recipient_email = sanitize_email((string) ($voucher['vincentian_email'] ?? ''));
+$can_email_document = $recipient_email !== '';
 $language_field_id = 'svdpNeighborVoucherLanguage-' . $voucher_id;
 ?>
 <section class="svdp-cashier-info-panel" data-neighbor-document-controls>
     <div class="svdp-cashier-panel-header">
         <div>
             <h3>Neighbor Voucher</h3>
-            <p>Open or print the shared neighbor-facing voucher in English, Spanish, or Burmese.</p>
+            <p>Open, print, or email the shared neighbor-facing voucher in English, Spanish, or Burmese.</p>
         </div>
     </div>
 
@@ -43,7 +46,7 @@ $language_field_id = 'svdpNeighborVoucherLanguage-' . $voucher_id;
                 </option>
             <?php endforeach; ?>
         </select>
-        <small class="svdp-help-text">The selected language applies to both open and print.</small>
+        <small class="svdp-help-text">The selected language applies to open, print, and email PDF delivery.</small>
     </div>
 
     <div class="svdp-document-links">
@@ -67,5 +70,22 @@ $language_field_id = 'svdpNeighborVoucherLanguage-' . $voucher_id;
         >
             Print Neighbor Voucher
         </a>
+        <button
+            type="button"
+            class="svdp-document-link"
+            data-neighbor-document-action="email"
+            data-email-url="<?php echo esc_url($email_document_url); ?>"
+            data-email-recipient="<?php echo esc_attr($recipient_email); ?>"
+            data-idle-label="Email Neighbor Voucher"
+            <?php disabled(!$can_email_document); ?>
+        >
+            Email Neighbor Voucher
+        </button>
     </div>
+
+    <?php if ($can_email_document): ?>
+        <small class="svdp-help-text">Email sends the selected-language PDF to <?php echo esc_html($recipient_email); ?>.</small>
+    <?php else: ?>
+        <small class="svdp-help-text">No requestor email is stored for this voucher yet.</small>
+    <?php endif; ?>
 </section>
