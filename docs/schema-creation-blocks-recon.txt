@@ -1,0 +1,315 @@
+Last login: Wed Mar 25 12:49:59 on ttys011
+jeremiahotis@Jeremiahs-Air-2 svdp-vouchers % grep -n "CREATE TABLE.*furniture_catalog\|CREATE TABLE.*furniture_voucher_meta\|CREATE TABLE.*voucher_items\|CREATE TABLE.*voucher_item_photos\|CREATE TABLE.*invoices\|CREATE TABLE.*statements\|CREATE TABLE.*settings\|CREATE TABLE.*vouchers" -A 80 includes/class-database.php
+43:        $vouchers_sql = "CREATE TABLE $vouchers_table (
+44-            id bigint(20) NOT NULL AUTO_INCREMENT,
+45-            first_name varchar(100) NOT NULL,
+46-            last_name varchar(100) NOT NULL,
+47-            dob date NOT NULL,
+48-            adults int(11) NOT NULL DEFAULT 0,
+49-            children int(11) NOT NULL DEFAULT 0,
+50-            conference_id bigint(20) NOT NULL,
+51-            vincentian_name varchar(200) DEFAULT NULL,
+52-            vincentian_email varchar(200) DEFAULT NULL,
+53-            created_by varchar(50) NOT NULL,
+54-            voucher_type varchar(32) NOT NULL DEFAULT 'clothing',
+55-            voucher_created_date date NOT NULL,
+56-            status varchar(50) NOT NULL DEFAULT 'Active',
+57-            workflow_status varchar(32) NOT NULL DEFAULT 'submitted',
+58-            redeemed_date date DEFAULT NULL,
+59-            override_note text DEFAULT NULL,
+60-            voucher_value decimal(10,2) NOT NULL DEFAULT 0,
+61-            voucher_items_count int(11) DEFAULT NULL,
+62-            items_adult_redeemed int(11) DEFAULT 0,
+63-            items_children_redeemed int(11) DEFAULT 0,
+64-            redemption_total_value decimal(10,2) DEFAULT NULL,
+65-            denial_reason text DEFAULT NULL,
+66-            coat_status varchar(50) DEFAULT 'Available',
+67-            coat_issued_date date DEFAULT NULL,
+68-            coat_adults_issued int(11) DEFAULT NULL,
+69-            coat_children_issued int(11) DEFAULT NULL,
+70-            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+71-            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+72-            PRIMARY KEY (id),
+73-            KEY first_name (first_name),
+74-            KEY last_name (last_name),
+75-            KEY dob (dob),
+76-            KEY conference_id (conference_id),
+77-            KEY status (status),
+78-            KEY voucher_type (voucher_type),
+79-            KEY workflow_status (workflow_status),
+80-            KEY voucher_created_date (voucher_created_date),
+81-            KEY coat_issued_date (coat_issued_date)
+82-        ) $charset_collate;";
+83-
+84-        $conferences_table = $wpdb->prefix . 'svdp_conferences';
+85-        $conferences_sql = "CREATE TABLE $conferences_table (
+86-            id bigint(20) NOT NULL AUTO_INCREMENT,
+87-            name varchar(200) NOT NULL,
+88-            slug varchar(200) NOT NULL,
+89-            is_emergency tinyint(1) NOT NULL DEFAULT 0,
+90-            organization_type varchar(50) DEFAULT 'conference',
+91-            eligibility_days int(11) DEFAULT 90,
+92-            emergency_affects_eligibility tinyint(1) DEFAULT 0,
+93-            regular_items_per_person int(11) DEFAULT 7,
+94-            emergency_items_per_person int(11) DEFAULT 3,
+95-            form_enabled tinyint(1) DEFAULT 1,
+96-            active tinyint(1) NOT NULL DEFAULT 1,
+97-            notification_email varchar(200) DEFAULT NULL,
+98-            custom_form_text text DEFAULT NULL,
+99-            custom_rules_text text DEFAULT NULL,
+100-            allowed_voucher_types text DEFAULT NULL,
+101-            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+102-            updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+103-            PRIMARY KEY (id),
+104-            UNIQUE KEY slug (slug),
+105-            KEY active (active),
+106-            KEY organization_type (organization_type)
+107-        ) $charset_collate;";
+108-
+109-        $settings_table = $wpdb->prefix . 'svdp_settings';
+110:        $settings_sql = "CREATE TABLE $settings_table (
+111-            id bigint(20) NOT NULL AUTO_INCREMENT,
+112-            setting_key varchar(100) NOT NULL,
+113-            setting_value text,
+114-            setting_type varchar(50) DEFAULT 'text',
+115-            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+116-            updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+117-            PRIMARY KEY (id),
+118-            UNIQUE KEY setting_key (setting_key)
+119-        ) $charset_collate;";
+120-
+121-        dbDelta($vouchers_sql);
+122-        dbDelta($conferences_sql);
+123-        dbDelta($settings_sql);
+124-
+125-        self::create_furniture_tables();
+126-        self::create_managers_table();
+127-        self::create_override_reasons_table();
+128-        self::add_override_columns();
+129-
+130-        self::insert_default_conferences();
+131-        self::insert_default_settings();
+132-    }
+133-
+134-    /**
+135-     * Insert default conferences.
+136-     */
+137-    private static function insert_default_conferences() {
+138-        global $wpdb;
+139-        $table = $wpdb->prefix . 'svdp_conferences';
+140-
+141-        $count = $wpdb->get_var("SELECT COUNT(*) FROM $table");
+142-        if ($count > 0) {
+143-            return;
+144-        }
+145-
+146-        $conferences = [
+147-            ['name' => 'Emergency', 'slug' => 'emergency', 'is_emergency' => 1],
+148-            ['name' => 'Cathedral of the Immaculate Conception', 'slug' => 'cathedral-immaculate-conception', 'is_emergency' => 0],
+149-            ['name' => 'Catholic Charities', 'slug' => 'catholic-charities', 'is_emergency' => 0],
+150-            ['name' => 'Our Lady of Good Hope', 'slug' => 'our-lady-good-hope', 'is_emergency' => 0],
+151-            ['name' => 'Queen of Angels', 'slug' => 'queen-of-angels', 'is_emergency' => 0],
+152-            ['name' => 'Sacred Heart – Warsaw', 'slug' => 'sacred-heart-warsaw', 'is_emergency' => 0],
+153-            ['name' => 'St Charles Borromeo', 'slug' => 'st-charles-borromeo', 'is_emergency' => 0],
+154-            ['name' => 'St Elizabeth Ann Seton', 'slug' => 'st-elizabeth-ann-seton', 'is_emergency' => 0],
+155-            ['name' => 'St John the Baptist', 'slug' => 'st-john-baptist', 'is_emergency' => 0],
+156-            ['name' => 'St John – St Patrick', 'slug' => 'st-john-st-patrick', 'is_emergency' => 0],
+157-            ['name' => 'St Joseph', 'slug' => 'st-joseph', 'is_emergency' => 0],
+158-            ['name' => 'St Jude', 'slug' => 'st-jude', 'is_emergency' => 0],
+159-            ['name' => 'St Louis Besancon', 'slug' => 'st-louis-besancon', 'is_emergency' => 0],
+160-            ['name' => 'St Mary – Fort Wayne', 'slug' => 'st-mary-fort-wayne', 'is_emergency' => 0],
+161-            ['name' => 'St Therese', 'slug' => 'st-therese', 'is_emergency' => 0],
+162-            ['name' => 'St Vincent de Paul', 'slug' => 'st-vincent-de-paul', 'is_emergency' => 0],
+163-        ];
+164-
+165-        foreach ($conferences as $conference) {
+166-            $wpdb->insert($table, $conference);
+167-        }
+168-    }
+169-
+170-    /**
+171-     * Insert default settings.
+172-     */
+173-    private static function insert_default_settings() {
+174-        global $wpdb;
+175-        $table = $wpdb->prefix . 'svdp_settings';
+176-
+177-        $count = $wpdb->get_var("SELECT COUNT(*) FROM $table");
+178-        if ($count > 0) {
+179-            return;
+180-        }
+181-
+182-        $settings = [
+183-            ['setting_key' => 'adult_item_value', 'setting_value' => '5.00', 'setting_type' => 'decimal'],
+184-            ['setting_key' => 'child_item_value', 'setting_value' => '3.00', 'setting_type' => 'decimal'],
+185-            ['setting_key' => 'store_hours', 'setting_value' => 'Monday-Friday 9am-5pm', 'setting_type' => 'text'],
+186-            ['setting_key' => 'redemption_instructions', 'setting_value' => 'Neighbors should visit the store and provide their first name, last name, and date of birth at the counter.', 'setting_type' => 'textarea'],
+187-            ['setting_key' => 'available_voucher_types', 'setting_value' => 'clothing,furniture', 'setting_type' => 'text'],
+188-        ];
+189-
+190-        foreach ($settings as $setting) {
+--
+291:        $voucher_items_sql = "CREATE TABLE $voucher_items_table (
+292-            id bigint(20) NOT NULL AUTO_INCREMENT,
+293-            voucher_id bigint(20) NOT NULL,
+294-            catalog_item_id bigint(20) DEFAULT NULL,
+295-            requested_item_name_snapshot varchar(255) NOT NULL,
+296-            requested_category_snapshot varchar(50) NOT NULL,
+297-            requested_pricing_type_snapshot varchar(20) NOT NULL,
+298-            requested_price_min_snapshot decimal(10,2) DEFAULT NULL,
+299-            requested_price_max_snapshot decimal(10,2) DEFAULT NULL,
+300-            requested_price_fixed_snapshot decimal(10,2) DEFAULT NULL,
+301-            requested_sort_order_snapshot int(11) NOT NULL DEFAULT 0,
+302-            substitution_type varchar(20) NOT NULL DEFAULT 'none',
+303-            substitute_catalog_item_id bigint(20) DEFAULT NULL,
+304-            substitute_item_name varchar(255) DEFAULT NULL,
+305-            status varchar(20) NOT NULL DEFAULT 'requested',
+306-            actual_price decimal(10,2) DEFAULT NULL,
+307-            completion_notes text DEFAULT NULL,
+308-            cancellation_reason_id bigint(20) DEFAULT NULL,
+309-            cancellation_notes text DEFAULT NULL,
+310-            completed_at datetime DEFAULT NULL,
+311-            completed_by_user_id bigint(20) DEFAULT NULL,
+312-            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+313-            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+314-            PRIMARY KEY (id),
+315-            KEY idx_svdp_voucher_items_voucher (voucher_id),
+316-            KEY idx_svdp_voucher_items_status (status),
+317-            KEY idx_svdp_voucher_items_sort (requested_sort_order_snapshot)
+318-        ) $charset_collate;";
+319-
+320-        $voucher_item_photos_table = $wpdb->prefix . 'svdp_voucher_item_photos';
+321:        $voucher_item_photos_sql = "CREATE TABLE $voucher_item_photos_table (
+322-            id bigint(20) NOT NULL AUTO_INCREMENT,
+323-            voucher_item_id bigint(20) NOT NULL,
+324-            file_path varchar(500) NOT NULL,
+325-            file_name varchar(255) NOT NULL,
+326-            mime_type varchar(100) NOT NULL,
+327-            file_size bigint(20) NOT NULL,
+328-            image_width int(11) DEFAULT NULL,
+329-            image_height int(11) DEFAULT NULL,
+330-            sort_order int(11) NOT NULL DEFAULT 0,
+331-            uploaded_by_user_id bigint(20) DEFAULT NULL,
+332-            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+333-            PRIMARY KEY (id),
+334-            KEY idx_svdp_item_photos_item (voucher_item_id)
+335-        ) $charset_collate;";
+336-
+337-        $cancellation_reasons_table = $wpdb->prefix . 'svdp_furniture_cancellation_reasons';
+338-        $cancellation_reasons_sql = "CREATE TABLE $cancellation_reasons_table (
+339-            id bigint(20) NOT NULL AUTO_INCREMENT,
+340-            reason_text varchar(255) NOT NULL,
+341-            display_order int(11) NOT NULL DEFAULT 0,
+342-            active tinyint(1) NOT NULL DEFAULT 1,
+343-            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+344-            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+345-            PRIMARY KEY (id),
+346-            KEY idx_svdp_cancel_reasons_active (active),
+347-            KEY idx_svdp_cancel_reasons_order (display_order)
+348-        ) $charset_collate;";
+349-
+350-        $invoices_table = $wpdb->prefix . 'svdp_invoices';
+351:        $invoices_sql = "CREATE TABLE $invoices_table (
+352-            id bigint(20) NOT NULL AUTO_INCREMENT,
+353-            voucher_id bigint(20) NOT NULL,
+354-            conference_id bigint(20) NOT NULL,
+355-            invoice_number varchar(100) NOT NULL,
+356-            invoice_date date NOT NULL,
+357-            amount decimal(10,2) NOT NULL,
+358-            delivery_fee decimal(10,2) NOT NULL DEFAULT 0.00,
+359-            items_total decimal(10,2) NOT NULL DEFAULT 0.00,
+360-            conference_share_total decimal(10,2) NOT NULL DEFAULT 0.00,
+361-            statement_id bigint(20) DEFAULT NULL,
+362-            stored_file_path varchar(500) DEFAULT NULL,
+363-            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+364-            PRIMARY KEY (id),
+365-            UNIQUE KEY uniq_svdp_invoice_number (invoice_number),
+366-            KEY idx_svdp_invoice_voucher (voucher_id),
+367-            KEY idx_svdp_invoice_conference (conference_id),
+368-            KEY idx_svdp_invoice_statement (statement_id),
+369-            KEY idx_svdp_invoice_date (invoice_date)
+370-        ) $charset_collate;";
+371-
+372-        $invoice_statements_table = $wpdb->prefix . 'svdp_invoice_statements';
+373:        $invoice_statements_sql = "CREATE TABLE $invoice_statements_table (
+374-            id bigint(20) NOT NULL AUTO_INCREMENT,
+375-            statement_number varchar(100) NOT NULL,
+376-            conference_id bigint(20) NOT NULL,
+377-            period_start date NOT NULL,
+378-            period_end date NOT NULL,
+379-            generated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+380-            generated_by_user_id bigint(20) DEFAULT NULL,
+381-            stored_file_path varchar(500) DEFAULT NULL,
+382-            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+383-            PRIMARY KEY (id),
+384-            UNIQUE KEY uniq_svdp_statement_number (statement_number),
+385-            KEY idx_svdp_statement_conference (conference_id),
+386-            KEY idx_svdp_statement_period (period_start, period_end)
+387-        ) $charset_collate;";
+388-
+389-        dbDelta($catalog_items_sql);
+390-        dbDelta($furniture_meta_sql);
+391-        dbDelta($voucher_items_sql);
+392-        dbDelta($voucher_item_photos_sql);
+393-        dbDelta($cancellation_reasons_sql);
+394-        dbDelta($invoices_sql);
+395-        dbDelta($invoice_statements_sql);
+396-    }
+397-
+398-    /**
+399-     * Normalize root voucher types and settings for the furniture-ready schema.
+400-     */
+401-    private static function normalize_slice_two_data() {
+402-        global $wpdb;
+403-
+404-        $vouchers_table = $wpdb->prefix . 'svdp_vouchers';
+405-        if (self::table_exists($vouchers_table)) {
+406-            if (!self::column_exists($vouchers_table, 'workflow_status')) {
+407-                $wpdb->query("ALTER TABLE $vouchers_table ADD COLUMN workflow_status varchar(32) NOT NULL DEFAULT 'submitted' AFTER status");
+408-            }
+409-
+410-            $wpdb->query("ALTER TABLE $vouchers_table MODIFY COLUMN voucher_type varchar(32) NOT NULL DEFAULT 'clothing'");
+411-            $wpdb->query("ALTER TABLE $vouchers_table MODIFY COLUMN workflow_status varchar(32) NOT NULL DEFAULT 'submitted'");
+412-            $wpdb->query("UPDATE $vouchers_table SET voucher_type = 'clothing' WHERE voucher_type IS NULL OR voucher_type = '' OR voucher_type = 'regular'");
+413-            $wpdb->query("UPDATE $vouchers_table SET voucher_type = 'furniture' WHERE voucher_type = 'household'");
+414-            $wpdb->query("UPDATE $vouchers_table SET workflow_status = 'submitted' WHERE workflow_status IS NULL OR workflow_status = ''");
+415-        }
+416-
+417-        self::normalize_conference_voucher_types();
+418-        self::normalize_available_voucher_types_setting();
+419-    }
+420-
+421-    /**
+422-     * Normalize conference voucher type JSON so furniture and household share one root type.
+423-     */
+424-    private static function normalize_conference_voucher_types() {
+425-        global $wpdb;
+426-        $table = $wpdb->prefix . 'svdp_conferences';
+427-
+428-        if (!self::table_exists($table)) {
+429-            return;
+430-        }
+431-
+432-        $conferences = $wpdb->get_results("SELECT id, organization_type, allowed_voucher_types FROM $table");
+433-        foreach ($conferences as $conference) {
+434-            $default_types = $conference->organization_type === 'store'
+435-                ? ['clothing']
+436-                : ['clothing', 'furniture'];
+437-
+438-            $normalized_types = SVDP_Settings::encode_voucher_types($conference->allowed_voucher_types, $default_types);
+439-
+440-            $wpdb->update(
+441-                $table,
+442-                ['allowed_voucher_types' => $normalized_types],
+443-                ['id' => $conference->id]
+444-            );
+445-        }
+446-    }
+447-
+448-    /**
+449-     * Normalize the available voucher type setting into root types only.
+450-     */
+451-    private static function normalize_available_voucher_types_setting() {
+452-        if (!self::table_exists($GLOBALS['wpdb']->prefix . 'svdp_settings')) {
+453-            return;
+jeremiahotis@Jeremiahs-Air-2 svdp-vouchers % 

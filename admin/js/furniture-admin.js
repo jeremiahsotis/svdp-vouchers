@@ -18,13 +18,22 @@
         }
 
         syncPricingFields(addForm);
+        syncCoverageFields(addForm);
 
         addForm.on('change', '[name="pricing_type"]', function() {
             syncPricingFields(addForm);
         });
 
+        addForm.on('change', '[name="discount_type"]', function() {
+            syncCoverageFields(addForm);
+        });
+
         $('#svdp-edit-furniture-catalog-form').on('change', '[name="pricing_type"]', function() {
             syncPricingFields($('#svdp-edit-furniture-catalog-form'));
+        });
+
+        $('#svdp-edit-furniture-catalog-form').on('change', '[name="discount_type"]', function() {
+            syncCoverageFields($('#svdp-edit-furniture-catalog-form'));
         });
 
         $('#svdp-add-catalog-item').on('click', function() {
@@ -41,9 +50,12 @@
             $('#svdp-edit-catalog-price-min').val(button.attr('data-price-min'));
             $('#svdp-edit-catalog-price-max').val(button.attr('data-price-max'));
             $('#svdp-edit-catalog-price-fixed').val(button.attr('data-price-fixed'));
+            $('#svdp-edit-catalog-discount-type').val(button.attr('data-discount-type'));
+            $('#svdp-edit-catalog-discount-value').val(button.attr('data-discount-value'));
             $('#svdp-edit-catalog-sort-order').val(button.attr('data-sort-order'));
 
             syncPricingFields($('#svdp-edit-furniture-catalog-form'));
+            syncCoverageFields($('#svdp-edit-furniture-catalog-form'));
             $('#svdp-edit-furniture-catalog-modal').show();
         });
 
@@ -154,6 +166,8 @@
             price_min: form.find('[name="price_min"]').val(),
             price_max: form.find('[name="price_max"]').val(),
             price_fixed: form.find('[name="price_fixed"]').val(),
+            discount_type: form.find('[name="discount_type"]').val(),
+            discount_value: form.find('[name="discount_value"]').val(),
             sort_order: form.find('[name="sort_order"]').val()
         }, extraData || {});
 
@@ -204,6 +218,25 @@
 
         form.find('[data-pricing-fields="range"]').toggle(pricingType === 'range');
         form.find('[data-pricing-fields="fixed"]').toggle(pricingType === 'fixed');
+    }
+
+    function syncCoverageFields(form) {
+        const discountType = form.find('[name="discount_type"]').val();
+        const valueField = form.find('[name="discount_value"]');
+        const label = form.find('[data-discount-value-label="true"]');
+        const description = form.find('[data-discount-value-description="true"]');
+
+        if (discountType === 'fixed') {
+            label.text('Conference Coverage Amount');
+            description.text('Enter the fixed dollar amount the Conference will cover for each item.');
+            valueField.attr('max', '');
+            valueField.attr('placeholder', '50.00');
+        } else {
+            label.text('Conference Coverage Percent');
+            description.text('Enter the percent of the item price the Conference will cover.');
+            valueField.attr('max', '100');
+            valueField.attr('placeholder', '50.00');
+        }
     }
 
 })(jQuery);

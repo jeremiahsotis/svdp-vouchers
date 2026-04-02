@@ -1,0 +1,22 @@
+Last login: Wed Mar 25 12:51:19 on ttys013
+jeremiahotis@Jeremiahs-Air-2 plugins % cd svdp-vouchers
+jeremiahotis@Jeremiahs-Air-2 svdp-vouchers % grep -RIn "Spanish\|Burmese\|receipt.*language\|voucher.*language\|neighbor.*receipt\|printable.*voucher\|email.*voucher" includes public admin
+includes/class-voucher.php:1088:        $message = self::get_email_template($voucher, $created, $expires, $household_size, $voucher_amount, $furniture_meta);
+includes/class-voucher.php:1103:    private static function get_email_template($voucher, $created, $expires, $household_size, $voucher_amount, $furniture_meta = null) {
+includes/class-voucher.php:1181:                        <p><span class="label">Vincentian Email:</span> <a href="mailto:<?php echo esc_attr($voucher->vincentian_email); ?>"><?php echo esc_html($voucher->vincentian_email); ?></a></p>
+includes/class-voucher.php:1357:            'vincentian_email' => $voucher->vincentian_email,
+includes/class-furniture-receipt.php:13:     * Generate and store one neighbor receipt for a completed furniture voucher.
+includes/class-furniture-receipt.php:28:        return self::store_document($voucher_id, 'neighbor-receipt.html', $html);
+public/templates/cashier/partials/voucher-detail-furniture.php:86:            <p><strong>Requestor:</strong> <?php echo esc_html($voucher['vincentian_name']); ?><?php if (!empty($voucher['vincentian_email'])): ?> (<?php echo esc_html($voucher['vincentian_email']); ?>)<?php endif; ?></p>
+public/templates/cashier/partials/voucher-detail-furniture.php:406:            <p>All requested items are resolved. Completing this voucher will generate the neighbor receipt and stored conference invoice.</p>
+jeremiahotis@Jeremiahs-Air-2 svdp-vouchers % 
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,2026 @@
+Last login: Wed Mar 25 12:49:55 on ttys011
+jeremiahotis@Jeremiahs-Air-2 svdp-vouchers % sed -n '1,320p' includes/class-furniture-receipt.php
+sed -n '1,320p' public/templates/documents/furniture-receipt.php
+sed -n '1,320p' includes/class-invoice.php
+sed -n '1,320p' includes/class-voucher.php
+sed -n '1,320p' public/templates/cashier/partials/voucher-detail.php
+sed -n '1,420p' public/templates/cashier/partials/voucher-detail-furniture.php
+sed -n '1,260p' includes/class-cashier-shell.php
+sed -n '1,320p' public/js/cashier-shell.js
+<?php
+/**
+ * Neighbor-facing furniture receipt generation.
+ */
+
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+class SVDP_Furniture_Receipt {
+
+    /**
+     * Generate and store one neighbor receipt for a completed furniture voucher.
+     *
+     * @param array $voucher Formatted cashier voucher data.
+     * @return array|WP_Error
+     */
+    public static function create_for_voucher($voucher) {
+        $voucher_id = intval($voucher['id'] ?? 0);
+        if ($voucher_id <= 0) {
+            return new WP_Error('receipt_voucher_invalid', 'Furniture receipt generation requires a valid voucher.', ['status' => 400]);
+        }
+
+        $html = self::render_template('public/templates/documents/furniture-receipt.php', [
+            'voucher' => $voucher,
+        ]);
+
+        return self::store_document($voucher_id, 'neighbor-receipt.html', $html);
+    }
+
+    /**
+     * Resolve a public URL from one stored relative receipt path.
+     *
+     * @param string|null $relative_path Stored relative uploads path.
+     * @return string|null
+     */
+    public static function public_url_from_relative_path($relative_path) {
+        $relative_path = self::normalize_managed_relative_path($relative_path);
+        if ($relative_path === null) {
+            return null;
+        }
+
+        $uploads = wp_upload_dir();
+        return trailingslashit($uploads['baseurl']) . $relative_path;
+    }
+
+    /**
+     * Delete one stored receipt file by relative path.
+     *
+     * @param string|null $relative_path Stored relative uploads path.
+     * @return void
+     */
+    public static function delete_document($relative_path) {
+        $relative_path = self::normalize_managed_relative_path($relative_path);
+        if ($relative_path === null) {
+            return;
+        }
+
+        $uploads = wp_upload_dir();
+        $absolute_path = trailingslashit($uploads['basedir']) . $relative_path;
+        if (file_exists($absolute_path)) {
+            wp_delete_file($absolute_path);
+        }
+    }
+
+    /**
+     * Render a document template inside the plugin.
+     *
+     * @param string $relative_path Template path relative to plugin dir.
+     * @param array  $vars Template variables.
+     * @return string
+     */
+    private static function render_template($relative_path, $vars = []) {
+        $template_path = SVDP_VOUCHERS_PLUGIN_DIR . ltrim($relative_path, '/');
+
+        if (!empty($vars)) {
+            extract($vars, EXTR_SKIP);
+        }
+
+        ob_start();
+        include $template_path;
+        return ob_get_clean();
+    }
+
+    /**
+     * Store rendered receipt HTML in the voucher documents directory.
+     *
+     * @param int    $voucher_id Root voucher ID.
+     * @param string $file_name Target file name.
+     * @param string $html Rendered HTML payload.
+     * @return array|WP_Error
+     */
+    private static function store_document($voucher_id, $file_name, $html) {
+        $uploads = wp_upload_dir();
+        if (!empty($uploads['error'])) {
+            return new WP_Error('receipt_uploads_unavailable', 'The uploads directory is not available for receipt storage.', ['status' => 500]);
+        }
+
+        $relative_dir = trailingslashit(SVDP_Furniture_Photo_Storage::BASE_SUBDIR . '/' . intval($voucher_id)) . 'documents';
+        $absolute_dir = trailingslashit($uploads['basedir']) . $relative_dir;
+
+        if (!wp_mkdir_p($absolute_dir)) {
+            return new WP_Error('receipt_directory_failed', 'The receipt storage directory could not be created.', ['status' => 500]);
+        }
+
+        $relative_path = trailingslashit($relative_dir) . sanitize_file_name($file_name);
+        $absolute_path = trailingslashit($absolute_dir) . sanitize_file_name($file_name);
+        $bytes_written = file_put_contents($absolute_path, $html);
+
+        if ($bytes_written === false) {
+            return new WP_Error('receipt_write_failed', 'The receipt file could not be written to storage.', ['status' => 500]);
+        }
+
+        return [
+            'file_path' => $relative_path,
+            'url' => self::public_url_from_relative_path($relative_path),
+        ];
+    }
+
+    /**
+     * Ensure one stored document path stays inside the voucher documents subtree.
+     *
+     * @param mixed $relative_path Stored relative uploads path.
+     * @return string|null
+     */
+    private static function normalize_managed_relative_path($relative_path) {
+        $relative_path = ltrim(wp_normalize_path((string) $relative_path), '/');
+        if ($relative_path === '' || strpos($relative_path, '../') !== false) {
+            return null;
+        }
+
+        $base_prefix = trailingslashit(SVDP_Furniture_Photo_Storage::BASE_SUBDIR);
+        if (strpos($relative_path, $base_prefix) !== 0 || strpos($relative_path, '/documents/') === false) {
+            return null;
+        }
+
+        return $relative_path;
+    }
+}
+<?php
+$delivery_required = !empty($voucher['delivery_required']);
+$completed_date = !empty($voucher['furniture_completed_at']) ? $voucher['furniture_completed_at'] : current_time('mysql');
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Furniture Receipt</title>
+    <style>
+        body { font-family: Arial, sans-serif; color: #1f3442; margin: 0; padding: 32px; background: #f5f8fa; }
+        .sheet { max-width: 860px; margin: 0 auto; background: #fff; border: 1px solid #d8e4eb; border-radius: 18px; overflow: hidden; }
+        .header { padding: 28px 32px; background: #0f537d; color: #fff; }
+        .header h1 { margin: 0 0 8px; font-size: 30px; }
+        .header p { margin: 0; opacity: 0.9; }
+        .section { padding: 24px 32px; border-top: 1px solid #e3ebf1; }
+        .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+        .label { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #5b7282; margin-bottom: 6px; }
+        .value { font-size: 16px; color: #12344d; }
+        .item { padding: 16px 18px; border: 1px solid #d8e4eb; border-radius: 14px; margin-bottom: 14px; }
+        .item h3 { margin: 0 0 6px; font-size: 18px; color: #12344d; }
+        .item p { margin: 4px 0; line-height: 1.5; }
+        .badge { display: inline-block; padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; background: #eef2f5; color: #355062; }
+        .badge-completed { background: #dff4e7; color: #10643d; }
+        .badge-cancelled { background: #fff1d6; color: #7a5200; }
+        .note { margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: #f7fafc; border: 1px solid #e3ebf1; }
+        .footer { padding: 20px 32px 28px; color: #5b7282; line-height: 1.6; }
+        @media print {
+            body { padding: 0; background: #fff; }
+            .sheet { border: none; border-radius: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="sheet">
+        <header class="header">
+            <h1>Furniture Voucher Receipt</h1>
+            <p>Neighbor copy. No prices are shown on this receipt.</p>
+        </header>
+
+        <section class="section">
+            <div class="grid">
+                <div>
+                    <span class="label">Neighbor</span>
+                    <span class="value"><?php echo esc_html($voucher['first_name'] . ' ' . $voucher['last_name']); ?></span>
+                </div>
+                <div>
+                    <span class="label">Date of Birth</span>
+                    <span class="value"><?php echo esc_html(date('m/d/Y', strtotime($voucher['dob']))); ?></span>
+                </div>
+                <div>
+                    <span class="label">Conference</span>
+                    <span class="value"><?php echo esc_html($voucher['conference_name']); ?></span>
+                </div>
+                <div>
+                    <span class="label">Completed</span>
+                    <span class="value"><?php echo esc_html(date('m/d/Y g:i A', strtotime($completed_date))); ?></span>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2 style="margin: 0 0 12px; color: #12344d;">Delivery</h2>
+            <?php if ($delivery_required && !empty($voucher['delivery_address_display'])): ?>
+                <p style="margin: 0; line-height: 1.6;">Delivery requested to <?php echo esc_html($voucher['delivery_address_display']); ?>.</p>
+            <?php else: ?>
+                <p style="margin: 0; line-height: 1.6;">Pickup requested. No delivery address was provided.</p>
+            <?php endif; ?>
+        </section>
+
+        <section class="section">
+            <h2 style="margin: 0 0 16px; color: #12344d;">Item Outcomes</h2>
+            <?php foreach ((array) ($voucher['items'] ?? []) as $item): ?>
+                <article class="item">
+                    <div style="display: flex; justify-content: space-between; gap: 12px; align-items: flex-start;">
+                        <div>
+                            <h3><?php echo esc_html($item['requested_item_name']); ?></h3>
+                            <p><?php echo esc_html($item['requested_category_label']); ?></p>
+                        </div>
+                        <span class="badge <?php echo ($item['status'] ?? '') === 'completed' ? 'badge-completed' : 'badge-cancelled'; ?>">
+                            <?php echo esc_html(ucfirst($item['status'] ?? 'requested')); ?>
+                        </span>
+                    </div>
+
+                    <?php if (($item['status'] ?? '') === 'completed'): ?>
+                        <p>
+                            <?php if (!empty($item['has_substitution'])): ?>
+                                Fulfilled as <strong><?php echo esc_html($item['substitute_item_name']); ?></strong>.
+                            <?php else: ?>
+                                Fulfilled as requested.
+                            <?php endif; ?>
+                        </p>
+                        <?php if (!empty($item['completion_notes'])): ?>
+                            <div class="note">
+                                <strong>Notes:</strong> <?php echo esc_html($item['completion_notes']); ?>
+                            </div>
+                        <?php endif; ?>
+                    <?php elseif (($item['status'] ?? '') === 'cancelled'): ?>
+                        <p>Cancelled: <?php echo esc_html($item['cancellation_reason_label'] ?: 'No reason recorded'); ?>.</p>
+                        <?php if (!empty($item['cancellation_notes'])): ?>
+                            <div class="note">
+                                <strong>Notes:</strong> <?php echo esc_html($item['cancellation_notes']); ?>
+                            </div>
+                        <?php endif; ?>
+                    <?php endif; ?>
+                </article>
+            <?php endforeach; ?>
+        </section>
+
+        <div class="footer">
+            <p>Keep this receipt for your records. Store staff can use it to confirm what was fulfilled, substituted, or cancelled on this furniture voucher.</p>
+        </div>
+    </div>
+</body>
+</html>
+<?php
+/**
+ * Stored conference invoice generation and admin listing.
+ */
+
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+class SVDP_Invoice {
+
+    /**
+     * Generate and store one conference invoice for a completed furniture voucher.
+     *
+     * @param array $voucher Formatted cashier voucher data.
+     * @return array|WP_Error
+     */
+    public static function create_for_furniture_voucher($voucher) {
+        global $wpdb;
+
+        $voucher_id = intval($voucher['id'] ?? 0);
+        $conference_id = intval($voucher['conference_id'] ?? 0);
+        if ($voucher_id <= 0 || $conference_id <= 0) {
+            return new WP_Error('invoice_voucher_invalid', 'Invoice generation requires a valid furniture voucher and conference.', ['status' => 400]);
+        }
+
+        $existing_invoice = self::get_by_voucher_id($voucher_id);
+        if ($existing_invoice) {
+            return new WP_Error('invoice_exists', 'An invoice already exists for this furniture voucher.', ['status' => 409]);
+        }
+
+        $invoice_number = self::generate_invoice_number($voucher_id);
+        $invoice_date = current_time('Y-m-d');
+        $totals = self::calculate_totals($voucher);
+        $html = self::render_template('public/templates/documents/furniture-invoice.php', [
+            'voucher' => $voucher,
+            'invoice_number' => $invoice_number,
+            'invoice_date' => $invoice_date,
+            'totals' => $totals,
+        ]);
+
+        $document = self::store_document($voucher_id, 'conference-invoice.html', $html);
+        if (is_wp_error($document)) {
+            return $document;
+        }
+
+        $table = $wpdb->prefix . 'svdp_invoices';
+        $inserted = $wpdb->insert($table, [
+            'voucher_id' => $voucher_id,
+            'conference_id' => $conference_id,
+            'invoice_number' => $invoice_number,
+            'invoice_date' => $invoice_date,
+            'amount' => $totals['amount'],
+            'delivery_fee' => $totals['delivery_fee'],
+            'items_total' => $totals['items_total'],
+            'conference_share_total' => $totals['conference_share_total'],
+            'stored_file_path' => $document['file_path'],
+        ]);
+
+        if ($inserted === false) {
+            self::delete_document($document['file_path']);
+            return new WP_Error('invoice_insert_failed', 'The invoice row could not be stored.', ['status' => 500]);
+        }
+
+        return [
+            'invoice_id' => (int) $wpdb->insert_id,
+            'invoice_number' => $invoice_number,
+            'invoice_date' => $invoice_date,
+            'amount' => $totals['amount'],
+            'delivery_fee' => $totals['delivery_fee'],
+            'items_total' => $totals['items_total'],
+            'conference_share_total' => $totals['conference_share_total'],
+            'file_path' => $document['file_path'],
+            'url' => $document['url'],
+        ];
+    }
+
+    /**
+     * REST callback: list filtered invoices for admin reporting.
+     *
+     * @param WP_REST_Request $request REST request.
+     * @return WP_REST_Response|WP_Error
+     */
+    public static function get_admin_invoices($request) {
+        $filters = self::normalize_admin_filters($request->get_params());
+        if (is_wp_error($filters)) {
+            return $filters;
+        }
+
+        $invoices = self::get_filtered_invoices($filters);
+        if (is_wp_error($invoices)) {
+            return $invoices;
+        }
+
+        $total_amount = 0.0;
+        foreach ($invoices as $invoice) {
+            $total_amount += (float) $invoice['amount'];
+        }
+
+        return rest_ensure_response([
+            'success' => true,
+            'filters' => [
+                'conferenceId' => $filters['conference_id'] > 0 ? $filters['conference_id'] : null,
+                'periodStart' => $filters['period_start'],
+                'periodEnd' => $filters['period_end'],
+                'statementStatus' => $filters['statement_status'],
+            ],
+            'invoices' => $invoices,
+            'meta' => [
+                'count' => count($invoices),
+                'totalAmount' => round($total_amount, 2),
+            ],
+        ]);
+    }
+
+    /**
+     * Query filtered invoices for admin reporting or statement generation.
+     *
+     * @param array $filters Filter arguments.
+     * @return array|WP_Error
+     */
+    public static function get_filtered_invoices($filters = []) {
+        $filters = self::normalize_admin_filters($filters);
+        if (is_wp_error($filters)) {
+            return $filters;
+        }
+
+        $rows = self::query_filtered_invoices($filters);
+        $formatted = [];
+
+        foreach ($rows as $row) {
+            $formatted[] = self::format_admin_invoice($row);
+        }
+
+        return $formatted;
+    }
+
+    /**
+     * Fetch the stored invoice row for one voucher if it exists.
+     *
+     * @param int $voucher_id Root voucher ID.
+     * @return object|null
+     */
+    public static function get_by_voucher_id($voucher_id) {
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'svdp_invoices';
+        $invoice = $wpdb->get_row($wpdb->prepare(
+            "SELECT *
+             FROM $table
+             WHERE voucher_id = %d
+             ORDER BY id DESC
+             LIMIT 1",
+            intval($voucher_id)
+        ));
+
+        if (!$invoice) {
+            return null;
+        }
+
+        $invoice->stored_file_url = self::public_url_from_relative_path($invoice->stored_file_path);
+        return $invoice;
+    }
+
+    /**
+     * Delete one stored invoice row and its file.
+     *
+     * @param int         $invoice_id Invoice row ID.
+     * @param string|null $file_path Stored relative file path.
+     * @return void
+     */
+    public static function delete_invoice($invoice_id, $file_path = null) {
+        global $wpdb;
+
+        if ($file_path !== null) {
+            self::delete_document($file_path);
+        }
+
+        if (intval($invoice_id) > 0) {
+            $wpdb->delete($wpdb->prefix . 'svdp_invoices', ['id' => intval($invoice_id)]);
+        }
+    }
+
+    /**
+     * Resolve a public URL from one stored relative invoice path.
+     *
+     * @param string|null $relative_path Stored relative uploads path.
+     * @return string|null
+     */
+    public static function public_url_from_relative_path($relative_path) {
+        $relative_path = self::normalize_managed_relative_path($relative_path);
+        if ($relative_path === null) {
+            return null;
+        }
+
+        $uploads = wp_upload_dir();
+        return trailingslashit($uploads['baseurl']) . $relative_path;
+    }
+
+    /**
+     * Build one normalized invoice payload for admin reporting.
+     *
+     * @param object $invoice Raw invoice row.
+     * @return array
+     */
+    private static function format_admin_invoice($invoice) {
+        $stored_file_path = $invoice->stored_file_path ?? null;
+        $neighbor_name = trim(
+            sanitize_text_field((string) ($invoice->first_name ?? '')) . ' ' .
+            sanitize_text_field((string) ($invoice->last_name ?? ''))
+        );
+
+        return [
+            'id' => (int) $invoice->id,
+            'voucher_id' => (int) $invoice->voucher_id,
+            'conference_id' => (int) $invoice->conference_id,
+            'conference_name' => $invoice->conference_name ?? '',
+            'neighbor_name' => $neighbor_name !== '' ? $neighbor_name : null,
+            'voucher_type' => $invoice->voucher_type ?? null,
+            'invoice_number' => $invoice->invoice_number,
+            'invoice_date' => $invoice->invoice_date,
+            'amount' => (float) $invoice->amount,
+            'delivery_fee' => (float) $invoice->delivery_fee,
+            'items_total' => (float) $invoice->items_total,
+            'conference_share_total' => (float) $invoice->conference_share_total,
+            'statement_id' => $invoice->statement_id !== null ? (int) $invoice->statement_id : null,
+            'statement_number' => $invoice->statement_number ?? null,
+            'statement_period_start' => $invoice->statement_period_start ?? null,
+            'statement_period_end' => $invoice->statement_period_end ?? null,
+            'stored_file_path' => $stored_file_path,
+            'stored_file_url' => self::public_url_from_relative_path($stored_file_path),
+        ];
+    }
+
+    /**
+     * Query invoice rows using the admin filter set.
+     *
+     * @param array $filters Normalized filters.
+     * @return array
+     */
+    private static function query_filtered_invoices($filters) {
+        global $wpdb;
+
+        $invoices_table = $wpdb->prefix . 'svdp_invoices';
+        $conferences_table = $wpdb->prefix . 'svdp_conferences';
+        $statements_table = $wpdb->prefix . 'svdp_invoice_statements';
+        $vouchers_table = $wpdb->prefix . 'svdp_vouchers';
+
+        $sql = "
+            SELECT
+                i.*,
+                c.name AS conference_name,
+                s.statement_number,
+                s.period_start AS statement_period_start,
+                s.period_end AS statement_period_end,
+                v.first_name,
+                v.last_name,
+                v.voucher_type
+            FROM $invoices_table i
+            LEFT JOIN $conferences_table c ON c.id = i.conference_id
+            LEFT JOIN $statements_table s ON s.id = i.statement_id
+            LEFT JOIN $vouchers_table v ON v.id = i.voucher_id
+            WHERE 1 = 1
+        ";
+
+        $params = [];
+
+        if ($filters['conference_id'] > 0) {
+            $sql .= " AND i.conference_id = %d";
+            $params[] = $filters['conference_id'];
+        }
+
+        if ($filters['statement_id'] > 0) {
+            $sql .= " AND i.statement_id = %d";
+            $params[] = $filters['statement_id'];
+        }
+
+        if ($filters['period_start'] !== null) {
+            $sql .= " AND i.invoice_date >= %s";
+            $params[] = $filters['period_start'];
+        }
+
+        if ($filters['period_end'] !== null) {
+            $sql .= " AND i.invoice_date <= %s";
+            $params[] = $filters['period_end'];
+        }
+
+        if ($filters['statement_status'] === 'unstatemented') {
+            $sql .= " AND i.statement_id IS NULL";
+        } elseif ($filters['statement_status'] === 'statemented') {
+            $sql .= " AND i.statement_id IS NOT NULL";
+        }
+
+        $sql .= " ORDER BY i.invoice_date DESC, i.id DESC";
+
+        if (!empty($params)) {
+            $sql = $wpdb->prepare($sql, $params);
+        }
+
+        $rows = $wpdb->get_results($sql);
+        return is_array($rows) ? $rows : [];
+    }
+
+    /**
+     * Normalize admin invoice filters from REST or PHP input.
+     *
+     * @param array $raw_filters Raw filter collection.
+     * @return array|WP_Error
+     */
+    private static function normalize_admin_filters($raw_filters) {
+        if (!is_array($raw_filters)) {
+            $raw_filters = [];
+        }
+
+        $conference_id = intval($raw_filters['conferenceId'] ?? $raw_filters['conference_id'] ?? 0);
+        $statement_id = intval($raw_filters['statementId'] ?? $raw_filters['statement_id'] ?? 0);
+        $period_start = self::sanitize_filter_date($raw_filters['periodStart'] ?? $raw_filters['period_start'] ?? null, 'periodStart');
+        if (is_wp_error($period_start)) {
+            return $period_start;
+        }
+<?php
+/**
+ * Voucher management
+ */
+class SVDP_Voucher {
+
+    /**
+     * Normalize legacy voucher types for clothing workflows.
+     */
+    public static function normalize_voucher_type($voucher_type) {
+        $voucher_type = strtolower(trim((string) $voucher_type));
+
+        if ($voucher_type === 'furniture' || $voucher_type === 'household') {
+            return 'furniture';
+        }
+
+        return 'clothing';
+    }
+
+    /**
+     * Check whether a voucher type is furniture at the root row level.
+     */
+    public static function is_furniture_voucher_type($voucher_type) {
+        return self::normalize_voucher_type($voucher_type) === 'furniture';
+    }
+
+    /**
+     * Get all vouchers formatted for cashier views.
+     */
+    public static function get_cashier_vouchers() {
+        global $wpdb;
+        $vouchers_table = $wpdb->prefix . 'svdp_vouchers';
+        $conferences_table = $wpdb->prefix . 'svdp_conferences';
+        $furniture_meta_table = $wpdb->prefix . 'svdp_furniture_voucher_meta';
+        $invoices_table = $wpdb->prefix . 'svdp_invoices';
+
+        $results = $wpdb->get_results("
+            SELECT
+                v.*,
+                c.name as conference_name,
+                fm.delivery_required,
+                fm.delivery_address_line_1,
+                fm.delivery_address_line_2,
+                fm.delivery_city,
+                fm.delivery_state,
+                fm.delivery_zip,
+                fm.delivery_fee,
+                fm.estimated_total_min,
+                fm.estimated_total_max,
+                fm.estimated_requestor_portion_min,
+                fm.estimated_requestor_portion_max,
+                fm.completed_at as furniture_completed_at,
+                fm.completed_by_user_id as furniture_completed_by_user_id,
+                fm.receipt_file_path,
+                fm.invoice_file_path,
+                fi.invoice_number,
+                fi.invoice_date,
+                fi.amount as invoice_amount,
+                fi.delivery_fee as invoice_delivery_fee,
+                fi.items_total as invoice_items_total,
+                fi.conference_share_total,
+                fi.stored_file_path as invoice_stored_file_path
+            FROM $vouchers_table v
+            LEFT JOIN $conferences_table c ON v.conference_id = c.id
+            LEFT JOIN $furniture_meta_table fm ON fm.voucher_id = v.id
+            LEFT JOIN $invoices_table fi ON fi.voucher_id = v.id
+            WHERE v.status != 'Denied'
+            ORDER BY v.voucher_created_date DESC, v.id DESC
+        ");
+
+        if (!$results) {
+            return [];
+        }
+
+        $furniture_voucher_ids = array_values(array_filter(array_map(function($voucher) {
+            return self::is_furniture_voucher_type($voucher->voucher_type) ? (int) $voucher->id : null;
+        }, $results)));
+        $item_progress_map = self::get_furniture_item_progress_map($furniture_voucher_ids);
+
+        return array_map(function($voucher) use ($item_progress_map) {
+            $voucher_id = (int) $voucher->id;
+            $progress = $item_progress_map[$voucher_id] ?? null;
+            return self::format_cashier_voucher($voucher, $progress);
+        }, $results);
+    }
+
+    /**
+     * Get a single voucher formatted for cashier views.
+     */
+    public static function get_cashier_voucher($voucher_id) {
+        global $wpdb;
+        $vouchers_table = $wpdb->prefix . 'svdp_vouchers';
+        $conferences_table = $wpdb->prefix . 'svdp_conferences';
+        $furniture_meta_table = $wpdb->prefix . 'svdp_furniture_voucher_meta';
+        $invoices_table = $wpdb->prefix . 'svdp_invoices';
+
+        $voucher = $wpdb->get_row($wpdb->prepare("
+            SELECT
+                v.*,
+                c.name as conference_name,
+                fm.delivery_required,
+                fm.delivery_address_line_1,
+                fm.delivery_address_line_2,
+                fm.delivery_city,
+                fm.delivery_state,
+                fm.delivery_zip,
+                fm.delivery_fee,
+                fm.estimated_total_min,
+                fm.estimated_total_max,
+                fm.estimated_requestor_portion_min,
+                fm.estimated_requestor_portion_max,
+                fm.completed_at as furniture_completed_at,
+                fm.completed_by_user_id as furniture_completed_by_user_id,
+                fm.receipt_file_path,
+                fm.invoice_file_path,
+                fi.invoice_number,
+                fi.invoice_date,
+                fi.amount as invoice_amount,
+                fi.delivery_fee as invoice_delivery_fee,
+                fi.items_total as invoice_items_total,
+                fi.conference_share_total,
+                fi.stored_file_path as invoice_stored_file_path
+            FROM $vouchers_table v
+            LEFT JOIN $conferences_table c ON v.conference_id = c.id
+            LEFT JOIN $furniture_meta_table fm ON fm.voucher_id = v.id
+            LEFT JOIN $invoices_table fi ON fi.voucher_id = v.id
+            WHERE v.id = %d
+              AND v.status != 'Denied'
+            LIMIT 1
+        ", $voucher_id));
+
+        if (!$voucher) {
+            return null;
+        }
+
+        $item_progress = null;
+        $furniture_items = [];
+
+        if (self::is_furniture_voucher_type($voucher->voucher_type)) {
+            $item_progress_map = self::get_furniture_item_progress_map([(int) $voucher->id]);
+            $item_progress = $item_progress_map[(int) $voucher->id] ?? null;
+            $furniture_items = self::get_furniture_voucher_items((int) $voucher->id);
+        }
+
+        return self::format_cashier_voucher($voucher, $item_progress, $furniture_items);
+    }
+    
+    /**
+     * Get all vouchers with coat information
+     */
+    public static function get_vouchers($request) {
+        return self::get_cashier_vouchers();
+    }
+    
+    /**
+     * Check if coat can be issued (resets August 1st)
+     */
+    private static function can_issue_coat($coat_issued_date) {
+        if (empty($coat_issued_date)) {
+            return true;
+        }
+        
+        // Get most recent August 1st
+        $today = new DateTime();
+        $current_year = (int)$today->format('Y');
+        $current_month = (int)$today->format('m');
+        
+        // If we're before August, use last year's August 1st
+        if ($current_month < 8) {
+            $reset_date = new DateTime(($current_year - 1) . '-08-01');
+        } else {
+            $reset_date = new DateTime($current_year . '-08-01');
+        }
+        
+        $issued_date = new DateTime($coat_issued_date);
+        
+        // Can issue if the coat was issued before the most recent August 1st
+        return $issued_date < $reset_date;
+    }
+    
+    /**
+     * Check for duplicate or similar voucher
+     */
+    public static function check_duplicate($request) {
+        $params = self::get_request_data($request);
+
+        $first_name = sanitize_text_field($params['firstName']);
+        $last_name = sanitize_text_field($params['lastName']);
+        $dob = sanitize_text_field($params['dob']);
+        $created_by = sanitize_text_field($params['createdBy']);
+        $voucher_type = isset($params['voucherType'])
+            ? self::normalize_voucher_type(sanitize_text_field($params['voucherType']))
+            : 'clothing';
+        $conference_slug = isset($params['conference']) ? sanitize_text_field($params['conference']) : '';
+
+        global $wpdb;
+        $vouchers_table = $wpdb->prefix . 'svdp_vouchers';
+        $conferences_table = $wpdb->prefix . 'svdp_conferences';
+
+        // Get requesting organization's eligibility window
+        $requesting_org = null;
+        if (!empty($conference_slug)) {
+            $requesting_org = SVDP_Conference::get_by_slug($conference_slug);
+        }
+        $eligibility_days = ($requesting_org && isset($requesting_org->eligibility_days))
+            ? intval($requesting_org->eligibility_days)
+            : 90; // Default to 90 days
+
+        // Calculate cutoff date based on organization's eligibility window
+        $eligibility_cutoff = date('Y-m-d', strtotime("-{$eligibility_days} days"));
+
+        // Build base query based on created_by
+        $conference_filter = ($created_by === 'Cashier') ? '' : 'AND c.is_emergency = 0';
+
+        $voucher_type_clause = self::build_duplicate_voucher_type_clause($voucher_type);
+
+        // STEP 1: Check for EXACT match (including voucher_type)
+        $exact_query = $wpdb->prepare("
+            SELECT v.*, c.name as conference_name
+            FROM $vouchers_table v
+            LEFT JOIN $conferences_table c ON v.conference_id = c.id
+            WHERE v.first_name = %s
+            AND v.last_name = %s
+            AND v.dob = %s
+            AND {$voucher_type_clause}
+            AND v.voucher_created_date >= %s
+            $conference_filter
+            ORDER BY v.voucher_created_date DESC
+            LIMIT 1
+        ", $first_name, $last_name, $dob, $eligibility_cutoff);
+
+        $exact_match = $wpdb->get_row($exact_query);
+
+        if ($exact_match) {
+            // Calculate next eligible date using organization's eligibility window
+            $voucher_date = new DateTime($exact_match->voucher_created_date);
+            $next_eligible = clone $voucher_date;
+            $next_eligible->modify("+{$eligibility_days} days");
+            
+            return [
+                'matchType' => 'exact',
+                'found' => true,
+                'firstName' => $exact_match->first_name,
+                'lastName' => $exact_match->last_name,
+                'dob' => $exact_match->dob,
+                'conference' => $exact_match->conference_name,
+                'voucherCreatedDate' => $exact_match->voucher_created_date,
+                'vincentianName' => $exact_match->vincentian_name,
+                'nextEligibleDate' => $next_eligible->format('Y-m-d'),
+            ];
+        }
+        
+        // STEP 2: Check for SIMILAR names (if no exact match, same voucher_type)
+        // Using SOUNDEX for phonetic matching and checking same DOB
+        $similar_query = $wpdb->prepare("
+            SELECT v.*, c.name as conference_name,
+                   (SOUNDEX(v.first_name) = SOUNDEX(%s)) as first_soundex_match,
+                   (SOUNDEX(v.last_name) = SOUNDEX(%s)) as last_soundex_match
+            FROM $vouchers_table v
+            LEFT JOIN $conferences_table c ON v.conference_id = c.id
+            WHERE v.dob = %s
+            AND {$voucher_type_clause}
+            AND v.voucher_created_date >= %s
+            AND (
+                SOUNDEX(v.first_name) = SOUNDEX(%s)
+                OR SOUNDEX(v.last_name) = SOUNDEX(%s)
+                OR v.first_name LIKE %s
+                OR v.last_name LIKE %s
+            )
+            $conference_filter
+            ORDER BY v.voucher_created_date DESC
+            LIMIT 5
+        ",
+            $first_name,
+            $last_name,
+            $dob,
+            $eligibility_cutoff,
+            $first_name,
+            $last_name,
+            '%' . $wpdb->esc_like(substr($first_name, 0, 3)) . '%',
+            '%' . $wpdb->esc_like(substr($last_name, 0, 3)) . '%'
+        );
+
+        $similar_matches = $wpdb->get_results($similar_query);
+
+        if ($similar_matches && count($similar_matches) > 0) {
+            // Format similar matches
+            $matches = [];
+            foreach ($similar_matches as $match) {
+                $voucher_date = new DateTime($match->voucher_created_date);
+                $next_eligible = clone $voucher_date;
+                $next_eligible->modify("+{$eligibility_days} days");
+                
+                $matches[] = [
+                    'firstName' => $match->first_name,
+                    'lastName' => $match->last_name,
+                    'dob' => $match->dob,
+                    'conference' => $match->conference_name,
+                    'voucherCreatedDate' => $match->voucher_created_date,
+                    'vincentianName' => $match->vincentian_name,
+                    'nextEligibleDate' => $next_eligible->format('Y-m-d'),
+                ];
+            }
+            
+            return [
+                'matchType' => 'similar',
+                'found' => true,
+                'matches' => $matches,
+            ];
+        }
+        
+        return ['found' => false];
+    }
+    
+    /**
+     * Create voucher
+     */
+    public static function create_voucher($request) {
+        $params = self::get_request_data($request);
+
+<?php
+$voucher_type = $voucher['voucher_type'] ?? 'clothing';
+
+if ($voucher_type === 'furniture') {
+    include SVDP_VOUCHERS_PLUGIN_DIR . 'public/templates/cashier/partials/voucher-detail-furniture.php';
+    return;
+}
+
+$household_total = intval($voucher['adults']) + intval($voucher['children']);
+$items_per_person = $voucher['created_by'] === 'Cashier' ? 3 : 7;
+$max_adult_items = intval($voucher['adults']) * $items_per_person;
+$max_child_items = intval($voucher['children']) * $items_per_person;
+$max_total_items = !empty($voucher['voucher_items_count']) ? intval($voucher['voucher_items_count']) : ($household_total * $items_per_person);
+$toggle_prefix = 'voucher-' . intval($voucher['id']);
+$show_redeem_panel = $voucher['status'] === 'Active';
+$show_coat_panel = in_array($voucher['status'], ['Active', 'Redeemed'], true)
+    && $voucher['coat_eligible']
+    && $voucher['coat_status'] !== 'Issued';
+?>
+<div
+    class="svdp-cashier-detail"
+    data-current-voucher-id="<?php echo esc_attr($voucher['id']); ?>"
+    hx-get="<?php echo esc_url(rest_url('svdp/v1/cashier/vouchers/' . intval($voucher['id']))); ?>"
+    hx-trigger="svdp:detail-refresh from:body, every 30s"
+    hx-target="this"
+    hx-swap="outerHTML"
+>
+    <div class="svdp-cashier-detail-header">
+        <div>
+            <h2><?php echo esc_html($voucher['first_name'] . ' ' . $voucher['last_name']); ?></h2>
+            <p><?php echo esc_html($voucher['conference_name']); ?> • DOB <?php echo esc_html(date('m/d/Y', strtotime($voucher['dob']))); ?></p>
+        </div>
+        <span class="svdp-status-badge svdp-badge-<?php echo esc_attr(strtolower($voucher['status'])); ?>">
+            <?php echo esc_html($voucher['status']); ?>
+        </span>
+    </div>
+
+    <div class="svdp-cashier-detail-grid">
+        <div class="svdp-detail-item">
+            <span class="svdp-detail-label">Household</span>
+            <span class="svdp-detail-value"><?php echo esc_html($voucher['adults']); ?> adults, <?php echo esc_html($voucher['children']); ?> children</span>
+        </div>
+        <div class="svdp-detail-item">
+            <span class="svdp-detail-label">Items Allowed</span>
+            <span class="svdp-detail-value"><?php echo esc_html($max_total_items); ?></span>
+        </div>
+        <div class="svdp-detail-item">
+            <span class="svdp-detail-label">Created</span>
+            <span class="svdp-detail-value"><?php echo esc_html($voucher['voucher_created_date']); ?></span>
+        </div>
+        <div class="svdp-detail-item">
+            <span class="svdp-detail-label">Created By</span>
+            <span class="svdp-detail-value"><?php echo esc_html($voucher['created_by']); ?></span>
+        </div>
+    </div>
+
+    <?php if (!empty($voucher['override_note'])): ?>
+        <div class="svdp-coat-info not-eligible">
+            Override Note: <?php echo esc_html($voucher['override_note']); ?>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($voucher['status'] === 'Redeemed'): ?>
+        <div class="svdp-cashier-info-panel">
+            <h3>Redemption Summary</h3>
+            <p>Redeemed on <?php echo esc_html($voucher['redeemed_date']); ?>.</p>
+            <p>
+                Items: <?php echo esc_html(intval($voucher['items_adult_redeemed']) + intval($voucher['items_children_redeemed'])); ?>
+                (<?php echo esc_html($voucher['items_adult_redeemed']); ?> adult, <?php echo esc_html($voucher['items_children_redeemed']); ?> child)
+            </p>
+            <?php if ($voucher['redemption_total_value'] !== null): ?>
+                <p>Estimated value: $<?php echo esc_html(number_format((float) $voucher['redemption_total_value'], 2)); ?></p>
+            <?php endif; ?>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($voucher['coat_status'] === 'Issued' && !empty($voucher['coat_issued_date'])): ?>
+        <div class="svdp-coat-info issued">
+            Coats Issued: <?php echo esc_html($voucher['coat_adults_issued']); ?> adults, <?php echo esc_html($voucher['coat_children_issued']); ?> children on <?php echo esc_html($voucher['coat_issued_date']); ?>
+        </div>
+    <?php elseif (!$voucher['coat_eligible']): ?>
+        <div class="svdp-coat-info not-eligible">
+            Coat not eligible until <?php echo esc_html($voucher['coat_eligible_after']); ?>
+        </div>
+    <?php else: ?>
+        <div class="svdp-coat-info eligible">Coat Available</div>
+    <?php endif; ?>
+
+    <?php if ($show_redeem_panel || $show_coat_panel): ?>
+        <div class="svdp-cashier-action-stack">
+            <?php if ($show_redeem_panel): ?>
+                <section class="svdp-cashier-info-panel">
+                    <div class="svdp-cashier-panel-header">
+                        <div>
+                            <h3>Redeem Voucher</h3>
+                            <p>Keep the same clothing checkout rules while staying inside the live shell.</p>
+                        </div>
+                        <button type="button" class="svdp-btn svdp-btn-secondary" @click="$store.cashier.activePanel = $store.cashier.activePanel === 'redeem-<?php echo esc_attr($toggle_prefix); ?>' ? null : 'redeem-<?php echo esc_attr($toggle_prefix); ?>'">
+                            Enter Items
+                        </button>
+                    </div>
+
+                    <form
+                        class="svdp-form"
+                        data-cashier-action="redeem"
+                        data-voucher-id="<?php echo esc_attr($voucher['id']); ?>"
+                        data-max-total="<?php echo esc_attr($max_total_items); ?>"
+                        x-show="$store.cashier.activePanel === 'redeem-<?php echo esc_attr($toggle_prefix); ?>'"
+                        x-transition
+                    >
+                        <div class="svdp-form-row">
+                            <div class="svdp-form-group">
+                                <label>Adult Items Provided *</label>
+                                <input type="number" name="items_adult" min="0" max="<?php echo esc_attr($max_adult_items); ?>" value="0" required>
+                                <small class="svdp-help-text">Maximum: <?php echo esc_html($max_adult_items); ?> adult items</small>
+                            </div>
+                            <div class="svdp-form-group">
+                                <label>Child Items Provided *</label>
+                                <input type="number" name="items_children" min="0" max="<?php echo esc_attr($max_child_items); ?>" value="0" required>
+                                <small class="svdp-help-text">Maximum: <?php echo esc_html($max_child_items); ?> child items</small>
+                            </div>
+                        </div>
+
+                        <div class="svdp-cashier-inline-summary">
+                            <span>Maximum total items: <?php echo esc_html($max_total_items); ?></span>
+                            <span data-redemption-total>Current total: 0</span>
+                            <span data-redemption-value>Estimated value: $0.00</span>
+                        </div>
+
+                        <div class="svdp-inline-error" data-inline-error style="display: none;"></div>
+
+                        <button type="submit" class="svdp-btn svdp-btn-primary">Mark as Redeemed</button>
+                    </form>
+                </section>
+            <?php endif; ?>
+
+            <?php if ($show_coat_panel): ?>
+                <section class="svdp-cashier-info-panel">
+                    <div class="svdp-cashier-panel-header">
+                        <div>
+                            <h3>Issue Winter Coats</h3>
+                            <p>Record coat issuance without leaving the selected voucher.</p>
+                        </div>
+                        <button type="button" class="svdp-btn svdp-btn-secondary" @click="$store.cashier.activePanel = $store.cashier.activePanel === 'coat-<?php echo esc_attr($toggle_prefix); ?>' ? null : 'coat-<?php echo esc_attr($toggle_prefix); ?>'">
+                            Issue Coat
+                        </button>
+                    </div>
+
+                    <form
+                        class="svdp-form"
+                        data-cashier-action="coat"
+                        data-voucher-id="<?php echo esc_attr($voucher['id']); ?>"
+                        x-show="$store.cashier.activePanel === 'coat-<?php echo esc_attr($toggle_prefix); ?>'"
+                        x-transition
+                    >
+                        <div class="svdp-form-row">
+                            <div class="svdp-form-group">
+                                <label>Adult Coats *</label>
+                                <input type="number" name="adults" min="0" max="<?php echo esc_attr($voucher['adults']); ?>" value="<?php echo esc_attr($voucher['adults']); ?>" required>
+                                <small class="svdp-help-text">Maximum: <?php echo esc_html($voucher['adults']); ?> adult coats</small>
+                            </div>
+                            <div class="svdp-form-group">
+                                <label>Children's Coats *</label>
+                                <input type="number" name="children" min="0" max="<?php echo esc_attr($voucher['children']); ?>" value="<?php echo esc_attr($voucher['children']); ?>" required>
+                                <small class="svdp-help-text">Maximum: <?php echo esc_html($voucher['children']); ?> children's coats</small>
+                            </div>
+                        </div>
+
+                        <div class="svdp-cashier-inline-summary">
+                            <span data-coat-total>Total coats: <?php echo esc_html($household_total); ?></span>
+                        </div>
+
+                        <div class="svdp-inline-error" data-inline-error style="display: none;"></div>
+
+                        <button type="submit" class="svdp-btn svdp-btn-primary">Issue Coats</button>
+                    </form>
+                </section>
+            <?php endif; ?>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($voucher['status'] === 'Expired'): ?>
+        <div class="svdp-cashier-info-panel">
+            <h3>Voucher Expired</h3>
+            <p>This clothing voucher is outside the 30-day active window and is now read-only.</p>
+        </div>
+    <?php endif; ?>
+</div>
+<?php
+$household_total = intval($voucher['adults']) + intval($voucher['children']);
+$toggle_prefix = 'voucher-' . intval($voucher['id']);
+$item_progress = $voucher['item_progress'] ?? [
+    'total' => intval($voucher['voucher_items_count']),
+    'requested' => intval($voucher['voucher_items_count']),
+    'completed' => 0,
+    'cancelled' => 0,
+];
+$can_mutate_furniture = !empty($can_mutate_furniture);
+$furniture_catalog_items = is_array($furniture_catalog_items ?? null) ? $furniture_catalog_items : [];
+$cancellation_reasons = is_array($cancellation_reasons ?? null) ? $cancellation_reasons : [];
+$remaining_items = intval($voucher['remaining_items'] ?? $item_progress['requested']);
+$detail_refresh_trigger = $can_mutate_furniture
+    ? 'svdp:detail-refresh from:body'
+    : 'svdp:detail-refresh from:body, every 30s';
+?>
+<div
+    class="svdp-cashier-detail svdp-cashier-detail-furniture"
+    data-current-voucher-id="<?php echo esc_attr($voucher['id']); ?>"
+    hx-get="<?php echo esc_url(rest_url('svdp/v1/cashier/vouchers/' . intval($voucher['id']))); ?>"
+    hx-trigger="<?php echo esc_attr($detail_refresh_trigger); ?>"
+    hx-target="this"
+    hx-swap="outerHTML"
+>
+    <div class="svdp-cashier-detail-header">
+        <div>
+            <div class="svdp-card-badges">
+                <span class="svdp-type-badge svdp-type-furniture"><?php echo esc_html($voucher['voucher_type_label'] ?? 'Furniture'); ?></span>
+                <span class="svdp-status-badge svdp-badge-<?php echo esc_attr(strtolower($voucher['status'])); ?>">
+                    <?php echo esc_html($voucher['status']); ?>
+                </span>
+                <span class="svdp-type-badge svdp-type-workflow">
+                    <?php echo esc_html($voucher['workflow_status_label'] ?? 'Submitted'); ?>
+                </span>
+                <span class="svdp-type-badge <?php echo !empty($voucher['delivery_required']) ? 'svdp-type-delivery' : 'svdp-type-pickup'; ?>">
+                    <?php echo esc_html(!empty($voucher['delivery_required']) ? 'Delivery' : 'Pickup'); ?>
+                </span>
+            </div>
+            <h2><?php echo esc_html($voucher['first_name'] . ' ' . $voucher['last_name']); ?></h2>
+            <p><?php echo esc_html($voucher['conference_name']); ?> • DOB <?php echo esc_html(date('m/d/Y', strtotime($voucher['dob']))); ?></p>
+        </div>
+    </div>
+
+    <div class="svdp-cashier-detail-grid">
+        <div class="svdp-detail-item">
+            <span class="svdp-detail-label">Household</span>
+            <span class="svdp-detail-value"><?php echo esc_html($voucher['adults']); ?> adults, <?php echo esc_html($voucher['children']); ?> children</span>
+        </div>
+        <div class="svdp-detail-item">
+            <span class="svdp-detail-label">Requested Items</span>
+            <span class="svdp-detail-value"><?php echo esc_html(intval($voucher['voucher_items_count'])); ?></span>
+        </div>
+        <div class="svdp-detail-item">
+            <span class="svdp-detail-label">Created</span>
+            <span class="svdp-detail-value"><?php echo esc_html($voucher['voucher_created_date']); ?></span>
+        </div>
+        <div class="svdp-detail-item">
+            <span class="svdp-detail-label">Delivery</span>
+            <span class="svdp-detail-value"><?php echo esc_html(!empty($voucher['delivery_required']) ? 'Yes' : 'No'); ?></span>
+        </div>
+    </div>
+
+    <div class="svdp-cashier-inline-summary">
+        <span><?php echo esc_html(intval($item_progress['total'])); ?> items</span>
+        <span><?php echo esc_html(intval($item_progress['completed'])); ?> completed</span>
+        <span><?php echo esc_html(intval($item_progress['cancelled'])); ?> cancelled</span>
+        <span><?php echo esc_html($remaining_items); ?> remaining</span>
+    </div>
+
+    <?php if (!empty($voucher['override_note'])): ?>
+        <div class="svdp-coat-info not-eligible">
+            Override Note: <?php echo esc_html($voucher['override_note']); ?>
+        </div>
+    <?php endif; ?>
+
+    <section class="svdp-cashier-info-panel">
+        <h3>Request Summary</h3>
+        <p><strong>Estimated Total:</strong> <?php echo esc_html($voucher['estimated_total_display']); ?></p>
+        <p><strong>Estimated Requestor Portion:</strong> <?php echo esc_html($voucher['estimated_requestor_portion_display']); ?></p>
+        <?php if (!empty($voucher['delivery_required'])): ?>
+            <p><strong>Delivery Fee:</strong> $<?php echo esc_html(number_format((float) $voucher['delivery_fee'], 2)); ?></p>
+        <?php endif; ?>
+        <p><strong>Created By:</strong> <?php echo esc_html($voucher['created_by']); ?></p>
+        <?php if (!empty($voucher['vincentian_name'])): ?>
+            <p><strong>Requestor:</strong> <?php echo esc_html($voucher['vincentian_name']); ?><?php if (!empty($voucher['vincentian_email'])): ?> (<?php echo esc_html($voucher['vincentian_email']); ?>)<?php endif; ?></p>
+        <?php endif; ?>
+    </section>
+
+    <section class="svdp-cashier-info-panel">
+        <h3>Delivery Details</h3>
+        <?php if (!empty($voucher['delivery_required']) && !empty($voucher['delivery_address_display'])): ?>
+            <p><?php echo esc_html($voucher['delivery_address_display']); ?></p>
+        <?php else: ?>
+            <p>Pickup requested. No delivery address was provided.</p>
+        <?php endif; ?>
+    </section>
+
+    <section class="svdp-cashier-info-panel">
+        <div class="svdp-cashier-panel-header">
+            <div>
+                <h3>Item Resolution</h3>
+                <p>Resolve each requested item in store-walk order. Completed items require an actual price and at least one photo.</p>
+            </div>
+        </div>
+
+        <?php if (empty($voucher['items'])): ?>
+            <p>No furniture items were stored on this request.</p>
+        <?php else: ?>
+            <div class="svdp-furniture-resolution-list">
+                <?php foreach ($voucher['items'] as $item): ?>
+                    <?php
+                    $item_toggle_prefix = $toggle_prefix . '-item-' . intval($item['id']);
+                    $status_class = sanitize_html_class('svdp-item-' . strtolower($item['status']));
+                    $current_substitution_type = in_array($item['substitution_type'], ['catalog', 'free_text'], true)
+                        ? $item['substitution_type']
+                        : 'catalog';
+                    ?>
+                    <article
+                        class="svdp-furniture-resolution-card <?php echo esc_attr($status_class); ?>"
+                        x-data="{ activeAction: null, substitutionType: '<?php echo esc_attr($current_substitution_type); ?>', pendingPhotoName: '', pendingPhotoPreview: '' }"
+                    >
+                        <div class="svdp-furniture-request-item-header">
+                            <div>
+                                <h4><?php echo esc_html($item['requested_item_name']); ?></h4>
+                                <p><?php echo esc_html($item['requested_category_label']); ?> • Store-walk order <?php echo esc_html($item['requested_sort_order']); ?></p>
+                            </div>
+                            <div class="svdp-card-badges">
+                                <?php if (!empty($item['has_substitution'])): ?>
+                                    <span class="svdp-type-badge svdp-type-substitute"><?php echo esc_html($item['substitution_label']); ?></span>
+                                <?php endif; ?>
+                                <span class="svdp-status-badge svdp-badge-<?php echo esc_attr(strtolower($item['status'])); ?>">
+                                    <?php echo esc_html(ucfirst($item['status'])); ?>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="svdp-cashier-detail-grid">
+                            <div class="svdp-detail-item">
+                                <span class="svdp-detail-label">Requested Price</span>
+                                <span class="svdp-detail-value"><?php echo esc_html($item['requested_price_display']); ?></span>
+                            </div>
+                            <div class="svdp-detail-item">
+                                <span class="svdp-detail-label">Photos</span>
+                                <span class="svdp-detail-value"><?php echo esc_html(intval($item['photo_count'])); ?> uploaded</span>
+                            </div>
+                            <div class="svdp-detail-item">
+                                <span class="svdp-detail-label"><?php echo $item['status'] === 'cancelled' ? 'Cancellation Reason' : 'Actual Price'; ?></span>
+                                <span class="svdp-detail-value">
+                                    <?php
+                                    if ($item['status'] === 'completed' && $item['actual_price_display'] !== '') {
+                                        echo esc_html($item['actual_price_display']);
+                                    } elseif ($item['status'] === 'cancelled' && $item['cancellation_reason_label'] !== '') {
+                                        echo esc_html($item['cancellation_reason_label']);
+                                    } else {
+                                        echo esc_html('Pending');
+                                    }
+                                    ?>
+                                </span>
+                            </div>
+                            <div class="svdp-detail-item">
+                                <span class="svdp-detail-label">Current State</span>
+                                <span class="svdp-detail-value">
+                                    <?php
+                                    if ($item['status'] === 'requested') {
+                                        echo esc_html('Needs resolution');
+                                    } elseif ($item['status'] === 'completed') {
+                                        echo esc_html('Ready for voucher completion');
+                                    } else {
+                                        echo esc_html('Cancelled');
+                                    }
+                                    ?>
+                                </span>
+                            </div>
+                        </div>
+
+                        <?php if (!empty($item['has_substitution'])): ?>
+                            <div class="svdp-furniture-resolution-note">
+                                <strong><?php echo esc_html($item['substitution_label']); ?>:</strong>
+                                <?php echo esc_html($item['substitute_item_name']); ?>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($item['photos'])): ?>
+                            <div class="svdp-furniture-photo-strip">
+                                <?php foreach ($item['photos'] as $photo): ?>
+                                    <a
+                                        class="svdp-furniture-photo"
+                                        href="<?php echo esc_url($photo['url']); ?>"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        <img src="<?php echo esc_url($photo['thumbnail_url']); ?>" alt="<?php echo esc_attr($item['requested_item_name']); ?> photo">
+                                    </a>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if ($item['status'] === 'completed' && !empty($item['completion_notes'])): ?>
+                            <div class="svdp-furniture-resolution-note">
+                                <strong>Completion Notes:</strong> <?php echo esc_html($item['completion_notes']); ?>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if ($item['status'] === 'cancelled' && !empty($item['cancellation_notes'])): ?>
+                            <div class="svdp-furniture-resolution-note">
+                                <strong>Cancellation Notes:</strong> <?php echo esc_html($item['cancellation_notes']); ?>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if ($can_mutate_furniture && $item['status'] === 'requested'): ?>
+                            <div class="svdp-furniture-action-row">
+                                <button
+                                    type="button"
+                                    class="svdp-btn svdp-btn-secondary"
+                                    @click="activeAction = activeAction === 'complete' ? null : 'complete'"
+                                >
+                                    Fulfill Item
+                                </button>
+                                <button
+                                    type="button"
+                                    class="svdp-btn svdp-btn-secondary"
+                                    @click="activeAction = activeAction === 'substitute' ? null : 'substitute'"
+                                >
+                                    Substitute
+                                </button>
+                                <button
+                                    type="button"
+                                    class="svdp-btn svdp-btn-warning"
+                                    @click="activeAction = activeAction === 'cancel' ? null : 'cancel'"
+                                >
+                                    Cancel Item
+                                </button>
+                            </div>
+
+                            <div class="svdp-furniture-action-panels">
+                                <section class="svdp-furniture-action-panel" x-show="activeAction === 'complete'" x-transition>
+                                    <form
+                                        class="svdp-form"
+                                        data-cashier-action="furniture-photo"
+                                        data-voucher-id="<?php echo esc_attr($voucher['id']); ?>"
+                                        data-item-id="<?php echo esc_attr($item['id']); ?>"
+                                        enctype="multipart/form-data"
+                                    >
+                                        <div class="svdp-form-group">
+                                            <label>Add Photo *</label>
+                                            <input
+                                                type="file"
+                                                name="photo"
+                                                accept="image/*"
+                                                @change="
+                                                    if (pendingPhotoPreview) { URL.revokeObjectURL(pendingPhotoPreview); }
+                                                    pendingPhotoName = $event.target.files.length ? $event.target.files[0].name : '';
+                                                    pendingPhotoPreview = $event.target.files.length ? URL.createObjectURL($event.target.files[0]) : '';
+                                                "
+                                            >
+                                            <small class="svdp-help-text">Each upload is normalized to JPEG, resized, and stored under this voucher item.</small>
+                                        </div>
+
+                                        <div class="svdp-furniture-upload-preview" x-show="pendingPhotoName">
+                                            <div>
+                                                <strong x-text="pendingPhotoName"></strong>
+                                                <p>Upload this photo before marking the item completed.</p>
+                                            </div>
+                                            <template x-if="pendingPhotoPreview">
+                                                <img :src="pendingPhotoPreview" alt="Selected furniture photo preview">
+                                            </template>
+                                        </div>
+
+                                        <div class="svdp-inline-error" data-inline-error style="display: none;"></div>
+                                        <button type="submit" class="svdp-btn svdp-btn-secondary">
+                                            <?php echo intval($item['photo_count']) > 0 ? 'Add Another Photo' : 'Upload Photo'; ?>
+                                        </button>
+                                    </form>
+
+                                    <form
+                                        class="svdp-form"
+                                        data-cashier-action="furniture-complete"
+                                        data-voucher-id="<?php echo esc_attr($voucher['id']); ?>"
+                                        data-item-id="<?php echo esc_attr($item['id']); ?>"
+                                        data-photo-count="<?php echo esc_attr(intval($item['photo_count'])); ?>"
+                                    >
+                                        <div class="svdp-form-group">
+                                            <label>Actual Price *</label>
+                                            <input type="number" name="actualPrice" min="0.01" step="0.01" inputmode="decimal" required>
+                                        </div>
+
+                                        <div class="svdp-form-group">
+                                            <label>Completion Notes</label>
+                                            <textarea name="completionNotes" rows="3" placeholder="Optional notes about condition, matching set pieces, or handoff details."></textarea>
+                                        </div>
+
+                                        <div class="svdp-cashier-inline-summary">
+                                            <span>Photos attached: <?php echo esc_html(intval($item['photo_count'])); ?></span>
+                                            <span>Actual price required</span>
+                                            <?php if (!empty($item['has_substitution'])): ?>
+                                                <span><?php echo esc_html($item['substitution_label']); ?> saved</span>
+                                            <?php endif; ?>
+                                        </div>
+
+                                        <div class="svdp-inline-error" data-inline-error style="display: none;"></div>
+                                        <button type="submit" class="svdp-btn svdp-btn-primary">Mark Completed</button>
+                                    </form>
+                                </section>
+
+                                <section class="svdp-furniture-action-panel" x-show="activeAction === 'substitute'" x-transition>
+                                    <form
+                                        class="svdp-form"
+                                        data-cashier-action="furniture-substitute"
+                                        data-voucher-id="<?php echo esc_attr($voucher['id']); ?>"
+                                        data-item-id="<?php echo esc_attr($item['id']); ?>"
+                                    >
+                                        <div class="svdp-choice-row">
+                                            <label class="svdp-choice-chip">
+                                                <input type="radio" name="substitutionType" value="catalog" x-model="substitutionType" <?php checked($current_substitution_type, 'catalog'); ?>>
+                                                <span>Catalog Item</span>
+                                            </label>
+                                            <label class="svdp-choice-chip">
+                                                <input type="radio" name="substitutionType" value="free_text" x-model="substitutionType" <?php checked($current_substitution_type, 'free_text'); ?>>
+                                                <span>Free Text</span>
+                                            </label>
+                                        </div>
+
+                                        <div class="svdp-form-group" x-show="substitutionType === 'catalog'">
+                                            <label>Substitute From Catalog *</label>
+                                            <select name="substituteCatalogItemId">
+                                                <option value="">Select a substitute item...</option>
+                                                <?php foreach ($furniture_catalog_items as $catalog_item): ?>
+                                                    <option value="<?php echo esc_attr(intval($catalog_item->id)); ?>" <?php selected(intval($item['substitute_catalog_item_id']), intval($catalog_item->id)); ?>>
+                                                        <?php echo esc_html($catalog_item->name . ' (' . (SVDP_Furniture_Catalog::get_categories()[$catalog_item->category] ?? $catalog_item->category) . ')'); ?>
+                                                    </option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </div>
+
+                                        <div class="svdp-form-group" x-show="substitutionType === 'free_text'">
+                                            <label>Substitute Item Name *</label>
+                                            <input type="text" name="substituteItemName" value="<?php echo esc_attr($current_substitution_type === 'free_text' ? ($item['substitute_item_name'] ?? '') : ''); ?>" placeholder="Example: End table with drawer">
+                                        </div>
+
+                                        <div class="svdp-inline-error" data-inline-error style="display: none;"></div>
+                                        <button type="submit" class="svdp-btn svdp-btn-primary">Save Substitute</button>
+                                    </form>
+                                </section>
+
+                                <section class="svdp-furniture-action-panel" x-show="activeAction === 'cancel'" x-transition>
+                                    <form
+                                        class="svdp-form"
+                                        data-cashier-action="furniture-cancel"
+                                        data-voucher-id="<?php echo esc_attr($voucher['id']); ?>"
+                                        data-item-id="<?php echo esc_attr($item['id']); ?>"
+                                    >
+                                        <div class="svdp-form-group">
+                                            <label>Cancellation Reason *</label>
+                                            <select name="cancellationReasonId" required>
+                                                <option value="">Select a reason...</option>
+                                                <?php foreach ($cancellation_reasons as $reason): ?>
+                                                    <option value="<?php echo esc_attr(intval($reason->id)); ?>">
+                                                        <?php echo esc_html($reason->reason_text); ?>
+                                                    </option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </div>
+
+                                        <div class="svdp-form-group">
+                                            <label>Cancellation Notes</label>
+                                            <textarea name="cancellationNotes" rows="3" placeholder="Optional context for why this item could not be fulfilled."></textarea>
+                                        </div>
+
+                                        <div class="svdp-inline-error" data-inline-error style="display: none;"></div>
+                                        <button type="submit" class="svdp-btn svdp-btn-warning">Confirm Cancellation</button>
+                                    </form>
+                                </section>
+                            </div>
+                        <?php endif; ?>
+                    </article>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+    </section>
+
+    <?php if ($voucher['status'] === 'Redeemed'): ?>
+        <section class="svdp-cashier-info-panel">
+            <h3>Completion Documents</h3>
+            <?php if (!empty($voucher['furniture_completed_at'])): ?>
+                <p><strong>Completed:</strong> <?php echo esc_html(date('m/d/Y g:i A', strtotime($voucher['furniture_completed_at']))); ?></p>
+            <?php endif; ?>
+            <?php if (!empty($voucher['invoice_number'])): ?>
+                <p><strong>Invoice:</strong> <?php echo esc_html($voucher['invoice_number']); ?></p>
+            <?php endif; ?>
+            <?php if ($voucher['invoice_amount'] !== null): ?>
+                <p><strong>Invoice Amount:</strong> $<?php echo esc_html(number_format((float) $voucher['invoice_amount'], 2)); ?></p>
+            <?php endif; ?>
+            <div class="svdp-document-links">
+                <?php if (!empty($voucher['receipt_file_url'])): ?>
+                    <a class="svdp-document-link" href="<?php echo esc_url($voucher['receipt_file_url']); ?>" target="_blank" rel="noopener noreferrer">Open Neighbor Receipt</a>
+                <?php endif; ?>
+                <?php if (!empty($voucher['invoice_file_url'])): ?>
+                    <a class="svdp-document-link" href="<?php echo esc_url($voucher['invoice_file_url']); ?>" target="_blank" rel="noopener noreferrer">Open Conference Invoice</a>
+                <?php endif; ?>
+            </div>
+        </section>
+    <?php elseif ($remaining_items === 0 && $can_mutate_furniture): ?>
+        <section class="svdp-cashier-info-panel">
+            <h3>Complete Voucher</h3>
+            <p>All requested items are resolved. Completing this voucher will generate the neighbor receipt and stored conference invoice.</p>
+            <form class="svdp-form" data-cashier-action="furniture-voucher-complete" data-voucher-id="<?php echo esc_attr($voucher['id']); ?>">
+                <div class="svdp-cashier-inline-summary">
+                    <span>Items total: <?php echo esc_html(intval($item_progress['total'])); ?></span>
+                    <span>Conference invoice uses actual fulfilled prices x 50%</span>
+                    <?php if (!empty($voucher['delivery_required'])): ?>
+                        <span>Delivery fee included</span>
+                    <?php endif; ?>
+                </div>
+
+                <div class="svdp-inline-error" data-inline-error style="display: none;"></div>
+                <button type="submit" class="svdp-btn svdp-btn-primary">Complete Voucher & Generate Documents</button>
+            </form>
+        </section>
+    <?php elseif ($remaining_items === 0): ?>
+<?php
+/**
+ * Cashier shell fragments and keepalive handling.
+ */
+class SVDP_Cashier_Shell {
+
+    /**
+     * Keep cashier sessions warm while the shell stays open.
+     */
+    public static function ping($request) {
+        if (!is_user_logged_in()) {
+            return new WP_Error('not_authenticated', 'You must be logged in.', ['status' => 401]);
+        }
+
+        wp_set_auth_cookie(get_current_user_id(), true, is_ssl());
+
+        return rest_ensure_response([
+            'authenticated' => true,
+            'nonce' => wp_create_nonce('wp_rest'),
+            'timestamp' => current_time('mysql'),
+        ]);
+    }
+
+    /**
+     * Render the cashier list pane.
+     */
+    public static function get_vouchers_fragment($request) {
+        $filters = self::get_filters($request);
+        $all_vouchers = SVDP_Voucher::get_cashier_vouchers();
+        $vouchers = self::filter_vouchers($all_vouchers, $filters);
+        $stats = self::build_stats($all_vouchers, $vouchers);
+
+        $html = self::render_template('public/templates/cashier/partials/voucher-list.php', [
+            'filters' => $filters,
+            'selected_id' => $filters['selected_id'],
+            'stats' => $stats,
+            'vouchers' => $vouchers,
+        ]);
+
+        return self::html_response($html);
+    }
+
+    /**
+     * Render the cashier detail pane for a single voucher.
+     */
+    public static function get_voucher_detail_fragment($request) {
+        $voucher_id = intval($request['id']);
+        $voucher = SVDP_Voucher::get_cashier_voucher($voucher_id);
+        $can_mutate_furniture = SVDP_Permissions::user_can_redeem_furniture_vouchers();
+        $furniture_catalog_items = [];
+        $cancellation_reasons = [];
+
+        if (!$voucher) {
+            $html = self::render_template('public/templates/cashier/partials/detail-empty.php', [
+                'message' => 'Select a voucher from the list to view its details.',
+            ]);
+
+            return self::html_response($html);
+        }
+
+        if (($voucher['voucher_type'] ?? 'clothing') === 'furniture') {
+            $furniture_catalog_items = SVDP_Furniture_Catalog::get_all(false);
+            $cancellation_reasons = SVDP_Furniture_Cancellation_Reason::get_all(false);
+        }
+
+        $html = self::render_template('public/templates/cashier/partials/voucher-detail.php', [
+            'voucher' => $voucher,
+            'can_mutate_furniture' => $can_mutate_furniture,
+            'furniture_catalog_items' => $furniture_catalog_items,
+            'cancellation_reasons' => $cancellation_reasons,
+        ]);
+
+        return self::html_response($html);
+    }
+
+    /**
+     * Apply list filters in PHP so the fragment can stay server rendered.
+     */
+    private static function filter_vouchers($vouchers, $filters) {
+        $filtered = array_filter($vouchers, function($voucher) use ($filters) {
+            if (!empty($filters['search'])) {
+                $searchable = strtolower(implode(' ', [
+                    $voucher['first_name'],
+                    $voucher['last_name'],
+                    $voucher['dob'],
+                    $voucher['conference_name'],
+                ]));
+
+                if (strpos($searchable, strtolower($filters['search'])) === false) {
+                    return false;
+                }
+            }
+
+            if ($filters['filter'] === 'active' && $voucher['status'] !== 'Active') {
+                return false;
+            }
+
+            if ($filters['filter'] === 'redeemed' && $voucher['status'] !== 'Redeemed') {
+                return false;
+            }
+
+            if ($filters['filter'] === 'expired' && $voucher['status'] !== 'Expired') {
+                return false;
+            }
+
+            if ($filters['filter'] === 'coat-available' && !$voucher['coat_eligible']) {
+                return false;
+            }
+
+            return true;
+        });
+
+        usort($filtered, function($left, $right) use ($filters) {
+            switch ($filters['sort']) {
+                case 'date-asc':
+                    return strcmp($left['voucher_created_date'], $right['voucher_created_date']);
+
+                case 'name-asc':
+                    return strcmp(
+                        strtolower($left['first_name'] . ' ' . $left['last_name']),
+                        strtolower($right['first_name'] . ' ' . $right['last_name'])
+                    );
+
+                case 'name-desc':
+                    return strcmp(
+                        strtolower($right['first_name'] . ' ' . $right['last_name']),
+                        strtolower($left['first_name'] . ' ' . $left['last_name'])
+                    );
+
+                case 'date-desc':
+                default:
+                    return strcmp($right['voucher_created_date'], $left['voucher_created_date']);
+            }
+        });
+
+        return array_values($filtered);
+    }
+
+    /**
+     * Build cashier dashboard metrics.
+     */
+    private static function build_stats($all_vouchers, $filtered_vouchers) {
+        $today = current_time('Y-m-d');
+
+        return [
+            'active' => count(array_filter($all_vouchers, function($voucher) {
+                return $voucher['status'] === 'Active';
+            })),
+            'redeemed_today' => count(array_filter($all_vouchers, function($voucher) use ($today) {
+                return $voucher['status'] === 'Redeemed' && $voucher['redeemed_date'] === $today;
+            })),
+            'coat_available' => count(array_filter($all_vouchers, function($voucher) {
+                return $voucher['coat_eligible'] && $voucher['coat_status'] !== 'Issued';
+            })),
+            'showing' => count($filtered_vouchers),
+        ];
+    }
+
+    /**
+     * Sanitize query-string filters for HTMX requests.
+     */
+    private static function get_filters($request) {
+        return [
+            'search' => sanitize_text_field($request->get_param('search') ?: ''),
+            'filter' => sanitize_text_field($request->get_param('filter') ?: 'all'),
+            'sort' => sanitize_text_field($request->get_param('sort') ?: 'date-desc'),
+            'selected_id' => intval($request->get_param('selected_id')),
+        ];
+    }
+
+    /**
+     * Render a cashier partial.
+     */
+    private static function render_template($relative_path, $vars = []) {
+        $template_path = SVDP_VOUCHERS_PLUGIN_DIR . ltrim($relative_path, '/');
+
+        if (!empty($vars)) {
+            extract($vars, EXTR_SKIP);
+        }
+
+        ob_start();
+        include $template_path;
+        return ob_get_clean();
+    }
+
+    /**
+     * Return an HTML fragment response for HTMX.
+     */
+    private static function html_response($html) {
+        return new WP_REST_Response($html, 200, [
+            'Content-Type' => 'text/html; charset=' . get_option('blog_charset'),
+        ]);
+    }
+}
+(function() {
+    'use strict';
+
+    const config = window.svdpCashierShell || {};
+    const itemValues = window.svdpVouchers?.itemValues || { adult: 5.00, child: 3.00 };
+
+    let keepaliveTimer = null;
+    let pendingEmergencyAction = null;
+    let shouldScrollDetailOnSwap = false;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const shell = document.querySelector('[data-svdp-cashier-shell]');
+        if (!shell) {
+            return;
+        }
+
+        ensureStore();
+        bindShellEvents();
+        loadOverrideReasons();
+        startKeepalive();
+    });
+
+    function ensureStore() {
+        if (!window.Alpine) {
+            return null;
+        }
+
+        const existing = window.Alpine.store('cashier');
+        if (existing) {
+            return existing;
+        }
+
+        window.Alpine.store('cashier', {
+            sessionLost: false,
+            keepaliveState: 'idle',
+            keepaliveLabel: 'Connecting',
+            emergencyOpen: false,
+            activePanel: null,
+            overrideOpen: false,
+            selectedVoucherId: null
+        });
+
+        return window.Alpine.store('cashier');
+    }
+
+    function cashierStore() {
+        return window.Alpine ? window.Alpine.store('cashier') : null;
+    }
+
+    function bindShellEvents() {
+        document.body.addEventListener('click', handleClick);
+        document.body.addEventListener('submit', handleSubmit);
+        document.body.addEventListener('input', handleInput);
+        document.body.addEventListener('htmx:configRequest', handleHtmxConfig);
+        document.body.addEventListener('htmx:afterSwap', handleHtmxAfterSwap);
+        document.body.addEventListener('htmx:responseError', handleHtmxError);
+    }
+
+    function handleClick(event) {
+        const voucherCard = event.target.closest('[data-voucher-card]');
+        if (voucherCard) {
+            shouldScrollDetailOnSwap = true;
+            setSelectedVoucher(voucherCard.getAttribute('data-voucher-id'));
+            return;
+        }
+
+        if (event.target.closest('#svdpCancelOverride')) {
+            event.preventDefault();
+            cancelOverride();
+            return;
+        }
+
+        if (event.target.closest('#svdpConfirmOverride')) {
+            event.preventDefault();
+            confirmOverride();
+            return;
+        }
+
+        const similarAction = event.target.closest('[data-similar-action]');
+        if (similarAction) {
+            event.preventDefault();
+            handleSimilarAction(similarAction.getAttribute('data-similar-action'));
+        }
+    }
+
+    function handleSubmit(event) {
+        const form = event.target;
+        if (!(form instanceof HTMLFormElement)) {
+            return;
+        }
+
+        const action = form.getAttribute('data-cashier-action');
+        if (!action) {
+            return;
+        }
+
+        event.preventDefault();
+
+        if (action === 'redeem') {
+            submitRedemption(form);
+            return;
+        }
+
+        if (action === 'coat') {
+            submitCoatIssuance(form);
+            return;
+        }
+
+        if (action === 'emergency') {
+            submitEmergencyVoucher(form);
+            return;
+        }
+
+        if (action === 'furniture-photo') {
+            submitFurniturePhoto(form);
+            return;
+        }
+
+        if (action === 'furniture-complete') {
+            submitFurnitureComplete(form);
+            return;
+        }
+
+        if (action === 'furniture-substitute') {
+            submitFurnitureSubstitute(form);
+            return;
+        }
+
+        if (action === 'furniture-cancel') {
+            submitFurnitureCancel(form);
+            return;
+        }
+
+        if (action === 'furniture-voucher-complete') {
+            submitFurnitureVoucherComplete(form);
+        }
+    }
+
+    function handleInput(event) {
+        const form = event.target.closest('form[data-cashier-action]');
+        if (!form) {
+            return;
+        }
+
+        const action = form.getAttribute('data-cashier-action');
+        if (action === 'redeem') {
+            updateRedemptionSummary(form);
+            return;
+        }
+
+        if (action === 'coat') {
+            updateCoatSummary(form);
+            return;
+        }
+
+        if (action === 'furniture-complete') {
+            validateFurnitureCompleteForm(form);
+        }
+    }
+
+    function handleHtmxConfig(event) {
+        if (!event.detail || typeof event.detail.path !== 'string') {
+            return;
+        }
+
+        if (event.detail.path.indexOf('/svdp/v1/') !== -1) {
+            event.detail.headers['X-WP-Nonce'] = config.nonce || '';
+        }
+    }
+
+    function handleHtmxAfterSwap(event) {
+        if (!event.target) {
+            return;
+        }
+
+        if (event.target.id === 'svdpCashierDetailPanel') {
+            const detail = event.target.querySelector('[data-current-voucher-id]');
+            if (detail) {
+                setSelectedVoucher(detail.getAttribute('data-current-voucher-id'));
+            }
+
+            const redeemForm = event.target.querySelector('form[data-cashier-action="redeem"]');
+            if (redeemForm) {
+                updateRedemptionSummary(redeemForm);
+            }
+
+            const coatForm = event.target.querySelector('form[data-cashier-action="coat"]');
+            if (coatForm) {
+                updateCoatSummary(coatForm);
+            }
+
+            maybeScrollDetailIntoView(event.target);
+        }
+    }
+
+    function handleHtmxError(event) {
+        const xhr = event.detail ? event.detail.xhr : null;
+        if (!xhr) {
+            return;
+        }
+
+        if (xhr.status === 401 || xhr.status === 403) {
+            handleSessionLost();
+        }
+    }
+
+    function setSelectedVoucher(voucherId) {
+        const selectedId = String(voucherId || '');
+        const hiddenInput = document.getElementById('svdpSelectedVoucherId');
+        if (hiddenInput) {
+            hiddenInput.value = selectedId;
+        }
+
+        const store = cashierStore();
+        if (store) {
+            store.selectedVoucherId = selectedId;
+        }
+
+        document.querySelectorAll('[data-voucher-card]').forEach(function(card) {
+            card.classList.toggle('is-selected', card.getAttribute('data-voucher-id') === selectedId);
+        });
+    }
+
+    function startKeepalive() {
+        pingSession();
+        keepaliveTimer = window.setInterval(pingSession, Number(config.pingInterval || 60000));
+    }
+
+    async function pingSession() {
+        const store = cashierStore();
+        if (store) {
+            store.keepaliveState = 'working';
+            store.keepaliveLabel = 'Keeping Session Live';
+        }
+
+        try {
+            const payload = await requestJSON(config.restUrl + 'svdp/v1/cashier/ping', {
+                method: 'POST'
+            });
+
+            if (payload.nonce) {
+                config.nonce = payload.nonce;
+            }
+
+            if (store) {
+                store.keepaliveState = 'ready';
+                store.keepaliveLabel = 'Shell Live';
+            }
+        } catch (error) {
+            if (error.status === 401 || error.status === 403) {
+                handleSessionLost();
+                return;
+            }
+
+            if (store) {
+                store.keepaliveState = 'warning';
+                store.keepaliveLabel = 'Connection Retrying';
+            }
+        }
+    }
+
+    function handleSessionLost() {
+        const store = cashierStore();
+        if (store) {
+            store.sessionLost = true;
+            store.keepaliveState = 'expired';
+            store.keepaliveLabel = 'Re-auth Required';
+        }
+
+        if (keepaliveTimer) {
+            window.clearInterval(keepaliveTimer);
+            keepaliveTimer = null;
+        }
+    }
+
+    async function loadOverrideReasons() {
+        try {
+            const reasons = await requestJSON(config.restUrl + 'svdp/v1/override-reasons');
+            const select = document.getElementById('svdpOverrideReason');
+            if (!select) {
+                return;
+            }
+
+            select.innerHTML = '<option value="">Select a reason...</option>';
+            reasons.forEach(function(reason) {
+                const option = document.createElement('option');
+                option.value = String(reason.id);
+                option.textContent = reason.reason_text;
+                select.appendChild(option);
+            });
+        } catch (error) {
+            showFlash('error', 'Override reasons could not be loaded.');
+        }
+    }
+
+    async function submitRedemption(form) {
+        if (!validateRedemptionForm(form)) {
+            return;
+        }
+
+        const voucherId = form.getAttribute('data-voucher-id');
+        const submitButton = form.querySelector('button[type="submit"]');
+        const originalLabel = submitButton.textContent;
+
+        setButtonState(submitButton, true, 'Saving...');
+
+        try {
+            const payload = {
+                status: 'Redeemed',
+                items_adult: parseNumber(form.elements.items_adult.value),
+                items_children: parseNumber(form.elements.items_children.value)
+            };
+
+            const response = await requestJSON(config.restUrl + 'svdp/v1/vouchers/' + voucherId + '/status', {
+                method: 'PATCH',
+                data: payload
+            });
+
+            collapsePanels();
+            showFlash('success', 'Voucher redeemed successfully. Estimated value: $' + response.redemption_value);
+jeremiahotis@Jeremiahs-Air-2 svdp-vouchers % 

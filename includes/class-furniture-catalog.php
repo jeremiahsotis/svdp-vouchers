@@ -10,6 +10,9 @@ if (!defined('ABSPATH')) {
 
 class SVDP_Furniture_Catalog {
 
+    const DEFAULT_DISCOUNT_TYPE = 'percent';
+    const DEFAULT_DISCOUNT_VALUE = '50.00';
+
     /**
      * Supported catalog categories.
      *
@@ -33,6 +36,20 @@ class SVDP_Furniture_Catalog {
         return [
             'range' => 'Range',
             'fixed' => 'Fixed',
+        ];
+    }
+
+    /**
+     * Supported conference coverage types.
+     *
+     * Stored internally as discount_* fields for backward-compatible schema evolution.
+     *
+     * @return array
+     */
+    public static function get_discount_types() {
+        return [
+            'percent' => 'Percent',
+            'fixed' => 'Fixed Dollar Amount',
         ];
     }
 
@@ -251,6 +268,28 @@ class SVDP_Furniture_Catalog {
             return new WP_Error('catalog_item_pricing_type_invalid', 'Please choose a valid pricing type.');
         }
 
+        $discount_type = sanitize_key($data['discount_type'] ?? ($existing->discount_type ?? self::DEFAULT_DISCOUNT_TYPE));
+        $discount_types = self::get_discount_types();
+        if (!isset($discount_types[$discount_type])) {
+            return new WP_Error('catalog_item_discount_type_invalid', 'Please choose a valid conference coverage type.');
+        }
+
+        $default_discount_value = $existing && isset($existing->discount_value)
+            ? $existing->discount_value
+            : self::DEFAULT_DISCOUNT_VALUE;
+        $discount_value = self::sanitize_decimal_field(
+            $data['discount_value'] ?? $default_discount_value,
+            'Conference coverage amount',
+            true
+        );
+        if (is_wp_error($discount_value)) {
+            return $discount_value;
+        }
+
+        if ($discount_type === 'percent' && (float) $discount_value > 100) {
+            return new WP_Error('catalog_item_discount_percent_invalid', 'Conference coverage percent must be between 0 and 100.');
+        }
+
         $sort_order = isset($data['sort_order']) && $data['sort_order'] !== '' ? intval($data['sort_order']) : 0;
         if ($sort_order < 0) {
             return new WP_Error('catalog_item_sort_order_invalid', 'Sort order must be zero or greater.');
@@ -260,6 +299,8 @@ class SVDP_Furniture_Catalog {
             'name' => $name,
             'category' => $category,
             'pricing_type' => $pricing_type,
+            'discount_type' => $discount_type,
+            'discount_value' => $discount_value,
             'sort_order' => $sort_order,
             'active' => array_key_exists('active', $data)
                 ? (!empty($data['active']) ? 1 : 0)
@@ -341,6 +382,12 @@ class SVDP_Furniture_Catalog {
         $price_min = $item->price_min !== null ? (float) $item->price_min : null;
         $price_max = $item->price_max !== null ? (float) $item->price_max : null;
         $price_fixed = $item->price_fixed !== null ? (float) $item->price_fixed : null;
+        $discount_type = isset($item->discount_type) && $item->discount_type === 'fixed'
+            ? 'fixed'
+            : self::DEFAULT_DISCOUNT_TYPE;
+        $discount_value = isset($item->discount_value) && $item->discount_value !== null
+            ? (float) $item->discount_value
+            : (float) self::DEFAULT_DISCOUNT_VALUE;
 
         if ($pricing_type === 'fixed') {
             $price_display = '$' . number_format((float) $price_fixed, 2);
@@ -357,6 +404,8 @@ class SVDP_Furniture_Catalog {
             'priceMin' => $price_min,
             'priceMax' => $price_max,
             'priceFixed' => $price_fixed,
+            'discountType' => $discount_type,
+            'discountValue' => $discount_value,
             'sortOrder' => (int) $item->sort_order,
             'priceDisplay' => $price_display,
         ];
