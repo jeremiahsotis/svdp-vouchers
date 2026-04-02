@@ -1,0 +1,1974 @@
+Last login: Wed Mar 25 12:48:32 on ttys009
+jeremiahotis@Jeremiahs-Air-2 svdp-vouchers % sed -n '1,260p' admin/views/tab-furniture-catalog.php
+sed -n '1,320p' admin/js/furniture-admin.js
+sed -n '1,320p' includes/class-furniture-catalog.php
+sed -n '1,360p' includes/class-voucher.php
+sed -n '1,260p' public/templates/voucher-request-form.php
+sed -n '1,360p' public/js/voucher-request.js
+sed -n '1,260p' includes/class-database.php
+<?php
+$catalog_items = SVDP_Furniture_Catalog::get_all();
+$categories = SVDP_Furniture_Catalog::get_categories();
+$pricing_types = SVDP_Furniture_Catalog::get_pricing_types();
+?>
+
+<div class="svdp-furniture-admin-section">
+    <div class="svdp-card">
+        <h2>Furniture Catalog</h2>
+        <p>Manage the catalog rows that will power later furniture request and fulfillment flows. Archive items instead of deleting them so historical voucher snapshots can remain stable.</p>
+
+        <div id="svdp-furniture-catalog-form" class="svdp-furniture-form">
+            <div class="svdp-admin-grid">
+                <div class="svdp-admin-field">
+                    <label for="svdp-catalog-name"><strong>Item Name</strong></label>
+                    <input type="text" id="svdp-catalog-name" name="name" class="regular-text" placeholder="Sofa">
+                </div>
+                <div class="svdp-admin-field">
+                    <label for="svdp-catalog-category"><strong>Category</strong></label>
+                    <select id="svdp-catalog-category" name="category">
+                        <?php foreach ($categories as $value => $label): ?>
+                            <option value="<?php echo esc_attr($value); ?>"><?php echo esc_html($label); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="svdp-admin-field">
+                    <label for="svdp-catalog-pricing-type"><strong>Pricing Type</strong></label>
+                    <select id="svdp-catalog-pricing-type" name="pricing_type">
+                        <?php foreach ($pricing_types as $value => $label): ?>
+                            <option value="<?php echo esc_attr($value); ?>"><?php echo esc_html($label); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="svdp-admin-field">
+                    <label for="svdp-catalog-sort-order"><strong>Sort Order</strong></label>
+                    <input type="number" id="svdp-catalog-sort-order" name="sort_order" min="0" value="0" class="small-text">
+                </div>
+            </div>
+
+            <div class="svdp-admin-grid svdp-pricing-fields" data-pricing-fields="range">
+                <div class="svdp-admin-field">
+                    <label for="svdp-catalog-price-min"><strong>Minimum Price</strong></label>
+                    <input type="number" id="svdp-catalog-price-min" name="price_min" min="0" step="0.01" class="small-text" placeholder="25.00">
+                </div>
+                <div class="svdp-admin-field">
+                    <label for="svdp-catalog-price-max"><strong>Maximum Price</strong></label>
+                    <input type="number" id="svdp-catalog-price-max" name="price_max" min="0" step="0.01" class="small-text" placeholder="75.00">
+                </div>
+            </div>
+
+            <div class="svdp-admin-grid svdp-pricing-fields" data-pricing-fields="fixed" style="display: none;">
+                <div class="svdp-admin-field">
+                    <label for="svdp-catalog-price-fixed"><strong>Fixed Price</strong></label>
+                    <input type="number" id="svdp-catalog-price-fixed" name="price_fixed" min="0" step="0.01" class="small-text" placeholder="50.00">
+                </div>
+            </div>
+
+            <p class="description">Use range pricing for used furniture and household goods. Use fixed pricing for handmade furniture and mattresses/frames.</p>
+
+            <div class="svdp-inline-actions">
+                <button type="button" id="svdp-add-catalog-item" class="button button-primary">Add Catalog Item</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="svdp-card">
+        <h2>Existing Catalog Items</h2>
+        <p class="description">Inactive items stay in the database and can be restored later.</p>
+
+        <table class="wp-list-table widefat striped">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th>Pricing</th>
+                    <th>Sort Order</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if (empty($catalog_items)): ?>
+                    <tr>
+                        <td colspan="6">No catalog items yet.</td>
+                    </tr>
+                <?php else: ?>
+                    <?php foreach ($catalog_items as $item): ?>
+                        <?php
+                        $is_active = intval($item->active) === 1;
+                        $pricing_label = $item->pricing_type === 'fixed'
+                            ? '$' . number_format((float) $item->price_fixed, 2)
+                            : '$' . number_format((float) $item->price_min, 2) . ' - $' . number_format((float) $item->price_max, 2);
+                        ?>
+                        <tr class="<?php echo $is_active ? '' : 'inactive'; ?>">
+                            <td><?php echo esc_html($item->name); ?></td>
+                            <td><?php echo esc_html($categories[$item->category] ?? $item->category); ?></td>
+                            <td><?php echo esc_html(ucfirst($item->pricing_type) . ': ' . $pricing_label); ?></td>
+                            <td><?php echo esc_html($item->sort_order); ?></td>
+                            <td>
+                                <span class="<?php echo $is_active ? 'manager-status-active' : 'manager-status-inactive'; ?>">
+                                    <?php echo esc_html($is_active ? 'Active' : 'Inactive'); ?>
+                                </span>
+                            </td>
+                            <td>
+                                <div class="svdp-inline-actions">
+                                    <button
+                                        type="button"
+                                        class="button button-small svdp-edit-furniture-item"
+                                        data-id="<?php echo esc_attr($item->id); ?>"
+                                        data-name="<?php echo esc_attr($item->name); ?>"
+                                        data-category="<?php echo esc_attr($item->category); ?>"
+                                        data-pricing-type="<?php echo esc_attr($item->pricing_type); ?>"
+                                        data-price-min="<?php echo esc_attr($item->price_min); ?>"
+                                        data-price-max="<?php echo esc_attr($item->price_max); ?>"
+                                        data-price-fixed="<?php echo esc_attr($item->price_fixed); ?>"
+                                        data-sort-order="<?php echo esc_attr($item->sort_order); ?>"
+                                        data-active="<?php echo esc_attr($item->active); ?>"
+                                    >
+                                        Edit
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="button button-small svdp-toggle-furniture-item-active"
+                                        data-id="<?php echo esc_attr($item->id); ?>"
+                                        data-active="<?php echo esc_attr($item->active); ?>"
+                                    >
+                                        <?php echo esc_html($is_active ? 'Archive' : 'Restore'); ?>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="svdp-edit-furniture-catalog-modal" class="svdp-modal" style="display: none;">
+    <div class="svdp-modal-content">
+        <h3>Edit Catalog Item</h3>
+        <input type="hidden" id="svdp-edit-catalog-id">
+
+        <div id="svdp-edit-furniture-catalog-form" class="svdp-furniture-form">
+            <div class="svdp-admin-grid">
+                <div class="svdp-admin-field">
+                    <label for="svdp-edit-catalog-name"><strong>Item Name</strong></label>
+                    <input type="text" id="svdp-edit-catalog-name" name="name" class="regular-text">
+                </div>
+                <div class="svdp-admin-field">
+                    <label for="svdp-edit-catalog-category"><strong>Category</strong></label>
+                    <select id="svdp-edit-catalog-category" name="category">
+                        <?php foreach ($categories as $value => $label): ?>
+                            <option value="<?php echo esc_attr($value); ?>"><?php echo esc_html($label); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="svdp-admin-field">
+                    <label for="svdp-edit-catalog-pricing-type"><strong>Pricing Type</strong></label>
+                    <select id="svdp-edit-catalog-pricing-type" name="pricing_type">
+                        <?php foreach ($pricing_types as $value => $label): ?>
+                            <option value="<?php echo esc_attr($value); ?>"><?php echo esc_html($label); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="svdp-admin-field">
+                    <label for="svdp-edit-catalog-sort-order"><strong>Sort Order</strong></label>
+                    <input type="number" id="svdp-edit-catalog-sort-order" name="sort_order" min="0" class="small-text">
+                </div>
+            </div>
+
+            <div class="svdp-admin-grid svdp-pricing-fields" data-pricing-fields="range">
+                <div class="svdp-admin-field">
+                    <label for="svdp-edit-catalog-price-min"><strong>Minimum Price</strong></label>
+                    <input type="number" id="svdp-edit-catalog-price-min" name="price_min" min="0" step="0.01" class="small-text">
+                </div>
+                <div class="svdp-admin-field">
+                    <label for="svdp-edit-catalog-price-max"><strong>Maximum Price</strong></label>
+                    <input type="number" id="svdp-edit-catalog-price-max" name="price_max" min="0" step="0.01" class="small-text">
+                </div>
+            </div>
+
+            <div class="svdp-admin-grid svdp-pricing-fields" data-pricing-fields="fixed" style="display: none;">
+                <div class="svdp-admin-field">
+                    <label for="svdp-edit-catalog-price-fixed"><strong>Fixed Price</strong></label>
+                    <input type="number" id="svdp-edit-catalog-price-fixed" name="price_fixed" min="0" step="0.01" class="small-text">
+                </div>
+            </div>
+        </div>
+
+        <div class="svdp-inline-actions">
+            <button type="button" class="button button-primary" id="svdp-save-furniture-catalog-edit">Save Changes</button>
+            <button type="button" class="button svdp-close-modal" data-target="#svdp-edit-furniture-catalog-modal">Cancel</button>
+        </div>
+    </div>
+</div>
+(function($) {
+    'use strict';
+
+    $(document).ready(function() {
+        initializeFurnitureCatalogTab();
+        initializeFurnitureReasonsTab();
+
+        $(document).on('click', '.svdp-close-modal', function() {
+            const target = $(this).data('target');
+            $(target).hide();
+        });
+    });
+
+    function initializeFurnitureCatalogTab() {
+        const addForm = $('#svdp-furniture-catalog-form');
+        if (addForm.length === 0) {
+            return;
+        }
+
+        syncPricingFields(addForm);
+
+        addForm.on('change', '[name="pricing_type"]', function() {
+            syncPricingFields(addForm);
+        });
+
+        $('#svdp-edit-furniture-catalog-form').on('change', '[name="pricing_type"]', function() {
+            syncPricingFields($('#svdp-edit-furniture-catalog-form'));
+        });
+
+        $('#svdp-add-catalog-item').on('click', function() {
+            submitCatalogForm(addForm, 'svdp_add_furniture_catalog_item');
+        });
+
+        $(document).on('click', '.svdp-edit-furniture-item', function() {
+            const button = $(this);
+
+            $('#svdp-edit-catalog-id').val(button.data('id'));
+            $('#svdp-edit-catalog-name').val(button.data('name'));
+            $('#svdp-edit-catalog-category').val(button.data('category'));
+            $('#svdp-edit-catalog-pricing-type').val(button.attr('data-pricing-type'));
+            $('#svdp-edit-catalog-price-min').val(button.attr('data-price-min'));
+            $('#svdp-edit-catalog-price-max').val(button.attr('data-price-max'));
+            $('#svdp-edit-catalog-price-fixed').val(button.attr('data-price-fixed'));
+            $('#svdp-edit-catalog-sort-order').val(button.attr('data-sort-order'));
+
+            syncPricingFields($('#svdp-edit-furniture-catalog-form'));
+            $('#svdp-edit-furniture-catalog-modal').show();
+        });
+
+        $('#svdp-save-furniture-catalog-edit').on('click', function() {
+            submitCatalogForm($('#svdp-edit-furniture-catalog-form'), 'svdp_update_furniture_catalog_item', {
+                id: $('#svdp-edit-catalog-id').val()
+            });
+        });
+
+        $(document).on('click', '.svdp-toggle-furniture-item-active', function() {
+            const id = $(this).data('id');
+            const isActive = Number($(this).data('active')) === 1;
+            const targetActive = isActive ? 0 : 1;
+            const actionLabel = isActive ? 'archive' : 'restore';
+
+            if (!window.confirm('Are you sure you want to ' + actionLabel + ' this catalog item?')) {
+                return;
+            }
+
+            $.ajax({
+                url: svdpAdmin.ajaxUrl,
+                method: 'POST',
+                data: {
+                    action: 'svdp_set_furniture_catalog_item_active',
+                    nonce: svdpAdmin.nonce,
+                    id: id,
+                    active: targetActive
+                },
+                success: function(response) {
+                    if (response.success) {
+                        window.location.reload();
+                    } else {
+                        window.alert('Error: ' + response.data);
+                    }
+                },
+                error: function() {
+                    window.alert('Failed to update the catalog item status.');
+                }
+            });
+        });
+    }
+
+    function initializeFurnitureReasonsTab() {
+        const addForm = $('#svdp-furniture-reason-form');
+        if (addForm.length === 0) {
+            return;
+        }
+
+        $('#svdp-add-furniture-reason').on('click', function() {
+            submitReasonForm(addForm, 'svdp_add_furniture_cancellation_reason');
+        });
+
+        $(document).on('click', '.svdp-edit-furniture-reason', function() {
+            const button = $(this);
+
+            $('#svdp-edit-furniture-reason-id').val(button.data('id'));
+            $('#svdp-edit-furniture-reason-text').val(button.data('text'));
+            $('#svdp-edit-furniture-reason-order').val(button.attr('data-display-order'));
+            $('#svdp-edit-furniture-reason-modal').show();
+        });
+
+        $('#svdp-save-furniture-reason-edit').on('click', function() {
+            submitReasonForm($('#svdp-edit-furniture-reason-form'), 'svdp_update_furniture_cancellation_reason', {
+                id: $('#svdp-edit-furniture-reason-id').val()
+            });
+        });
+
+        $(document).on('click', '.svdp-toggle-furniture-reason-active', function() {
+            const id = $(this).data('id');
+            const isActive = Number($(this).data('active')) === 1;
+            const targetActive = isActive ? 0 : 1;
+            const actionLabel = isActive ? 'archive' : 'restore';
+
+            if (!window.confirm('Are you sure you want to ' + actionLabel + ' this cancellation reason?')) {
+                return;
+            }
+
+            $.ajax({
+                url: svdpAdmin.ajaxUrl,
+                method: 'POST',
+                data: {
+                    action: 'svdp_set_furniture_cancellation_reason_active',
+                    nonce: svdpAdmin.nonce,
+                    id: id,
+                    active: targetActive
+                },
+                success: function(response) {
+                    if (response.success) {
+                        window.location.reload();
+                    } else {
+                        window.alert('Error: ' + response.data);
+                    }
+                },
+                error: function() {
+                    window.alert('Failed to update the cancellation reason status.');
+                }
+            });
+        });
+    }
+
+    function submitCatalogForm(form, action, extraData) {
+        const payload = $.extend({
+            action: action,
+            nonce: svdpAdmin.nonce,
+            name: form.find('[name="name"]').val().trim(),
+            category: form.find('[name="category"]').val(),
+            pricing_type: form.find('[name="pricing_type"]').val(),
+            price_min: form.find('[name="price_min"]').val(),
+            price_max: form.find('[name="price_max"]').val(),
+            price_fixed: form.find('[name="price_fixed"]').val(),
+            sort_order: form.find('[name="sort_order"]').val()
+        }, extraData || {});
+
+        $.ajax({
+            url: svdpAdmin.ajaxUrl,
+            method: 'POST',
+            data: payload,
+            success: function(response) {
+                if (response.success) {
+                    window.location.reload();
+                } else {
+                    window.alert('Error: ' + response.data);
+                }
+            },
+            error: function() {
+                window.alert('Failed to save the catalog item.');
+            }
+        });
+    }
+
+    function submitReasonForm(form, action, extraData) {
+        const payload = $.extend({
+            action: action,
+            nonce: svdpAdmin.nonce,
+            reason_text: form.find('[name="reason_text"]').val().trim(),
+            display_order: form.find('[name="display_order"]').val()
+        }, extraData || {});
+
+        $.ajax({
+            url: svdpAdmin.ajaxUrl,
+            method: 'POST',
+            data: payload,
+            success: function(response) {
+                if (response.success) {
+                    window.location.reload();
+                } else {
+                    window.alert('Error: ' + response.data);
+                }
+            },
+            error: function() {
+                window.alert('Failed to save the cancellation reason.');
+            }
+        });
+    }
+
+    function syncPricingFields(form) {
+        const pricingType = form.find('[name="pricing_type"]').val();
+
+        form.find('[data-pricing-fields="range"]').toggle(pricingType === 'range');
+        form.find('[data-pricing-fields="fixed"]').toggle(pricingType === 'fixed');
+    }
+
+})(jQuery);
+<?php
+/**
+ * Furniture catalog management.
+ */
+
+// Exit if accessed directly.
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+class SVDP_Furniture_Catalog {
+
+    /**
+     * Supported catalog categories.
+     *
+     * @return array
+     */
+    public static function get_categories() {
+        return [
+            'used_furniture' => 'Used Furniture',
+            'handmade_furniture' => 'Handmade Furniture',
+            'mattresses_frames' => 'Mattresses & Frames',
+            'household_goods' => 'Household Goods',
+        ];
+    }
+
+    /**
+     * Supported pricing types.
+     *
+     * @return array
+     */
+    public static function get_pricing_types() {
+        return [
+            'range' => 'Range',
+            'fixed' => 'Fixed',
+        ];
+    }
+
+    /**
+     * Fetch all catalog items for admin management.
+     *
+     * @param bool $include_inactive Whether inactive rows should be returned.
+     * @return array
+     */
+    public static function get_all($include_inactive = true) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'svdp_catalog_items';
+
+        $where = $include_inactive ? '' : 'WHERE active = 1';
+
+        return $wpdb->get_results(
+            "SELECT *
+             FROM $table
+             $where
+             ORDER BY active DESC, category ASC, sort_order ASC, name ASC"
+        );
+    }
+
+    /**
+     * Fetch active catalog rows grouped for the public request form.
+     *
+     * @return array
+     */
+    public static function get_active_grouped_for_public() {
+        $items = self::get_all(false);
+        $categories = self::get_categories();
+        $grouped = [];
+
+        foreach ($categories as $category_key => $category_label) {
+            $grouped[$category_key] = [
+                'key' => $category_key,
+                'label' => $category_label,
+                'items' => [],
+            ];
+        }
+
+        foreach ($items as $item) {
+            if (!isset($grouped[$item->category])) {
+                continue;
+            }
+
+            $grouped[$item->category]['items'][] = self::format_public_item($item);
+        }
+
+        return array_values(array_filter($grouped, function($group) {
+            return !empty($group['items']);
+        }));
+    }
+
+    /**
+     * Fetch active catalog rows by ID.
+     *
+     * @param array $ids Catalog item IDs.
+     * @param bool  $active_only Whether only active rows should be returned.
+     * @return array
+     */
+    public static function get_items_by_ids($ids, $active_only = true) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'svdp_catalog_items';
+
+        $ids = array_values(array_filter(array_map('intval', (array) $ids)));
+        if (empty($ids)) {
+            return [];
+        }
+
+        $placeholders = implode(', ', array_fill(0, count($ids), '%d'));
+        $where = $active_only ? 'AND active = 1' : '';
+        $query = $wpdb->prepare(
+            "SELECT *
+             FROM $table
+             WHERE id IN ($placeholders)
+             $where
+             ORDER BY category ASC, sort_order ASC, name ASC",
+            $ids
+        );
+
+        return $wpdb->get_results($query);
+    }
+
+    /**
+     * Public REST endpoint for active catalog items.
+     *
+     * @param WP_REST_Request $request Request object.
+     * @return WP_REST_Response
+     */
+    public static function get_public_catalog_items($request) {
+        return rest_ensure_response([
+            'success' => true,
+            'categories' => self::get_active_grouped_for_public(),
+        ]);
+    }
+
+    /**
+     * Fetch a single catalog item.
+     *
+     * @param int $id Catalog item ID.
+     * @return object|null
+     */
+    public static function get_by_id($id) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'svdp_catalog_items';
+
+        return $wpdb->get_row(
+            $wpdb->prepare("SELECT * FROM $table WHERE id = %d", intval($id))
+        );
+    }
+
+    /**
+     * Create a catalog item.
+     *
+     * @param array $data Raw catalog item input.
+     * @return int|WP_Error
+     */
+    public static function create($data) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'svdp_catalog_items';
+
+        $prepared = self::prepare_item_data($data);
+        if (is_wp_error($prepared)) {
+            return $prepared;
+        }
+
+        $result = $wpdb->insert($table, $prepared);
+        if ($result === false) {
+            return new WP_Error('catalog_item_create_failed', 'Failed to create furniture catalog item.');
+        }
+
+        return intval($wpdb->insert_id);
+    }
+
+    /**
+     * Update a catalog item.
+     *
+     * @param int   $id Catalog item ID.
+     * @param array $data Raw catalog item input.
+     * @return bool|WP_Error
+     */
+    public static function update($id, $data) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'svdp_catalog_items';
+
+        $existing = self::get_by_id($id);
+        if (!$existing) {
+            return new WP_Error('catalog_item_not_found', 'Furniture catalog item not found.');
+        }
+
+        $prepared = self::prepare_item_data($data, $existing);
+        if (is_wp_error($prepared)) {
+            return $prepared;
+        }
+
+        $result = $wpdb->update($table, $prepared, ['id' => intval($id)]);
+        if ($result === false) {
+            return new WP_Error('catalog_item_update_failed', 'Failed to update furniture catalog item.');
+        }
+
+        return true;
+    }
+
+    /**
+     * Set the active state for a catalog item.
+     *
+     * @param int $id Catalog item ID.
+     * @param int $active Target active state.
+     * @return bool|WP_Error
+     */
+    public static function set_active($id, $active) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'svdp_catalog_items';
+
+        $existing = self::get_by_id($id);
+        if (!$existing) {
+            return new WP_Error('catalog_item_not_found', 'Furniture catalog item not found.');
+        }
+
+        $result = $wpdb->update(
+            $table,
+            ['active' => $active ? 1 : 0],
+            ['id' => intval($id)]
+        );
+
+        if ($result === false) {
+            return new WP_Error('catalog_item_status_failed', 'Failed to update furniture catalog item status.');
+        }
+
+        return true;
+    }
+
+    /**
+     * Build sanitized insert/update data.
+     *
+     * @param array       $data Raw item data.
+     * @param object|null $existing Existing row for update preservation.
+     * @return array|WP_Error
+     */
+    private static function prepare_item_data($data, $existing = null) {
+        $name = sanitize_text_field($data['name'] ?? '');
+        if ($name === '') {
+            return new WP_Error('catalog_item_name_required', 'Catalog item name is required.');
+        }
+
+        $category = sanitize_key($data['category'] ?? '');
+        $categories = self::get_categories();
+        if (!isset($categories[$category])) {
+            return new WP_Error('catalog_item_category_invalid', 'Please choose a valid catalog category.');
+        }
+
+        $pricing_type = sanitize_key($data['pricing_type'] ?? '');
+        $pricing_types = self::get_pricing_types();
+        if (!isset($pricing_types[$pricing_type])) {
+            return new WP_Error('catalog_item_pricing_type_invalid', 'Please choose a valid pricing type.');
+        }
+
+        $sort_order = isset($data['sort_order']) && $data['sort_order'] !== '' ? intval($data['sort_order']) : 0;
+        if ($sort_order < 0) {
+            return new WP_Error('catalog_item_sort_order_invalid', 'Sort order must be zero or greater.');
+        }
+
+        $prepared = [
+            'name' => $name,
+            'category' => $category,
+            'pricing_type' => $pricing_type,
+            'sort_order' => $sort_order,
+            'active' => array_key_exists('active', $data)
+                ? (!empty($data['active']) ? 1 : 0)
+                : ($existing ? intval($existing->active) : 1),
+            'allow_substitution' => $existing ? intval($existing->allow_substitution) : 1,
+        ];
+
+        if ($pricing_type === 'range') {
+            $price_min = self::sanitize_decimal_field($data['price_min'] ?? '', 'Minimum price', true);
+            if (is_wp_error($price_min)) {
+                return $price_min;
+            }
+
+            $price_max = self::sanitize_decimal_field($data['price_max'] ?? '', 'Maximum price', true);
+            if (is_wp_error($price_max)) {
+                return $price_max;
+            }
+
+            if ((float) $price_max < (float) $price_min) {
+                return new WP_Error('catalog_item_price_range_invalid', 'Maximum price must be greater than or equal to minimum price.');
+            }
+
+            $prepared['price_min'] = $price_min;
+            $prepared['price_max'] = $price_max;
+            $prepared['price_fixed'] = null;
+        } else {
+            $price_fixed = self::sanitize_decimal_field($data['price_fixed'] ?? '', 'Fixed price', true);
+            if (is_wp_error($price_fixed)) {
+                return $price_fixed;
+            }
+
+            $prepared['price_min'] = null;
+            $prepared['price_max'] = null;
+            $prepared['price_fixed'] = $price_fixed;
+        }
+
+        return $prepared;
+    }
+
+    /**
+     * Sanitize an optional decimal field.
+     *
+     * @param mixed  $value Raw decimal value.
+     * @param string $label Human-readable field label.
+     * @param bool   $required Whether the field is required.
+     * @return string|null|WP_Error
+     */
+    private static function sanitize_decimal_field($value, $label, $required = false) {
+        $value = is_string($value) ? trim($value) : $value;
+
+        if ($value === '' || $value === null) {
+            if ($required) {
+                return new WP_Error('catalog_item_decimal_required', $label . ' is required.');
+            }
+
+            return null;
+        }
+
+<?php
+/**
+ * Voucher management
+ */
+class SVDP_Voucher {
+
+    /**
+     * Normalize legacy voucher types for clothing workflows.
+     */
+    public static function normalize_voucher_type($voucher_type) {
+        $voucher_type = strtolower(trim((string) $voucher_type));
+
+        if ($voucher_type === 'furniture' || $voucher_type === 'household') {
+            return 'furniture';
+        }
+
+        return 'clothing';
+    }
+
+    /**
+     * Check whether a voucher type is furniture at the root row level.
+     */
+    public static function is_furniture_voucher_type($voucher_type) {
+        return self::normalize_voucher_type($voucher_type) === 'furniture';
+    }
+
+    /**
+     * Get all vouchers formatted for cashier views.
+     */
+    public static function get_cashier_vouchers() {
+        global $wpdb;
+        $vouchers_table = $wpdb->prefix . 'svdp_vouchers';
+        $conferences_table = $wpdb->prefix . 'svdp_conferences';
+        $furniture_meta_table = $wpdb->prefix . 'svdp_furniture_voucher_meta';
+        $invoices_table = $wpdb->prefix . 'svdp_invoices';
+
+        $results = $wpdb->get_results("
+            SELECT
+                v.*,
+                c.name as conference_name,
+                fm.delivery_required,
+                fm.delivery_address_line_1,
+                fm.delivery_address_line_2,
+                fm.delivery_city,
+                fm.delivery_state,
+                fm.delivery_zip,
+                fm.delivery_fee,
+                fm.estimated_total_min,
+                fm.estimated_total_max,
+                fm.estimated_requestor_portion_min,
+                fm.estimated_requestor_portion_max,
+                fm.completed_at as furniture_completed_at,
+                fm.completed_by_user_id as furniture_completed_by_user_id,
+                fm.receipt_file_path,
+                fm.invoice_file_path,
+                fi.invoice_number,
+                fi.invoice_date,
+                fi.amount as invoice_amount,
+                fi.delivery_fee as invoice_delivery_fee,
+                fi.items_total as invoice_items_total,
+                fi.conference_share_total,
+                fi.stored_file_path as invoice_stored_file_path
+            FROM $vouchers_table v
+            LEFT JOIN $conferences_table c ON v.conference_id = c.id
+            LEFT JOIN $furniture_meta_table fm ON fm.voucher_id = v.id
+            LEFT JOIN $invoices_table fi ON fi.voucher_id = v.id
+            WHERE v.status != 'Denied'
+            ORDER BY v.voucher_created_date DESC, v.id DESC
+        ");
+
+        if (!$results) {
+            return [];
+        }
+
+        $furniture_voucher_ids = array_values(array_filter(array_map(function($voucher) {
+            return self::is_furniture_voucher_type($voucher->voucher_type) ? (int) $voucher->id : null;
+        }, $results)));
+        $item_progress_map = self::get_furniture_item_progress_map($furniture_voucher_ids);
+
+        return array_map(function($voucher) use ($item_progress_map) {
+            $voucher_id = (int) $voucher->id;
+            $progress = $item_progress_map[$voucher_id] ?? null;
+            return self::format_cashier_voucher($voucher, $progress);
+        }, $results);
+    }
+
+    /**
+     * Get a single voucher formatted for cashier views.
+     */
+    public static function get_cashier_voucher($voucher_id) {
+        global $wpdb;
+        $vouchers_table = $wpdb->prefix . 'svdp_vouchers';
+        $conferences_table = $wpdb->prefix . 'svdp_conferences';
+        $furniture_meta_table = $wpdb->prefix . 'svdp_furniture_voucher_meta';
+        $invoices_table = $wpdb->prefix . 'svdp_invoices';
+
+        $voucher = $wpdb->get_row($wpdb->prepare("
+            SELECT
+                v.*,
+                c.name as conference_name,
+                fm.delivery_required,
+                fm.delivery_address_line_1,
+                fm.delivery_address_line_2,
+                fm.delivery_city,
+                fm.delivery_state,
+                fm.delivery_zip,
+                fm.delivery_fee,
+                fm.estimated_total_min,
+                fm.estimated_total_max,
+                fm.estimated_requestor_portion_min,
+                fm.estimated_requestor_portion_max,
+                fm.completed_at as furniture_completed_at,
+                fm.completed_by_user_id as furniture_completed_by_user_id,
+                fm.receipt_file_path,
+                fm.invoice_file_path,
+                fi.invoice_number,
+                fi.invoice_date,
+                fi.amount as invoice_amount,
+                fi.delivery_fee as invoice_delivery_fee,
+                fi.items_total as invoice_items_total,
+                fi.conference_share_total,
+                fi.stored_file_path as invoice_stored_file_path
+            FROM $vouchers_table v
+            LEFT JOIN $conferences_table c ON v.conference_id = c.id
+            LEFT JOIN $furniture_meta_table fm ON fm.voucher_id = v.id
+            LEFT JOIN $invoices_table fi ON fi.voucher_id = v.id
+            WHERE v.id = %d
+              AND v.status != 'Denied'
+            LIMIT 1
+        ", $voucher_id));
+
+        if (!$voucher) {
+            return null;
+        }
+
+        $item_progress = null;
+        $furniture_items = [];
+
+        if (self::is_furniture_voucher_type($voucher->voucher_type)) {
+            $item_progress_map = self::get_furniture_item_progress_map([(int) $voucher->id]);
+            $item_progress = $item_progress_map[(int) $voucher->id] ?? null;
+            $furniture_items = self::get_furniture_voucher_items((int) $voucher->id);
+        }
+
+        return self::format_cashier_voucher($voucher, $item_progress, $furniture_items);
+    }
+    
+    /**
+     * Get all vouchers with coat information
+     */
+    public static function get_vouchers($request) {
+        return self::get_cashier_vouchers();
+    }
+    
+    /**
+     * Check if coat can be issued (resets August 1st)
+     */
+    private static function can_issue_coat($coat_issued_date) {
+        if (empty($coat_issued_date)) {
+            return true;
+        }
+        
+        // Get most recent August 1st
+        $today = new DateTime();
+        $current_year = (int)$today->format('Y');
+        $current_month = (int)$today->format('m');
+        
+        // If we're before August, use last year's August 1st
+        if ($current_month < 8) {
+            $reset_date = new DateTime(($current_year - 1) . '-08-01');
+        } else {
+            $reset_date = new DateTime($current_year . '-08-01');
+        }
+        
+        $issued_date = new DateTime($coat_issued_date);
+        
+        // Can issue if the coat was issued before the most recent August 1st
+        return $issued_date < $reset_date;
+    }
+    
+    /**
+     * Check for duplicate or similar voucher
+     */
+    public static function check_duplicate($request) {
+        $params = self::get_request_data($request);
+
+        $first_name = sanitize_text_field($params['firstName']);
+        $last_name = sanitize_text_field($params['lastName']);
+        $dob = sanitize_text_field($params['dob']);
+        $created_by = sanitize_text_field($params['createdBy']);
+        $voucher_type = isset($params['voucherType'])
+            ? self::normalize_voucher_type(sanitize_text_field($params['voucherType']))
+            : 'clothing';
+        $conference_slug = isset($params['conference']) ? sanitize_text_field($params['conference']) : '';
+
+        global $wpdb;
+        $vouchers_table = $wpdb->prefix . 'svdp_vouchers';
+        $conferences_table = $wpdb->prefix . 'svdp_conferences';
+
+        // Get requesting organization's eligibility window
+        $requesting_org = null;
+        if (!empty($conference_slug)) {
+            $requesting_org = SVDP_Conference::get_by_slug($conference_slug);
+        }
+        $eligibility_days = ($requesting_org && isset($requesting_org->eligibility_days))
+            ? intval($requesting_org->eligibility_days)
+            : 90; // Default to 90 days
+
+        // Calculate cutoff date based on organization's eligibility window
+        $eligibility_cutoff = date('Y-m-d', strtotime("-{$eligibility_days} days"));
+
+        // Build base query based on created_by
+        $conference_filter = ($created_by === 'Cashier') ? '' : 'AND c.is_emergency = 0';
+
+        $voucher_type_clause = self::build_duplicate_voucher_type_clause($voucher_type);
+
+        // STEP 1: Check for EXACT match (including voucher_type)
+        $exact_query = $wpdb->prepare("
+            SELECT v.*, c.name as conference_name
+            FROM $vouchers_table v
+            LEFT JOIN $conferences_table c ON v.conference_id = c.id
+            WHERE v.first_name = %s
+            AND v.last_name = %s
+            AND v.dob = %s
+            AND {$voucher_type_clause}
+            AND v.voucher_created_date >= %s
+            $conference_filter
+            ORDER BY v.voucher_created_date DESC
+            LIMIT 1
+        ", $first_name, $last_name, $dob, $eligibility_cutoff);
+
+        $exact_match = $wpdb->get_row($exact_query);
+
+        if ($exact_match) {
+            // Calculate next eligible date using organization's eligibility window
+            $voucher_date = new DateTime($exact_match->voucher_created_date);
+            $next_eligible = clone $voucher_date;
+            $next_eligible->modify("+{$eligibility_days} days");
+            
+            return [
+                'matchType' => 'exact',
+                'found' => true,
+                'firstName' => $exact_match->first_name,
+                'lastName' => $exact_match->last_name,
+                'dob' => $exact_match->dob,
+                'conference' => $exact_match->conference_name,
+                'voucherCreatedDate' => $exact_match->voucher_created_date,
+                'vincentianName' => $exact_match->vincentian_name,
+                'nextEligibleDate' => $next_eligible->format('Y-m-d'),
+            ];
+        }
+        
+        // STEP 2: Check for SIMILAR names (if no exact match, same voucher_type)
+        // Using SOUNDEX for phonetic matching and checking same DOB
+        $similar_query = $wpdb->prepare("
+            SELECT v.*, c.name as conference_name,
+                   (SOUNDEX(v.first_name) = SOUNDEX(%s)) as first_soundex_match,
+                   (SOUNDEX(v.last_name) = SOUNDEX(%s)) as last_soundex_match
+            FROM $vouchers_table v
+            LEFT JOIN $conferences_table c ON v.conference_id = c.id
+            WHERE v.dob = %s
+            AND {$voucher_type_clause}
+            AND v.voucher_created_date >= %s
+            AND (
+                SOUNDEX(v.first_name) = SOUNDEX(%s)
+                OR SOUNDEX(v.last_name) = SOUNDEX(%s)
+                OR v.first_name LIKE %s
+                OR v.last_name LIKE %s
+            )
+            $conference_filter
+            ORDER BY v.voucher_created_date DESC
+            LIMIT 5
+        ",
+            $first_name,
+            $last_name,
+            $dob,
+            $eligibility_cutoff,
+            $first_name,
+            $last_name,
+            '%' . $wpdb->esc_like(substr($first_name, 0, 3)) . '%',
+            '%' . $wpdb->esc_like(substr($last_name, 0, 3)) . '%'
+        );
+
+        $similar_matches = $wpdb->get_results($similar_query);
+
+        if ($similar_matches && count($similar_matches) > 0) {
+            // Format similar matches
+            $matches = [];
+            foreach ($similar_matches as $match) {
+                $voucher_date = new DateTime($match->voucher_created_date);
+                $next_eligible = clone $voucher_date;
+                $next_eligible->modify("+{$eligibility_days} days");
+                
+                $matches[] = [
+                    'firstName' => $match->first_name,
+                    'lastName' => $match->last_name,
+                    'dob' => $match->dob,
+                    'conference' => $match->conference_name,
+                    'voucherCreatedDate' => $match->voucher_created_date,
+                    'vincentianName' => $match->vincentian_name,
+                    'nextEligibleDate' => $next_eligible->format('Y-m-d'),
+                ];
+            }
+            
+            return [
+                'matchType' => 'similar',
+                'found' => true,
+                'matches' => $matches,
+            ];
+        }
+        
+        return ['found' => false];
+    }
+    
+    /**
+     * Create voucher
+     */
+    public static function create_voucher($request) {
+        $params = self::get_request_data($request);
+
+        $first_name = sanitize_text_field($params['firstName']);
+        $last_name = sanitize_text_field($params['lastName']);
+        $dob = sanitize_text_field($params['dob']);
+        $adults = intval($params['adults']);
+        $children = intval($params['children']);
+        $conference = sanitize_text_field($params['conference']);
+        $vincentian_name = isset($params['vincentianName']) ? sanitize_text_field($params['vincentianName']) : null;
+        $vincentian_email = isset($params['vincentianEmail']) ? sanitize_email($params['vincentianEmail']) : null;
+        $voucher_type = isset($params['voucherType'])
+            ? self::normalize_voucher_type(sanitize_text_field($params['voucherType']))
+            : 'clothing';
+
+        // Extract new override fields
+        $manager_id = isset($params['manager_id']) ? intval($params['manager_id']) : null;
+        $reason_id = isset($params['reason_id']) ? intval($params['reason_id']) : null;
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'svdp_vouchers';
+
+        // Build override note if manager override
+        $override_note = null;
+        if ($manager_id && $reason_id) {
+            $manager_table = $wpdb->prefix . 'svdp_managers';
+            $reason_table = $wpdb->prefix . 'svdp_override_reasons';
+
+            $manager = $wpdb->get_row($wpdb->prepare(
+                "SELECT name FROM $manager_table WHERE id = %d", $manager_id
+            ));
+
+            $reason = $wpdb->get_row($wpdb->prepare(
+                "SELECT reason_text FROM $reason_table WHERE id = %d", $reason_id
+            ));
+
+            if ($manager && $reason) {
+                $override_note = sprintf(
+                    'Approved by %s - Reason: %s - %s',
+                    $manager->name,
+                    $reason->reason_text,
+                    current_time('Y-m-d H:i:s')
+                );
+<div class="svdp-voucher-form">
+
+    <h2>Voucher Request Form</h2>
+    <p class="svdp-form-intro">Use this form to request a voucher on behalf of a neighbor in need.</p>
+
+    <?php
+    $store_hours = SVDP_Settings::get_setting('store_hours', '');
+    $redemption_instructions = SVDP_Settings::get_setting('redemption_instructions', '');
+    $custom_form_text = !empty($conference) ? ($conference->custom_form_text ?? '') : '';
+    $custom_rules_text = !empty($conference) ? ($conference->custom_rules_text ?? '') : '';
+    $request_voucher_types = SVDP_Settings::get_public_request_voucher_types();
+
+    if (!empty($conference)) {
+        $request_voucher_types = array_values(array_intersect(
+            $request_voucher_types,
+            SVDP_Settings::normalize_voucher_types($conference->allowed_voucher_types, $request_voucher_types)
+        ));
+    }
+
+    if (empty($request_voucher_types)) {
+        $request_voucher_types = ['clothing'];
+    }
+
+    $default_voucher_type = in_array('clothing', $request_voucher_types, true)
+        ? 'clothing'
+        : $request_voucher_types[0];
+    $voucher_type_labels = [
+        'clothing' => 'Clothing',
+        'furniture' => 'Furniture / Household Goods',
+    ];
+    $voucher_type_descriptions = [
+        'clothing' => 'Keep the current clothing voucher request flow.',
+        'furniture' => 'Select requested furniture items, capture delivery needs, and save the estimate range.',
+    ];
+    ?>
+
+    <?php if (!empty($store_hours) || !empty($redemption_instructions)): ?>
+    <div class="svdp-instructions">
+        <h3>Store Information</h3>
+        <?php if (!empty($store_hours)): ?>
+            <p><strong>🏪 Hours:</strong> <?php echo esc_html($store_hours); ?></p>
+        <?php endif; ?>
+        <?php if (!empty($redemption_instructions)): ?>
+            <p><strong>ℹ️ Instructions:</strong> <?php echo esc_html($redemption_instructions); ?></p>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
+
+    <?php if (!empty($custom_form_text)): ?>
+    <div class="svdp-custom-text">
+        <h3><?php echo !empty($conference) ? esc_html($conference->name) : 'Organization'; ?> Information</h3>
+        <p><?php echo nl2br(esc_html($custom_form_text)); ?></p>
+    </div>
+    <?php endif; ?>
+
+    <?php if (!empty($custom_rules_text)): ?>
+    <div class="svdp-custom-rules">
+        <h3>Eligibility Requirements</h3>
+        <div class="rules-content"><?php echo nl2br(esc_html($custom_rules_text)); ?></div>
+    </div>
+    <?php endif; ?>
+
+    <form
+        id="svdpVoucherForm"
+        class="svdp-form"
+        data-default-voucher-type="<?php echo esc_attr($default_voucher_type); ?>"
+    >
+        <h3>Neighbor Information</h3>
+
+        <div class="svdp-form-row">
+            <div class="svdp-form-group">
+                <label>First Name *</label>
+                <input type="text" name="firstName" required>
+            </div>
+
+            <div class="svdp-form-group">
+                <label>Last Name *</label>
+                <input type="text" name="lastName" required>
+            </div>
+        </div>
+
+        <div class="svdp-form-group svdp-dob-field">
+            <label>Date of Birth *</label>
+            <input type="date"
+                   name="dob"
+                   id="svdp-dob-input"
+                   class="svdp-date-input"
+                   placeholder="MM/DD/YYYY"
+                   required>
+            <small class="svdp-help-text">Used to track voucher eligibility and ensure appropriate intervals between requests.</small>
+        </div>
+
+        <div class="svdp-form-row">
+            <div class="svdp-form-group">
+                <label>Number of adults (18 and over) in household *</label>
+                <input type="number" name="adults" min="0" value="1" required>
+                <small class="svdp-help-text">Item allocation is based on household size. Count all adults in the home.</small>
+            </div>
+
+            <div class="svdp-form-group">
+                <label>Number of children (under 18) in household *</label>
+                <input type="number" name="children" min="0" value="0">
+                <small class="svdp-help-text">Item allocation is based on household size. Count all children in the home.</small>
+            </div>
+        </div>
+
+        <h3>Voucher Type</h3>
+
+        <?php if (count($request_voucher_types) === 1): ?>
+            <input type="hidden" name="voucherType" value="<?php echo esc_attr($default_voucher_type); ?>">
+            <div class="svdp-branch-note">
+                <strong><?php echo esc_html($voucher_type_labels[$default_voucher_type] ?? ucfirst($default_voucher_type)); ?></strong>
+                <span><?php echo esc_html($voucher_type_descriptions[$default_voucher_type] ?? ''); ?></span>
+            </div>
+        <?php else: ?>
+            <div class="svdp-voucher-type-options" id="svdpVoucherTypeOptions">
+                <?php foreach ($request_voucher_types as $voucher_type_option): ?>
+                    <label class="svdp-voucher-type-option" data-voucher-type-option="<?php echo esc_attr($voucher_type_option); ?>">
+                        <input
+                            type="radio"
+                            name="voucherType"
+                            value="<?php echo esc_attr($voucher_type_option); ?>"
+                            <?php checked($voucher_type_option, $default_voucher_type); ?>
+                        >
+                        <span class="svdp-voucher-type-option-title"><?php echo esc_html($voucher_type_labels[$voucher_type_option] ?? ucfirst($voucher_type_option)); ?></span>
+                        <span class="svdp-voucher-type-option-description"><?php echo esc_html($voucher_type_descriptions[$voucher_type_option] ?? ''); ?></span>
+                    </label>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+
+        <div class="svdp-form-branch" data-voucher-branch="clothing">
+            <div class="svdp-branch-note">
+                <strong>Clothing Request</strong>
+                <span>Clothing requests keep the current familiar flow and item allowance behavior.</span>
+            </div>
+        </div>
+
+        <div class="svdp-form-branch" data-voucher-branch="furniture" hidden>
+            <div class="svdp-furniture-branch-layout">
+                <div class="svdp-furniture-selection-column">
+                    <div class="svdp-branch-note">
+                        <strong>Furniture Request</strong>
+                        <span>Select one or more items by category. Final fulfilled pricing may vary from the estimate shown here.</span>
+                    </div>
+                    <div id="svdpFurnitureCatalog" class="svdp-furniture-catalog">
+                        <div class="svdp-loading">
+                            <div class="svdp-spinner"></div>
+                            <p>Loading furniture catalog...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <aside id="svdpFurnitureSummary" class="svdp-furniture-summary">
+                    <h4>Selected Items Summary</h4>
+                    <div class="svdp-summary-row">
+                        <span>Selected Items</span>
+                        <strong id="svdpSummaryItemCount">0</strong>
+                    </div>
+                    <div class="svdp-summary-row">
+                        <span>Estimated Total</span>
+                        <strong id="svdpSummaryTotal">$0.00</strong>
+                    </div>
+                    <div class="svdp-summary-row">
+                        <span>Requestor Portion</span>
+                        <strong id="svdpSummaryRequestor">$0.00</strong>
+                    </div>
+
+                    <label class="svdp-checkbox-row">
+                        <input type="checkbox" name="deliveryRequired" id="svdpDeliveryRequired" value="1">
+                        <span>Add Delivery (+$50.00)</span>
+                    </label>
+
+                    <div id="svdpDeliveryFeeNote" class="svdp-delivery-note" hidden>
+                        Delivery fee applied: $50.00
+                    </div>
+
+                    <div id="svdpDeliveryAddressFields" class="svdp-delivery-address-fields" hidden>
+                        <div class="svdp-form-group">
+                            <label>Delivery Address Line 1 *</label>
+                            <input type="text" name="deliveryLine1">
+                        </div>
+                        <div class="svdp-form-group">
+                            <label>Delivery Address Line 2</label>
+                            <input type="text" name="deliveryLine2">
+                        </div>
+                        <div class="svdp-form-row">
+                            <div class="svdp-form-group">
+                                <label>City *</label>
+                                <input type="text" name="deliveryCity">
+                            </div>
+                            <div class="svdp-form-group">
+                                <label>State *</label>
+                                <input type="text" name="deliveryState" maxlength="50">
+                            </div>
+                        </div>
+                        <div class="svdp-form-group">
+                            <label>ZIP Code *</label>
+                            <input type="text" name="deliveryZip" maxlength="20">
+                        </div>
+                    </div>
+
+                    <p class="svdp-help-text">The requestor portion is estimated at 50% of the selected item range, plus delivery when selected.</p>
+                </aside>
+            </div>
+        </div>
+
+        <h3>Requestor Information</h3>
+
+        <?php if (empty($conference)): ?>
+        <div class="svdp-form-group">
+            <label>Conference or Partner Organization *</label>
+            <select name="conference" required>
+                <option value="">Select your organization...</option>
+                <?php foreach ($conferences as $conf): ?>
+                    <?php
+                    $allowed_types = SVDP_Settings::normalize_voucher_types(
+                        $conf->allowed_voucher_types,
+                        $conf->organization_type === 'store' ? ['clothing'] : ['clothing', 'furniture']
+                    );
+                    ?>
+                    <option
+                        value="<?php echo esc_attr($conf->slug); ?>"
+                        data-allowed-voucher-types="<?php echo esc_attr(wp_json_encode($allowed_types)); ?>"
+                    >
+                        <?php echo esc_html($conf->name); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <?php else: ?>
+            <?php
+            $conference_allowed_types = SVDP_Settings::normalize_voucher_types(
+                $conference->allowed_voucher_types,
+                ['clothing', 'furniture']
+            );
+            ?>
+            <input
+                type="hidden"
+                name="conference"
+                value="<?php echo esc_attr($conference->slug); ?>"
+                data-allowed-voucher-types="<?php echo esc_attr(wp_json_encode($conference_allowed_types)); ?>"
+            >
+            <p><strong>Organization:</strong> <?php echo esc_html($conference->name); ?></p>
+        <?php endif; ?>
+
+        <div class="svdp-form-group">
+            <label>Your Name *</label>
+            <input type="text" name="vincentianName" required>
+            <small class="svdp-help-text">Your name as the staff member or volunteer requesting this voucher</small>
+        </div>
+
+        <div class="svdp-form-group">
+            <label>Your Email Address *</label>
+            <input type="email" name="vincentianEmail" required>
+            <small class="svdp-help-text">For voucher confirmation and follow-up if needed</small>
+        </div>
+
+        <button type="submit" class="svdp-btn svdp-btn-primary">Submit Voucher Request</button>
+    </form>
+(function($) {
+    'use strict';
+
+    $(document).ready(function() {
+        const form = $('#svdpVoucherForm');
+        if (form.length === 0) {
+            return;
+        }
+
+        const messageDiv = $('#svdpFormMessage');
+        const catalogContainer = $('#svdpFurnitureCatalog');
+        const deliveryRequiredInput = $('#svdpDeliveryRequired');
+        const deliveryAddressFields = $('#svdpDeliveryAddressFields');
+        const deliveryFeeNote = $('#svdpDeliveryFeeNote');
+        const allVoucherTypes = form.find('[name="voucherType"]').map(function() {
+            return $(this).val();
+        }).get().filter(function(type, index, array) {
+            return type && array.indexOf(type) === index;
+        });
+        const state = {
+            catalogLoaded: false,
+            catalogLoading: false,
+            catalogCategories: [],
+            catalogById: {},
+            selectedItems: {},
+            currentVoucherType: form.data('default-voucher-type') || 'clothing'
+        };
+
+        initializeDateInput();
+        initializeVoucherTypeControls();
+        initializeConferenceControls();
+        initializeDeliveryControls();
+        syncVoucherTypeAvailability();
+        syncVoucherBranch();
+        updateFurnitureSummary();
+
+        form.on('submit', function(e) {
+            e.preventDefault();
+
+            if (!form[0].reportValidity()) {
+                return;
+            }
+
+            const voucherType = getCurrentVoucherType();
+            if (voucherType === 'furniture') {
+                const furnitureValidationError = validateFurnitureSelection();
+                if (furnitureValidationError) {
+                    showMessage(furnitureValidationError, 'error');
+                    return;
+                }
+            }
+
+            const dobFormatted = getFormattedDob();
+            if (!dobFormatted) {
+                showMessage('Enter a valid date of birth.', 'error');
+                return;
+            }
+
+            const submitBtn = form.find('button[type="submit"]');
+            submitBtn.prop('disabled', true).text('Processing...');
+            messageDiv.hide().removeClass('success error');
+
+            const formData = buildSubmissionPayload(voucherType, dobFormatted);
+
+            $.ajax({
+                url: svdpVouchers.restUrl + 'svdp/v1/vouchers/check-duplicate',
+                method: 'POST',
+                headers: {
+                    'X-WP-Nonce': svdpVouchers.nonce
+                },
+                data: JSON.stringify({
+                    firstName: formData.firstName,
+                    lastName: formData.lastName,
+                    dob: formData.dob,
+                    conference: formData.conference,
+                    voucherType: formData.voucherType,
+                    createdBy: 'Vincentian'
+                }),
+                contentType: 'application/json',
+                success: function(response) {
+                    if (response.found) {
+                        showDuplicateMessage(response);
+                        submitBtn.prop('disabled', false).text('Submit Voucher Request');
+                        return;
+                    }
+
+                    createVoucher(formData, submitBtn);
+                },
+                error: function(xhr) {
+                    const error = xhr.responseJSON?.message || 'Error checking for duplicates';
+                    showMessage(error, 'error');
+                    submitBtn.prop('disabled', false).text('Submit Voucher Request');
+                }
+            });
+        });
+
+        function initializeDateInput() {
+            function isMobile() {
+                return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            }
+
+            const dateInput = document.createElement('input');
+            dateInput.setAttribute('type', 'date');
+            const supportsDateInput = dateInput.type === 'date';
+
+            if (!supportsDateInput || isMobile()) {
+                const dobField = $('#svdp-dob-input');
+                dobField.attr('type', 'text');
+                dobField.attr('pattern', '\\d{2}/\\d{2}/\\d{4}');
+
+                dobField.on('input', function(e) {
+                    let value = e.target.value.replace(/\D/g, '');
+                    if (value.length >= 2) {
+                        value = value.substring(0, 2) + '/' + value.substring(2);
+                    }
+                    if (value.length >= 5) {
+                        value = value.substring(0, 5) + '/' + value.substring(5, 9);
+                    }
+                    e.target.value = value;
+                });
+            }
+        }
+
+        function initializeVoucherTypeControls() {
+            form.on('change', '[name="voucherType"]', function() {
+                state.currentVoucherType = $(this).val();
+                updateVoucherTypeOptionSelection();
+                syncVoucherBranch();
+            });
+
+            catalogContainer.on('click', '[data-catalog-adjust]', function() {
+                const button = $(this);
+                const itemId = Number(button.attr('data-catalog-item-id'));
+                const direction = button.attr('data-catalog-adjust');
+                const currentQuantity = Number(state.selectedItems[itemId] || 0);
+                const nextQuantity = direction === 'increment'
+                    ? currentQuantity + 1
+                    : Math.max(currentQuantity - 1, 0);
+
+                if (nextQuantity > 0) {
+                    state.selectedItems[itemId] = nextQuantity;
+                } else {
+                    delete state.selectedItems[itemId];
+                }
+
+                updateCatalogQuantities();
+                updateFurnitureSummary();
+            });
+        }
+
+        function initializeConferenceControls() {
+            form.on('change', '[name="conference"]', function() {
+                syncVoucherTypeAvailability();
+            });
+        }
+
+        function initializeDeliveryControls() {
+            deliveryRequiredInput.on('change', function() {
+                const showDeliveryFields = $(this).is(':checked');
+                deliveryAddressFields.prop('hidden', !showDeliveryFields);
+                deliveryFeeNote.prop('hidden', !showDeliveryFields);
+                updateFurnitureSummary();
+            });
+        }
+
+        function getCurrentVoucherType() {
+            const checkedVoucherType = form.find('input[type="radio"][name="voucherType"]:checked').val();
+            if (checkedVoucherType) {
+                return checkedVoucherType;
+            }
+
+            return form.find('[name="voucherType"]').first().val() || state.currentVoucherType || 'clothing';
+        }
+
+        function setCurrentVoucherType(voucherType) {
+            const radioInputs = form.find('input[type="radio"][name="voucherType"]');
+            if (radioInputs.length > 0) {
+                radioInputs.filter('[value="' + voucherType + '"]').prop('checked', true);
+            } else {
+                form.find('input[type="hidden"][name="voucherType"]').val(voucherType);
+            }
+
+            state.currentVoucherType = voucherType;
+            updateVoucherTypeOptionSelection();
+            syncVoucherBranch();
+        }
+
+        function getAllowedVoucherTypesForConference() {
+            const conferenceSelect = form.find('select[name="conference"]');
+            const conferenceHidden = form.find('input[type="hidden"][name="conference"]');
+
+            if (conferenceSelect.length > 0) {
+                const selectedOption = conferenceSelect.find('option:selected');
+                const rawTypes = selectedOption.attr('data-allowed-voucher-types');
+                if (!rawTypes) {
+                    return allVoucherTypes.slice();
+                }
+
+                try {
+                    return JSON.parse(rawTypes);
+                } catch (error) {
+                    return allVoucherTypes.slice();
+                }
+            }
+
+            if (conferenceHidden.length > 0) {
+                const rawTypes = conferenceHidden.attr('data-allowed-voucher-types');
+                if (rawTypes) {
+                    try {
+                        return JSON.parse(rawTypes);
+                    } catch (error) {
+                        return allVoucherTypes.slice();
+                    }
+                }
+            }
+
+            return allVoucherTypes.slice();
+        }
+
+        function syncVoucherTypeAvailability() {
+            const allowedVoucherTypes = getAllowedVoucherTypesForConference();
+            const radioInputs = form.find('input[type="radio"][name="voucherType"]');
+
+            if (radioInputs.length > 0) {
+                radioInputs.each(function() {
+                    const input = $(this);
+                    const voucherType = input.val();
+                    const option = form.find('[data-voucher-type-option="' + voucherType + '"]');
+                    const allowed = allowedVoucherTypes.indexOf(voucherType) !== -1;
+
+                    input.prop('disabled', !allowed);
+                    option.toggleClass('is-disabled', !allowed);
+                });
+            } else {
+                const hiddenVoucherType = form.find('input[type="hidden"][name="voucherType"]');
+                if (hiddenVoucherType.length > 0 && allowedVoucherTypes.length > 0 && allowedVoucherTypes.indexOf(hiddenVoucherType.val()) === -1) {
+                    hiddenVoucherType.val(allowedVoucherTypes[0]);
+                }
+            }
+
+            if (allowedVoucherTypes.length > 0 && allowedVoucherTypes.indexOf(getCurrentVoucherType()) === -1) {
+                setCurrentVoucherType(allowedVoucherTypes[0]);
+            } else {
+                updateVoucherTypeOptionSelection();
+                syncVoucherBranch();
+            }
+        }
+
+        function updateVoucherTypeOptionSelection() {
+            form.find('[data-voucher-type-option]').removeClass('is-selected');
+            form.find('input[type="radio"][name="voucherType"]:checked').each(function() {
+                form.find('[data-voucher-type-option="' + $(this).val() + '"]').addClass('is-selected');
+            });
+        }
+
+        function syncVoucherBranch() {
+            const voucherType = getCurrentVoucherType();
+
+            form.find('[data-voucher-branch]').each(function() {
+                const branch = $(this);
+                branch.prop('hidden', branch.attr('data-voucher-branch') !== voucherType);
+            });
+
+            if (voucherType === 'furniture') {
+                ensureCatalogLoaded();
+            }
+
+            updateFurnitureSummary();
+        }
+
+        function ensureCatalogLoaded() {
+            if (state.catalogLoaded || state.catalogLoading) {
+                return;
+            }
+
+            state.catalogLoading = true;
+
+            $.ajax({
+                url: svdpVouchers.restUrl + 'svdp/v1/catalog-items',
+                method: 'GET',
+                headers: {
+                    'X-WP-Nonce': svdpVouchers.nonce
+                },
+                success: function(response) {
+                    state.catalogCategories = response.categories || [];
+                    state.catalogById = {};
+
+                    state.catalogCategories.forEach(function(category) {
+                        (category.items || []).forEach(function(item) {
+                            state.catalogById[Number(item.id)] = item;
+                        });
+                    });
+
+                    state.catalogLoaded = true;
+                    renderCatalog();
+                    updateFurnitureSummary();
+                },
+                error: function() {
+                    catalogContainer.html(
+                        '<div class="svdp-message error">' +
+                            'Unable to load furniture catalog items right now. Please try again.' +
+                        '</div>'
+                    );
+                },
+                complete: function() {
+                    state.catalogLoading = false;
+                }
+            });
+        }
+
+        function renderCatalog() {
+            if (!state.catalogCategories.length) {
+                catalogContainer.html(
+                    '<div class="svdp-empty-state">' +
+                        '<div class="svdp-empty-icon">🪑</div>' +
+                        '<div class="svdp-empty-text">No furniture catalog items are active yet.</div>' +
+                    '</div>'
+                );
+                return;
+            }
+
+            const html = state.catalogCategories.map(function(category) {
+                const itemsHtml = (category.items || []).map(function(item) {
+                    const itemId = Number(item.id);
+                    const quantity = Number(state.selectedItems[itemId] || 0);
+
+                    return '' +
+                        '<article class="svdp-catalog-item" data-catalog-item="' + itemId + '">' +
+                            '<div class="svdp-catalog-item-copy">' +
+                                '<h4>' + escapeHtml(item.name) + '</h4>' +
+                                '<p>' + escapeHtml(item.priceDisplay) + '</p>' +
+                            '</div>' +
+                            '<div class="svdp-catalog-item-controls">' +
+                                '<button type="button" class="svdp-qty-btn" data-catalog-adjust="decrement" data-catalog-item-id="' + itemId + '" aria-label="Remove one ' + escapeHtml(item.name) + '">-</button>' +
+                                '<span class="svdp-qty-value" data-catalog-qty="' + itemId + '">' + quantity + '</span>' +
+                                '<button type="button" class="svdp-qty-btn" data-catalog-adjust="increment" data-catalog-item-id="' + itemId + '" aria-label="Add one ' + escapeHtml(item.name) + '">+</button>' +
+                            '</div>' +
+                        '</article>';
+                }).join('');
+
+                return '' +
+                    '<section class="svdp-catalog-category">' +
+                        '<div class="svdp-catalog-category-header">' +
+                            '<h4>' + escapeHtml(category.label) + '</h4>' +
+                        '</div>' +
+                        '<div class="svdp-catalog-category-items">' + itemsHtml + '</div>' +
+                    '</section>';
+            }).join('');
+
+            catalogContainer.html(html);
+        }
+
+        function updateCatalogQuantities() {
+            catalogContainer.find('[data-catalog-qty]').each(function() {
+                const quantityNode = $(this);
+                const itemId = Number(quantityNode.attr('data-catalog-qty'));
+                const quantity = Number(state.selectedItems[itemId] || 0);
+                quantityNode.text(quantity);
+            });
+        }
+<?php
+/**
+ * Database setup and schema.
+ */
+class SVDP_Database {
+
+    const SCHEMA_VERSION = '3';
+
+    /**
+     * Run idempotent schema upgrades for the plugin.
+     */
+    public static function maybe_upgrade() {
+        $current_version = get_option('svdp_vouchers_schema_version', '');
+        if ($current_version === self::SCHEMA_VERSION) {
+            return;
+        }
+
+        global $wpdb;
+        $conferences_table = $wpdb->prefix . 'svdp_conferences';
+        $needs_v2_backfill = !self::column_exists($conferences_table, 'organization_type');
+
+        self::create_tables();
+
+        if ($needs_v2_backfill) {
+            self::run_v2_backfill();
+        }
+
+        self::normalize_slice_two_data();
+
+        update_option('svdp_vouchers_schema_version', self::SCHEMA_VERSION);
+    }
+
+    /**
+     * Create database tables.
+     */
+    public static function create_tables() {
+        global $wpdb;
+        $charset_collate = $wpdb->get_charset_collate();
+
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+
+        $vouchers_table = $wpdb->prefix . 'svdp_vouchers';
+        $vouchers_sql = "CREATE TABLE $vouchers_table (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            first_name varchar(100) NOT NULL,
+            last_name varchar(100) NOT NULL,
+            dob date NOT NULL,
+            adults int(11) NOT NULL DEFAULT 0,
+            children int(11) NOT NULL DEFAULT 0,
+            conference_id bigint(20) NOT NULL,
+            vincentian_name varchar(200) DEFAULT NULL,
+            vincentian_email varchar(200) DEFAULT NULL,
+            created_by varchar(50) NOT NULL,
+            voucher_type varchar(32) NOT NULL DEFAULT 'clothing',
+            voucher_created_date date NOT NULL,
+            status varchar(50) NOT NULL DEFAULT 'Active',
+            workflow_status varchar(32) NOT NULL DEFAULT 'submitted',
+            redeemed_date date DEFAULT NULL,
+            override_note text DEFAULT NULL,
+            voucher_value decimal(10,2) NOT NULL DEFAULT 0,
+            voucher_items_count int(11) DEFAULT NULL,
+            items_adult_redeemed int(11) DEFAULT 0,
+            items_children_redeemed int(11) DEFAULT 0,
+            redemption_total_value decimal(10,2) DEFAULT NULL,
+            denial_reason text DEFAULT NULL,
+            coat_status varchar(50) DEFAULT 'Available',
+            coat_issued_date date DEFAULT NULL,
+            coat_adults_issued int(11) DEFAULT NULL,
+            coat_children_issued int(11) DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY first_name (first_name),
+            KEY last_name (last_name),
+            KEY dob (dob),
+            KEY conference_id (conference_id),
+            KEY status (status),
+            KEY voucher_type (voucher_type),
+            KEY workflow_status (workflow_status),
+            KEY voucher_created_date (voucher_created_date),
+            KEY coat_issued_date (coat_issued_date)
+        ) $charset_collate;";
+
+        $conferences_table = $wpdb->prefix . 'svdp_conferences';
+        $conferences_sql = "CREATE TABLE $conferences_table (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            name varchar(200) NOT NULL,
+            slug varchar(200) NOT NULL,
+            is_emergency tinyint(1) NOT NULL DEFAULT 0,
+            organization_type varchar(50) DEFAULT 'conference',
+            eligibility_days int(11) DEFAULT 90,
+            emergency_affects_eligibility tinyint(1) DEFAULT 0,
+            regular_items_per_person int(11) DEFAULT 7,
+            emergency_items_per_person int(11) DEFAULT 3,
+            form_enabled tinyint(1) DEFAULT 1,
+            active tinyint(1) NOT NULL DEFAULT 1,
+            notification_email varchar(200) DEFAULT NULL,
+            custom_form_text text DEFAULT NULL,
+            custom_rules_text text DEFAULT NULL,
+            allowed_voucher_types text DEFAULT NULL,
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY slug (slug),
+            KEY active (active),
+            KEY organization_type (organization_type)
+        ) $charset_collate;";
+
+        $settings_table = $wpdb->prefix . 'svdp_settings';
+        $settings_sql = "CREATE TABLE $settings_table (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            setting_key varchar(100) NOT NULL,
+            setting_value text,
+            setting_type varchar(50) DEFAULT 'text',
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY setting_key (setting_key)
+        ) $charset_collate;";
+
+        dbDelta($vouchers_sql);
+        dbDelta($conferences_sql);
+        dbDelta($settings_sql);
+
+        self::create_furniture_tables();
+        self::create_managers_table();
+        self::create_override_reasons_table();
+        self::add_override_columns();
+
+        self::insert_default_conferences();
+        self::insert_default_settings();
+    }
+
+    /**
+     * Insert default conferences.
+     */
+    private static function insert_default_conferences() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'svdp_conferences';
+
+        $count = $wpdb->get_var("SELECT COUNT(*) FROM $table");
+        if ($count > 0) {
+            return;
+        }
+
+        $conferences = [
+            ['name' => 'Emergency', 'slug' => 'emergency', 'is_emergency' => 1],
+            ['name' => 'Cathedral of the Immaculate Conception', 'slug' => 'cathedral-immaculate-conception', 'is_emergency' => 0],
+            ['name' => 'Catholic Charities', 'slug' => 'catholic-charities', 'is_emergency' => 0],
+            ['name' => 'Our Lady of Good Hope', 'slug' => 'our-lady-good-hope', 'is_emergency' => 0],
+            ['name' => 'Queen of Angels', 'slug' => 'queen-of-angels', 'is_emergency' => 0],
+            ['name' => 'Sacred Heart – Warsaw', 'slug' => 'sacred-heart-warsaw', 'is_emergency' => 0],
+            ['name' => 'St Charles Borromeo', 'slug' => 'st-charles-borromeo', 'is_emergency' => 0],
+            ['name' => 'St Elizabeth Ann Seton', 'slug' => 'st-elizabeth-ann-seton', 'is_emergency' => 0],
+            ['name' => 'St John the Baptist', 'slug' => 'st-john-baptist', 'is_emergency' => 0],
+            ['name' => 'St John – St Patrick', 'slug' => 'st-john-st-patrick', 'is_emergency' => 0],
+            ['name' => 'St Joseph', 'slug' => 'st-joseph', 'is_emergency' => 0],
+            ['name' => 'St Jude', 'slug' => 'st-jude', 'is_emergency' => 0],
+            ['name' => 'St Louis Besancon', 'slug' => 'st-louis-besancon', 'is_emergency' => 0],
+            ['name' => 'St Mary – Fort Wayne', 'slug' => 'st-mary-fort-wayne', 'is_emergency' => 0],
+            ['name' => 'St Therese', 'slug' => 'st-therese', 'is_emergency' => 0],
+            ['name' => 'St Vincent de Paul', 'slug' => 'st-vincent-de-paul', 'is_emergency' => 0],
+        ];
+
+        foreach ($conferences as $conference) {
+            $wpdb->insert($table, $conference);
+        }
+    }
+
+    /**
+     * Insert default settings.
+     */
+    private static function insert_default_settings() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'svdp_settings';
+
+        $count = $wpdb->get_var("SELECT COUNT(*) FROM $table");
+        if ($count > 0) {
+            return;
+        }
+
+        $settings = [
+            ['setting_key' => 'adult_item_value', 'setting_value' => '5.00', 'setting_type' => 'decimal'],
+            ['setting_key' => 'child_item_value', 'setting_value' => '3.00', 'setting_type' => 'decimal'],
+            ['setting_key' => 'store_hours', 'setting_value' => 'Monday-Friday 9am-5pm', 'setting_type' => 'text'],
+            ['setting_key' => 'redemption_instructions', 'setting_value' => 'Neighbors should visit the store and provide their first name, last name, and date of birth at the counter.', 'setting_type' => 'textarea'],
+            ['setting_key' => 'available_voucher_types', 'setting_value' => 'clothing,furniture', 'setting_type' => 'text'],
+        ];
+
+        foreach ($settings as $setting) {
+            $wpdb->insert($table, $setting);
+        }
+    }
+
+    /**
+     * Migrate database to version 2.
+     */
+    public static function migrate_to_v2() {
+        global $wpdb;
+
+        $conferences_table = $wpdb->prefix . 'svdp_conferences';
+        if (self::column_exists($conferences_table, 'organization_type')) {
+            return;
+        }
+
+        self::create_tables();
+        self::run_v2_backfill();
+    }
+
+    /**
+     * Backfill version 2 data after the schema is present.
+     */
+    private static function run_v2_backfill() {
+        global $wpdb;
+
+        $conferences_table = $wpdb->prefix . 'svdp_conferences';
+        $vouchers_table = $wpdb->prefix . 'svdp_vouchers';
+
+        $wpdb->query("UPDATE $conferences_table SET organization_type = 'conference' WHERE organization_type IS NULL");
+        $wpdb->query("UPDATE $conferences_table SET eligibility_days = 90 WHERE eligibility_days IS NULL");
+        $wpdb->query("UPDATE $conferences_table SET regular_items_per_person = 7 WHERE regular_items_per_person IS NULL");
+        $wpdb->query("UPDATE $conferences_table SET emergency_items_per_person = 3 WHERE emergency_items_per_person IS NULL");
+        $wpdb->query("UPDATE $conferences_table SET form_enabled = 1 WHERE form_enabled IS NULL");
+        $wpdb->query("UPDATE $conferences_table SET emergency_affects_eligibility = 0 WHERE emergency_affects_eligibility IS NULL");
+
+        $wpdb->query("UPDATE $vouchers_table SET voucher_type = 'clothing' WHERE voucher_type IS NULL OR voucher_type = '' OR voucher_type = 'regular'");
+        $wpdb->query("UPDATE $vouchers_table SET items_adult_redeemed = 0 WHERE items_adult_redeemed IS NULL");
+        $wpdb->query("UPDATE $vouchers_table SET items_children_redeemed = 0 WHERE items_children_redeemed IS NULL");
+
+        $wpdb->query("UPDATE $conferences_table SET organization_type = 'store' WHERE slug = 'emergency' AND organization_type = 'conference'");
+        $wpdb->query("UPDATE $conferences_table SET allowed_voucher_types = '[\"clothing\",\"furniture\"]' WHERE organization_type != 'store' AND (allowed_voucher_types IS NULL OR allowed_voucher_types = '')");
+        $wpdb->query("UPDATE $conferences_table SET allowed_voucher_types = '[\"clothing\"]' WHERE organization_type = 'store' AND (allowed_voucher_types IS NULL OR allowed_voucher_types = '')");
+
+        self::insert_default_settings();
+    }
+
+    /**
+     * Create furniture support tables from the schema handoff.
+     */
+    private static function create_furniture_tables() {
+        global $wpdb;
+        $charset_collate = $wpdb->get_charset_collate();
+
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+
+        $catalog_items_table = $wpdb->prefix . 'svdp_catalog_items';
+        $catalog_items_sql = "CREATE TABLE $catalog_items_table (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            name varchar(255) NOT NULL,
+            category varchar(50) NOT NULL,
+            pricing_type varchar(20) NOT NULL,
+            price_min decimal(10,2) DEFAULT NULL,
+            price_max decimal(10,2) DEFAULT NULL,
+            price_fixed decimal(10,2) DEFAULT NULL,
+            sort_order int(11) NOT NULL DEFAULT 0,
+            active tinyint(1) NOT NULL DEFAULT 1,
+            allow_substitution tinyint(1) NOT NULL DEFAULT 1,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+jeremiahotis@Jeremiahs-Air-2 svdp-vouchers % 

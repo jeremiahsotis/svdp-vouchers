@@ -342,6 +342,44 @@
         <button type="submit" class="svdp-btn svdp-btn-primary">Submit Voucher Request</button>
     </form>
 
+    <div
+        id="svdpFurnitureApprovalModal"
+        class="svdp-modal"
+        style="display: none;"
+        role="dialog"
+        aria-modal="true"
+        aria-hidden="true"
+        aria-labelledby="svdpFurnitureApprovalTitle"
+    >
+        <div class="svdp-modal-content">
+            <h3 id="svdpFurnitureApprovalTitle">Conference Approval Required</h3>
+            <p>This voucher is not submitted until you approve this amount.</p>
+
+            <div class="svdp-summary-row">
+                <span>Estimated item total</span>
+                <strong id="svdpApprovalEstimatedTotal">$0.00</strong>
+            </div>
+            <div class="svdp-summary-row">
+                <span>Estimated Conference portion</span>
+                <strong id="svdpApprovalConferencePortion">$0.00</strong>
+            </div>
+            <div class="svdp-summary-row">
+                <span>Delivery fee</span>
+                <strong id="svdpApprovalDeliveryFee">$0.00</strong>
+            </div>
+            <div class="svdp-summary-row">
+                <span>Estimated total Conference commitment</span>
+                <strong id="svdpApprovalTotalCommitment">$0.00</strong>
+            </div>
+
+            <div class="svdp-modal-buttons">
+                <button type="button" id="svdpCancelFurnitureApproval" class="svdp-btn svdp-btn-secondary">Cancel this voucher</button>
+                <button type="button" id="svdpEditFurnitureApproval" class="svdp-btn svdp-btn-secondary">Edit this voucher</button>
+                <button type="button" id="svdpConfirmFurnitureApproval" class="svdp-btn svdp-btn-primary">I approve this amount</button>
+            </div>
+        </div>
+    </div>
+
     <div id="svdpFormMessage" class="svdp-message" style="display: none;"></div>
 
 </div>

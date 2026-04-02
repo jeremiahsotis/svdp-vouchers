@@ -15,6 +15,14 @@
         const deliveryRequiredInput = $('#svdpDeliveryRequired');
         const deliveryAddressFields = $('#svdpDeliveryAddressFields');
         const summaryDeliveryFee = $('#svdpSummaryDeliveryFee');
+        const approvalModal = $('#svdpFurnitureApprovalModal');
+        const approvalEstimatedTotal = $('#svdpApprovalEstimatedTotal');
+        const approvalConferencePortion = $('#svdpApprovalConferencePortion');
+        const approvalDeliveryFee = $('#svdpApprovalDeliveryFee');
+        const approvalTotalCommitment = $('#svdpApprovalTotalCommitment');
+        const approvalConfirmButton = $('#svdpConfirmFurnitureApproval');
+        const approvalEditButton = $('#svdpEditFurnitureApproval');
+        const approvalCancelButton = $('#svdpCancelFurnitureApproval');
         const allVoucherTypes = form.find('[name="voucherType"]').map(function() {
             return $(this).val();
         }).get().filter(function(type, index, array) {
@@ -29,7 +37,8 @@
             openCategories: {},
             searchQuery: '',
             selectedItems: {},
-            currentVoucherType: form.data('default-voucher-type') || 'clothing'
+            currentVoucherType: form.data('default-voucher-type') || 'clothing',
+            pendingApproval: null
         };
 
         initializeDateInput();
@@ -37,6 +46,7 @@
         initializeConferenceControls();
         initializeSearchControls();
         initializeDeliveryControls();
+        initializeApprovalModalControls();
         syncVoucherTypeAvailability();
         syncVoucherBranch();
         syncDeliveryControls();
@@ -92,6 +102,15 @@
                     if (response.found) {
                         showDuplicateMessage(response);
                         submitBtn.prop('disabled', false).text('Submit Voucher Request');
+                        return;
+                    }
+
+                    if (voucherType === 'furniture' && requiresApprovalModal(furnitureEstimateSummary)) {
+                        openApprovalModal({
+                            formData: formData,
+                            submitBtn: submitBtn,
+                            estimateSummary: furnitureEstimateSummary
+                        });
                         return;
                     }
 
@@ -191,6 +210,29 @@
             deliveryRequiredInput.on('change', function() {
                 syncDeliveryControls();
                 updateFurnitureSummary();
+            });
+        }
+
+        function initializeApprovalModalControls() {
+            approvalConfirmButton.on('click', function() {
+                const pendingApproval = state.pendingApproval;
+                if (!pendingApproval) {
+                    closeApprovalModal();
+                    return;
+                }
+
+                closeApprovalModal();
+                state.pendingApproval = null;
+                pendingApproval.submitBtn.prop('disabled', true).text('Processing...');
+                createVoucher(pendingApproval.formData, pendingApproval.submitBtn, pendingApproval.estimateSummary);
+            });
+
+            approvalEditButton.on('click', function() {
+                abandonPendingApproval(false);
+            });
+
+            approvalCancelButton.on('click', function() {
+                abandonPendingApproval(true);
             });
         }
 
@@ -522,6 +564,57 @@
             updateCategorySelectedCounts();
         }
 
+        function requiresApprovalModal(estimateSummary) {
+            if (!estimateSummary) {
+                return false;
+            }
+
+            return Number(estimateSummary.conferencePortionMax || 0) > 0 || Number(estimateSummary.deliveryFee || 0) > 0;
+        }
+
+        function openApprovalModal(pendingApproval) {
+            state.pendingApproval = pendingApproval;
+
+            approvalEstimatedTotal.text(formatMoneyRange(
+                pendingApproval.estimateSummary.estimatedTotalMin,
+                pendingApproval.estimateSummary.estimatedTotalMax
+            ));
+            approvalConferencePortion.text(formatMoneyRange(
+                pendingApproval.estimateSummary.conferencePortionMin,
+                pendingApproval.estimateSummary.conferencePortionMax
+            ));
+            approvalDeliveryFee.text('$' + Number(pendingApproval.estimateSummary.deliveryFee || 0).toFixed(2));
+            approvalTotalCommitment.text(formatMoneyRange(
+                pendingApproval.estimateSummary.totalConferenceCommitmentMin,
+                pendingApproval.estimateSummary.totalConferenceCommitmentMax
+            ));
+
+            pendingApproval.submitBtn.prop('disabled', true).text('Pending Approval...');
+            approvalModal.css('display', 'flex').attr('aria-hidden', 'false');
+        }
+
+        function closeApprovalModal() {
+            approvalModal.hide().attr('aria-hidden', 'true');
+        }
+
+        function abandonPendingApproval(resetVoucher) {
+            const pendingApproval = state.pendingApproval;
+
+            closeApprovalModal();
+
+            if (!pendingApproval) {
+                return;
+            }
+
+            pendingApproval.submitBtn.prop('disabled', false).text('Submit Voucher Request');
+            state.pendingApproval = null;
+
+            if (resetVoucher) {
+                resetFormState();
+                messageDiv.hide().removeClass('success error');
+            }
+        }
+
         function getFurnitureEstimateSummary() {
             const estimateSummary = {
                 itemCount: 0,
@@ -808,10 +901,12 @@
             state.openCategories = {};
             state.searchQuery = '';
             state.selectedItems = {};
+            state.pendingApproval = null;
             searchInput.val('');
             setCurrentVoucherType(form.data('default-voucher-type') || 'clothing');
             syncVoucherTypeAvailability();
             syncDeliveryControls();
+            closeApprovalModal();
 
             if (state.catalogLoaded) {
                 renderCatalog();
