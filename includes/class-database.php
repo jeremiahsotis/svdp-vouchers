@@ -4,7 +4,7 @@
  */
 class SVDP_Database {
 
-    const SCHEMA_VERSION = '3';
+    const SCHEMA_VERSION = '4';
 
     /**
      * Run idempotent schema upgrades for the plugin.
@@ -26,6 +26,7 @@ class SVDP_Database {
         }
 
         self::normalize_slice_two_data();
+        self::normalize_furniture_coverage_data();
 
         update_option('svdp_vouchers_schema_version', self::SCHEMA_VERSION);
     }
@@ -252,6 +253,8 @@ class SVDP_Database {
             price_min decimal(10,2) DEFAULT NULL,
             price_max decimal(10,2) DEFAULT NULL,
             price_fixed decimal(10,2) DEFAULT NULL,
+            discount_type varchar(20) NOT NULL DEFAULT 'percent',
+            discount_value decimal(10,2) NOT NULL DEFAULT 50.00,
             sort_order int(11) NOT NULL DEFAULT 0,
             active tinyint(1) NOT NULL DEFAULT 1,
             allow_substitution tinyint(1) NOT NULL DEFAULT 1,
@@ -298,6 +301,10 @@ class SVDP_Database {
             requested_price_min_snapshot decimal(10,2) DEFAULT NULL,
             requested_price_max_snapshot decimal(10,2) DEFAULT NULL,
             requested_price_fixed_snapshot decimal(10,2) DEFAULT NULL,
+            discount_type_snapshot varchar(20) DEFAULT NULL,
+            discount_value_snapshot decimal(10,2) DEFAULT NULL,
+            conference_share_amount decimal(10,2) DEFAULT NULL,
+            store_share_amount decimal(10,2) DEFAULT NULL,
             requested_sort_order_snapshot int(11) NOT NULL DEFAULT 0,
             substitution_type varchar(20) NOT NULL DEFAULT 'none',
             substitute_catalog_item_id bigint(20) DEFAULT NULL,
@@ -459,6 +466,60 @@ class SVDP_Database {
         );
 
         SVDP_Settings::update_setting('available_voucher_types', $normalized_types, 'text');
+    }
+
+    /**
+     * Normalize catalog coverage fields and voucher-item snapshots for furniture requests.
+     */
+    private static function normalize_furniture_coverage_data() {
+        global $wpdb;
+
+        $catalog_items_table = $wpdb->prefix . 'svdp_catalog_items';
+        if (self::table_exists($catalog_items_table)) {
+            if (!self::column_exists($catalog_items_table, 'discount_type')) {
+                $wpdb->query("ALTER TABLE $catalog_items_table ADD COLUMN discount_type varchar(20) NOT NULL DEFAULT 'percent' AFTER price_fixed");
+            }
+
+            if (!self::column_exists($catalog_items_table, 'discount_value')) {
+                $wpdb->query("ALTER TABLE $catalog_items_table ADD COLUMN discount_value decimal(10,2) NOT NULL DEFAULT 50.00 AFTER discount_type");
+            }
+
+            $wpdb->query("ALTER TABLE $catalog_items_table MODIFY COLUMN discount_type varchar(20) NOT NULL DEFAULT 'percent'");
+            $wpdb->query("ALTER TABLE $catalog_items_table MODIFY COLUMN discount_value decimal(10,2) NOT NULL DEFAULT 50.00");
+            $wpdb->query("UPDATE $catalog_items_table SET discount_type = 'percent' WHERE discount_type IS NULL OR discount_type = '' OR discount_type NOT IN ('percent', 'fixed')");
+            $wpdb->query("UPDATE $catalog_items_table SET discount_value = 50.00 WHERE discount_value IS NULL OR discount_value < 0");
+            $wpdb->query("UPDATE $catalog_items_table SET discount_value = 50.00 WHERE discount_type = 'percent' AND discount_value > 100");
+        }
+
+        $voucher_items_table = $wpdb->prefix . 'svdp_voucher_items';
+        if (!self::table_exists($voucher_items_table)) {
+            return;
+        }
+
+        if (!self::column_exists($voucher_items_table, 'discount_type_snapshot')) {
+            $wpdb->query("ALTER TABLE $voucher_items_table ADD COLUMN discount_type_snapshot varchar(20) DEFAULT NULL AFTER requested_price_fixed_snapshot");
+        }
+
+        if (!self::column_exists($voucher_items_table, 'discount_value_snapshot')) {
+            $wpdb->query("ALTER TABLE $voucher_items_table ADD COLUMN discount_value_snapshot decimal(10,2) DEFAULT NULL AFTER discount_type_snapshot");
+        }
+
+        if (!self::column_exists($voucher_items_table, 'conference_share_amount')) {
+            $wpdb->query("ALTER TABLE $voucher_items_table ADD COLUMN conference_share_amount decimal(10,2) DEFAULT NULL AFTER discount_value_snapshot");
+        }
+
+        if (!self::column_exists($voucher_items_table, 'store_share_amount')) {
+            $wpdb->query("ALTER TABLE $voucher_items_table ADD COLUMN store_share_amount decimal(10,2) DEFAULT NULL AFTER conference_share_amount");
+        }
+
+        $wpdb->query("ALTER TABLE $voucher_items_table MODIFY COLUMN discount_type_snapshot varchar(20) DEFAULT NULL");
+        $wpdb->query("ALTER TABLE $voucher_items_table MODIFY COLUMN discount_value_snapshot decimal(10,2) DEFAULT NULL");
+        $wpdb->query("ALTER TABLE $voucher_items_table MODIFY COLUMN conference_share_amount decimal(10,2) DEFAULT NULL");
+        $wpdb->query("ALTER TABLE $voucher_items_table MODIFY COLUMN store_share_amount decimal(10,2) DEFAULT NULL");
+
+        $wpdb->query("UPDATE $voucher_items_table SET discount_type_snapshot = 'percent' WHERE discount_type_snapshot IS NULL OR discount_type_snapshot = '' OR discount_type_snapshot NOT IN ('percent', 'fixed')");
+        $wpdb->query("UPDATE $voucher_items_table SET discount_value_snapshot = 50.00 WHERE discount_value_snapshot IS NULL OR discount_value_snapshot < 0");
+        $wpdb->query("UPDATE $voucher_items_table SET discount_value_snapshot = 50.00 WHERE discount_type_snapshot = 'percent' AND discount_value_snapshot > 100");
     }
 
     /**

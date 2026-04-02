@@ -728,6 +728,72 @@ class SVDP_Voucher {
     }
 
     /**
+     * Normalize a catalog row's conference coverage mode.
+     *
+     * The catalog schema currently stores this as discount_* for compatibility with prior recon notes.
+     *
+     * @param object $catalog_row Catalog row.
+     * @return string
+     */
+    private static function get_catalog_discount_type($catalog_row) {
+        return isset($catalog_row->discount_type) && $catalog_row->discount_type === 'fixed'
+            ? 'fixed'
+            : 'percent';
+    }
+
+    /**
+     * Normalize a catalog row's conference coverage amount.
+     *
+     * @param object $catalog_row Catalog row.
+     * @return float
+     */
+    private static function get_catalog_discount_value($catalog_row) {
+        $default_value = 50.0;
+
+        if (!isset($catalog_row->discount_value) || $catalog_row->discount_value === null || $catalog_row->discount_value === '') {
+            return $default_value;
+        }
+
+        $discount_value = round((float) $catalog_row->discount_value, 2);
+        if ($discount_value < 0) {
+            return $default_value;
+        }
+
+        if (self::get_catalog_discount_type($catalog_row) === 'percent') {
+            return min($discount_value, 100.0);
+        }
+
+        return $discount_value;
+    }
+
+    /**
+     * Calculate the conference and store share for a single concrete item price.
+     *
+     * @param string $discount_type Catalog coverage mode.
+     * @param float  $discount_value Catalog coverage amount.
+     * @param float  $price Concrete item price.
+     * @return array
+     */
+    private static function calculate_furniture_item_shares($discount_type, $discount_value, $price) {
+        $price = max(round((float) $price, 2), 0.0);
+        $discount_value = max(round((float) $discount_value, 2), 0.0);
+
+        if ($discount_type === 'fixed') {
+            $conference_share = min($discount_value, $price);
+        } else {
+            $conference_share = $price * (min($discount_value, 100.0) / 100);
+        }
+
+        $conference_share = round($conference_share, 2);
+        $store_share = round(max($price - $conference_share, 0.0), 2);
+
+        return [
+            'conference_share_amount' => $conference_share,
+            'store_share_amount' => $store_share,
+        ];
+    }
+
+    /**
      * Persist snapshot rows for requested furniture items.
      *
      * @param int   $voucher_id Root voucher ID.
@@ -745,8 +811,20 @@ class SVDP_Voucher {
             }
 
             $catalog_row = $catalog_row_map[$catalog_item_id];
+            $discount_type = self::get_catalog_discount_type($catalog_row);
+            $discount_value = self::get_catalog_discount_value($catalog_row);
+            $fixed_price = $catalog_row->pricing_type === 'fixed' && $catalog_row->price_fixed !== null
+                ? (float) $catalog_row->price_fixed
+                : null;
 
             for ($index = 0; $index < intval($quantity); $index++) {
+                $share_amounts = $fixed_price !== null
+                    ? self::calculate_furniture_item_shares($discount_type, $discount_value, $fixed_price)
+                    : [
+                        'conference_share_amount' => null,
+                        'store_share_amount' => null,
+                    ];
+
                 $result = $wpdb->insert($voucher_items_table, [
                     'voucher_id' => $voucher_id,
                     'catalog_item_id' => (int) $catalog_row->id,
@@ -756,6 +834,10 @@ class SVDP_Voucher {
                     'requested_price_min_snapshot' => $catalog_row->price_min,
                     'requested_price_max_snapshot' => $catalog_row->price_max,
                     'requested_price_fixed_snapshot' => $catalog_row->price_fixed,
+                    'discount_type_snapshot' => $discount_type,
+                    'discount_value_snapshot' => number_format($discount_value, 2, '.', ''),
+                    'conference_share_amount' => $share_amounts['conference_share_amount'],
+                    'store_share_amount' => $share_amounts['store_share_amount'],
                     'requested_sort_order_snapshot' => (int) $catalog_row->sort_order,
                     'status' => 'requested',
                 ]);
