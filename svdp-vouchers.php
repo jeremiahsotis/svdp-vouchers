@@ -480,7 +480,7 @@ class SVDP_Vouchers_Plugin {
             return;
         }
 
-        wp_enqueue_style('svdp-vouchers-public', SVDP_VOUCHERS_PLUGIN_URL . 'public/css/voucher-forms.css', [], SVDP_VOUCHERS_VERSION);
+        wp_enqueue_style('svdp-vouchers-public', SVDP_VOUCHERS_PLUGIN_URL . 'public/css/voucher-forms.css', [], $this->get_asset_version('public/css/voucher-forms.css'));
 
         $item_values = SVDP_Settings::get_item_values();
         $script_data = [
@@ -495,7 +495,7 @@ class SVDP_Vouchers_Plugin {
         ];
 
         if ($has_request_form) {
-            wp_enqueue_script('svdp-vouchers-request', SVDP_VOUCHERS_PLUGIN_URL . 'public/js/voucher-request.js', ['jquery'], SVDP_VOUCHERS_VERSION, true);
+            wp_enqueue_script('svdp-vouchers-request', SVDP_VOUCHERS_PLUGIN_URL . 'public/js/voucher-request.js', ['jquery'], $this->get_asset_version('public/js/voucher-request.js'), true);
             wp_localize_script('svdp-vouchers-request', 'svdpVouchers', $script_data);
         }
 
@@ -520,7 +520,7 @@ document.addEventListener('alpine:init', function() {
     });
 });
 JS, 'before');
-            wp_enqueue_script('svdp-cashier-shell', SVDP_VOUCHERS_PLUGIN_URL . 'public/js/cashier-shell.js', ['svdp-htmx', 'svdp-alpine'], SVDP_VOUCHERS_VERSION, true);
+            wp_enqueue_script('svdp-cashier-shell', SVDP_VOUCHERS_PLUGIN_URL . 'public/js/cashier-shell.js', ['svdp-htmx', 'svdp-alpine'], $this->get_asset_version('public/js/cashier-shell.js'), true);
             wp_localize_script('svdp-cashier-shell', 'svdpCashierShell', [
                 'restUrl' => rest_url(),
                 'nonce' => wp_create_nonce('wp_rest'),
@@ -528,6 +528,18 @@ JS, 'before');
                 'pingInterval' => 60000,
             ]);
         }
+    }
+
+    /**
+     * Return a cache-busting version for plugin assets.
+     *
+     * @param string $relative_path Asset path relative to the plugin root.
+     * @return int|string
+     */
+    private function get_asset_version($relative_path) {
+        $asset_path = SVDP_VOUCHERS_PLUGIN_DIR . ltrim($relative_path, '/');
+
+        return file_exists($asset_path) ? filemtime($asset_path) : SVDP_VOUCHERS_VERSION;
     }
 
     /**

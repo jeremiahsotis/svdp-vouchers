@@ -72,12 +72,12 @@ class SVDP_Admin {
             return;
         }
 
-        wp_enqueue_style('svdp-vouchers-admin', SVDP_VOUCHERS_PLUGIN_URL . 'admin/css/admin.css', [], SVDP_VOUCHERS_VERSION);
-        wp_enqueue_script('svdp-vouchers-admin', SVDP_VOUCHERS_PLUGIN_URL . 'admin/js/admin.js', ['jquery'], SVDP_VOUCHERS_VERSION, true);
-        wp_enqueue_script('svdp-furniture-admin', SVDP_VOUCHERS_PLUGIN_URL . 'admin/js/furniture-admin.js', ['jquery'], SVDP_VOUCHERS_VERSION, true);
-        wp_enqueue_script('svdp-accounting-admin', SVDP_VOUCHERS_PLUGIN_URL . 'admin/js/accounting-admin.js', ['jquery', 'svdp-vouchers-admin'], SVDP_VOUCHERS_VERSION, true);
-        wp_enqueue_script('svdp-managers', SVDP_VOUCHERS_PLUGIN_URL . 'admin/js/managers.js', ['jquery'], SVDP_VOUCHERS_VERSION, true);
-        wp_enqueue_script('svdp-override-reasons', SVDP_VOUCHERS_PLUGIN_URL . 'admin/js/override-reasons.js', ['jquery', 'jquery-ui-sortable'], SVDP_VOUCHERS_VERSION, true);
+        wp_enqueue_style('svdp-vouchers-admin', SVDP_VOUCHERS_PLUGIN_URL . 'admin/css/admin.css', [], $this->get_asset_version('admin/css/admin.css'));
+        wp_enqueue_script('svdp-vouchers-admin', SVDP_VOUCHERS_PLUGIN_URL . 'admin/js/admin.js', ['jquery'], $this->get_asset_version('admin/js/admin.js'), true);
+        wp_enqueue_script('svdp-furniture-admin', SVDP_VOUCHERS_PLUGIN_URL . 'admin/js/furniture-admin.js', ['jquery'], $this->get_asset_version('admin/js/furniture-admin.js'), true);
+        wp_enqueue_script('svdp-accounting-admin', SVDP_VOUCHERS_PLUGIN_URL . 'admin/js/accounting-admin.js', ['jquery', 'svdp-vouchers-admin'], $this->get_asset_version('admin/js/accounting-admin.js'), true);
+        wp_enqueue_script('svdp-managers', SVDP_VOUCHERS_PLUGIN_URL . 'admin/js/managers.js', ['jquery'], $this->get_asset_version('admin/js/managers.js'), true);
+        wp_enqueue_script('svdp-override-reasons', SVDP_VOUCHERS_PLUGIN_URL . 'admin/js/override-reasons.js', ['jquery', 'jquery-ui-sortable'], $this->get_asset_version('admin/js/override-reasons.js'), true);
 
         wp_localize_script('svdp-vouchers-admin', 'svdpAdmin', [
             'ajaxUrl' => admin_url('admin-ajax.php'),
@@ -85,6 +85,18 @@ class SVDP_Admin {
             'restUrl' => esc_url_raw(rest_url('svdp/v1/')),
             'restNonce' => wp_create_nonce('wp_rest'),
         ]);
+    }
+
+    /**
+     * Return a cache-busting version for plugin assets.
+     *
+     * @param string $relative_path Asset path relative to the plugin root.
+     * @return int|string
+     */
+    private function get_asset_version($relative_path) {
+        $asset_path = SVDP_VOUCHERS_PLUGIN_DIR . ltrim($relative_path, '/');
+
+        return file_exists($asset_path) ? filemtime($asset_path) : SVDP_VOUCHERS_VERSION;
     }
     
     /**
