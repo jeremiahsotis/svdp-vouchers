@@ -994,6 +994,15 @@
     line-height: 1.5;
 }
 
+#svdpFurnitureApprovalModal .svdp-summary-row {
+    color: #333;
+}
+
+#svdpFurnitureApprovalModal .svdp-summary-row strong {
+    color: #111 !important;
+    font-weight: 700 !important;
+}
+
 .svdp-cashier-name-section {
     margin-top: 15px;
 }
