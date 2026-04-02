@@ -2,6 +2,9 @@
 $catalog_items = SVDP_Furniture_Catalog::get_all();
 $categories = SVDP_Furniture_Catalog::get_categories();
 $pricing_types = SVDP_Furniture_Catalog::get_pricing_types();
+$discount_types = SVDP_Furniture_Catalog::get_discount_types();
+$default_discount_type = SVDP_Furniture_Catalog::DEFAULT_DISCOUNT_TYPE;
+$default_discount_value = SVDP_Furniture_Catalog::DEFAULT_DISCOUNT_VALUE;
 ?>
 
 <div class="svdp-furniture-admin-section">
@@ -55,6 +58,35 @@ $pricing_types = SVDP_Furniture_Catalog::get_pricing_types();
                 </div>
             </div>
 
+            <div class="svdp-admin-grid">
+                <div class="svdp-admin-field">
+                    <label for="svdp-catalog-discount-type"><strong>Conference Coverage Type</strong></label>
+                    <select id="svdp-catalog-discount-type" name="discount_type">
+                        <?php foreach ($discount_types as $value => $label): ?>
+                            <option value="<?php echo esc_attr($value); ?>" <?php selected($value, $default_discount_type); ?>>
+                                <?php echo esc_html($label); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="svdp-admin-field">
+                    <label for="svdp-catalog-discount-value">
+                        <strong data-discount-value-label="true">Conference Coverage Percent</strong>
+                    </label>
+                    <input
+                        type="number"
+                        id="svdp-catalog-discount-value"
+                        name="discount_value"
+                        min="0"
+                        step="0.01"
+                        class="small-text"
+                        value="<?php echo esc_attr($default_discount_value); ?>"
+                        placeholder="<?php echo esc_attr($default_discount_value); ?>"
+                    >
+                    <p class="description" data-discount-value-description="true">Enter the percent of the item price the Conference will cover.</p>
+                </div>
+            </div>
+
             <p class="description">Use range pricing for used furniture and household goods. Use fixed pricing for handmade furniture and mattresses/frames.</p>
 
             <div class="svdp-inline-actions">
@@ -73,6 +105,7 @@ $pricing_types = SVDP_Furniture_Catalog::get_pricing_types();
                     <th>Name</th>
                     <th>Category</th>
                     <th>Pricing</th>
+                    <th>Conference Coverage</th>
                     <th>Sort Order</th>
                     <th>Status</th>
                     <th>Actions</th>
@@ -81,20 +114,30 @@ $pricing_types = SVDP_Furniture_Catalog::get_pricing_types();
             <tbody>
                 <?php if (empty($catalog_items)): ?>
                     <tr>
-                        <td colspan="6">No catalog items yet.</td>
+                        <td colspan="7">No catalog items yet.</td>
                     </tr>
                 <?php else: ?>
                     <?php foreach ($catalog_items as $item): ?>
                         <?php
                         $is_active = intval($item->active) === 1;
+                        $item_discount_type = (!empty($item->discount_type) && $item->discount_type === 'fixed')
+                            ? 'fixed'
+                            : $default_discount_type;
+                        $item_discount_value = isset($item->discount_value) && $item->discount_value !== null
+                            ? (float) $item->discount_value
+                            : (float) $default_discount_value;
                         $pricing_label = $item->pricing_type === 'fixed'
                             ? '$' . number_format((float) $item->price_fixed, 2)
                             : '$' . number_format((float) $item->price_min, 2) . ' - $' . number_format((float) $item->price_max, 2);
+                        $coverage_label = $item_discount_type === 'fixed'
+                            ? '$' . number_format($item_discount_value, 2) . ' fixed'
+                            : number_format($item_discount_value, 2) . '%';
                         ?>
                         <tr class="<?php echo $is_active ? '' : 'inactive'; ?>">
                             <td><?php echo esc_html($item->name); ?></td>
                             <td><?php echo esc_html($categories[$item->category] ?? $item->category); ?></td>
                             <td><?php echo esc_html(ucfirst($item->pricing_type) . ': ' . $pricing_label); ?></td>
+                            <td><?php echo esc_html($coverage_label); ?></td>
                             <td><?php echo esc_html($item->sort_order); ?></td>
                             <td>
                                 <span class="<?php echo $is_active ? 'manager-status-active' : 'manager-status-inactive'; ?>">
@@ -113,6 +156,8 @@ $pricing_types = SVDP_Furniture_Catalog::get_pricing_types();
                                         data-price-min="<?php echo esc_attr($item->price_min); ?>"
                                         data-price-max="<?php echo esc_attr($item->price_max); ?>"
                                         data-price-fixed="<?php echo esc_attr($item->price_fixed); ?>"
+                                        data-discount-type="<?php echo esc_attr($item_discount_type); ?>"
+                                        data-discount-value="<?php echo esc_attr(number_format($item_discount_value, 2, '.', '')); ?>"
                                         data-sort-order="<?php echo esc_attr($item->sort_order); ?>"
                                         data-active="<?php echo esc_attr($item->active); ?>"
                                     >
@@ -184,6 +229,33 @@ $pricing_types = SVDP_Furniture_Catalog::get_pricing_types();
                 <div class="svdp-admin-field">
                     <label for="svdp-edit-catalog-price-fixed"><strong>Fixed Price</strong></label>
                     <input type="number" id="svdp-edit-catalog-price-fixed" name="price_fixed" min="0" step="0.01" class="small-text">
+                </div>
+            </div>
+
+            <div class="svdp-admin-grid">
+                <div class="svdp-admin-field">
+                    <label for="svdp-edit-catalog-discount-type"><strong>Conference Coverage Type</strong></label>
+                    <select id="svdp-edit-catalog-discount-type" name="discount_type">
+                        <?php foreach ($discount_types as $value => $label): ?>
+                            <option value="<?php echo esc_attr($value); ?>">
+                                <?php echo esc_html($label); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="svdp-admin-field">
+                    <label for="svdp-edit-catalog-discount-value">
+                        <strong data-discount-value-label="true">Conference Coverage Percent</strong>
+                    </label>
+                    <input
+                        type="number"
+                        id="svdp-edit-catalog-discount-value"
+                        name="discount_value"
+                        min="0"
+                        step="0.01"
+                        class="small-text"
+                    >
+                    <p class="description" data-discount-value-description="true">Enter the percent of the item price the Conference will cover.</p>
                 </div>
             </div>
         </div>
