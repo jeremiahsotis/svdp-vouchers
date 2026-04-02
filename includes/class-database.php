@@ -4,7 +4,7 @@
  */
 class SVDP_Database {
 
-    const SCHEMA_VERSION = '4';
+    const SCHEMA_VERSION = '5';
 
     /**
      * Run idempotent schema upgrades for the plugin.
@@ -253,6 +253,7 @@ class SVDP_Database {
             price_min decimal(10,2) DEFAULT NULL,
             price_max decimal(10,2) DEFAULT NULL,
             price_fixed decimal(10,2) DEFAULT NULL,
+            show_price_as_max tinyint(1) NOT NULL DEFAULT 0,
             discount_type varchar(20) NOT NULL DEFAULT 'percent',
             discount_value decimal(10,2) NOT NULL DEFAULT 50.00,
             sort_order int(11) NOT NULL DEFAULT 0,
@@ -476,6 +477,10 @@ class SVDP_Database {
 
         $catalog_items_table = $wpdb->prefix . 'svdp_catalog_items';
         if (self::table_exists($catalog_items_table)) {
+            if (!self::column_exists($catalog_items_table, 'show_price_as_max')) {
+                $wpdb->query("ALTER TABLE $catalog_items_table ADD COLUMN show_price_as_max tinyint(1) NOT NULL DEFAULT 0 AFTER price_fixed");
+            }
+
             if (!self::column_exists($catalog_items_table, 'discount_type')) {
                 $wpdb->query("ALTER TABLE $catalog_items_table ADD COLUMN discount_type varchar(20) NOT NULL DEFAULT 'percent' AFTER price_fixed");
             }
@@ -484,8 +489,10 @@ class SVDP_Database {
                 $wpdb->query("ALTER TABLE $catalog_items_table ADD COLUMN discount_value decimal(10,2) NOT NULL DEFAULT 50.00 AFTER discount_type");
             }
 
+            $wpdb->query("ALTER TABLE $catalog_items_table MODIFY COLUMN show_price_as_max tinyint(1) NOT NULL DEFAULT 0");
             $wpdb->query("ALTER TABLE $catalog_items_table MODIFY COLUMN discount_type varchar(20) NOT NULL DEFAULT 'percent'");
             $wpdb->query("ALTER TABLE $catalog_items_table MODIFY COLUMN discount_value decimal(10,2) NOT NULL DEFAULT 50.00");
+            $wpdb->query("UPDATE $catalog_items_table SET show_price_as_max = 0 WHERE show_price_as_max IS NULL");
             $wpdb->query("UPDATE $catalog_items_table SET discount_type = 'percent' WHERE discount_type IS NULL OR discount_type = '' OR discount_type NOT IN ('percent', 'fixed')");
             $wpdb->query("UPDATE $catalog_items_table SET discount_value = 50.00 WHERE discount_value IS NULL OR discount_value < 0");
             $wpdb->query("UPDATE $catalog_items_table SET discount_value = 50.00 WHERE discount_type = 'percent' AND discount_value > 100");

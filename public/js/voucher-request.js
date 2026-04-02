@@ -13,6 +13,7 @@
         const searchInput = $('#svdpFurnitureSearch');
         const searchEmptyState = $('#svdpFurnitureSearchEmpty');
         const deliveryRequiredInput = $('#svdpDeliveryRequired');
+        const deliveryToggleButton = $('#svdpDeliveryToggle');
         const deliveryAddressFields = $('#svdpDeliveryAddressFields');
         const summaryDeliveryFee = $('#svdpSummaryDeliveryFee');
         const approvalModal = $('#svdpFurnitureApprovalModal');
@@ -207,6 +208,10 @@
         }
 
         function initializeDeliveryControls() {
+            deliveryToggleButton.on('click', function() {
+                deliveryRequiredInput.prop('checked', !deliveryRequiredInput.is(':checked')).trigger('change');
+            });
+
             deliveryRequiredInput.on('change', function() {
                 syncDeliveryControls();
                 updateFurnitureSummary();
@@ -240,6 +245,10 @@
             const voucherType = getCurrentVoucherType();
             const showDeliveryFields = voucherType === 'furniture' && deliveryRequiredInput.is(':checked');
             const requiredDeliveryFields = ['deliveryLine1', 'deliveryCity', 'deliveryState', 'deliveryZip'];
+
+            deliveryToggleButton
+                .toggleClass('is-active', showDeliveryFields)
+                .attr('aria-pressed', showDeliveryFields ? 'true' : 'false');
 
             deliveryAddressFields
                 .prop('hidden', !showDeliveryFields)
@@ -558,8 +567,8 @@
             const estimateSummary = getFurnitureEstimateSummary();
 
             summaryCount.text(estimateSummary.itemCount);
-            summaryTotal.text(formatMoneyRange(estimateSummary.estimatedTotalMin, estimateSummary.estimatedTotalMax));
-            summaryConference.text(formatMoneyRange(estimateSummary.conferencePortionMin, estimateSummary.conferencePortionMax));
+            summaryTotal.text(formatUpToMoney(estimateSummary.estimatedTotalMax));
+            summaryConference.text(formatUpToMoney(estimateSummary.conferencePortionMax));
             summaryDeliveryFee.text('$' + estimateSummary.deliveryFee.toFixed(2));
             updateCategorySelectedCounts();
         }
@@ -575,17 +584,14 @@
         function openApprovalModal(pendingApproval) {
             state.pendingApproval = pendingApproval;
 
-            approvalEstimatedTotal.text(formatMoneyRange(
-                pendingApproval.estimateSummary.estimatedTotalMin,
+            approvalEstimatedTotal.text(formatUpToMoney(
                 pendingApproval.estimateSummary.estimatedTotalMax
             ));
-            approvalConferencePortion.text(formatMoneyRange(
-                pendingApproval.estimateSummary.conferencePortionMin,
+            approvalConferencePortion.text(formatUpToMoney(
                 pendingApproval.estimateSummary.conferencePortionMax
             ));
             approvalDeliveryFee.text('$' + Number(pendingApproval.estimateSummary.deliveryFee || 0).toFixed(2));
-            approvalTotalCommitment.text(formatMoneyRange(
-                pendingApproval.estimateSummary.totalConferenceCommitmentMin,
+            approvalTotalCommitment.text(formatUpToMoney(
                 pendingApproval.estimateSummary.totalConferenceCommitmentMax
             ));
 
@@ -886,8 +892,8 @@
             message += 'The requested furniture items have been saved for cashier review.<br><br>';
             message += '<strong>Request Summary:</strong><br>';
             message += '• Selected items: <strong>' + escapeHtml(String(estimateSummary.itemCount || 0)) + '</strong><br>';
-            message += '• Estimated item total: <strong>' + escapeHtml(formatMoneyRange(estimateSummary.estimatedTotalMin || 0, estimateSummary.estimatedTotalMax || 0)) + '</strong><br>';
-            message += '• Estimated Conference portion: <strong>' + escapeHtml(formatMoneyRange(estimateSummary.conferencePortionMin || 0, estimateSummary.conferencePortionMax || 0)) + '</strong><br>';
+            message += '• Estimated item total: <strong>' + escapeHtml(formatUpToMoney(estimateSummary.estimatedTotalMax || 0)) + '</strong><br>';
+            message += '• Estimated Conference portion: <strong>' + escapeHtml(formatUpToMoney(estimateSummary.conferencePortionMax || 0)) + '</strong><br>';
             message += '• Delivery fee: <strong>$' + escapeHtml(Number(estimateSummary.deliveryFee || 0).toFixed(2)) + '</strong><br>';
 
             message += '• This household can receive another furniture voucher after: <strong>' + escapeHtml(response.nextEligibleDate) + '</strong><br>';
@@ -926,15 +932,8 @@
                 .fadeIn();
         }
 
-        function formatMoneyRange(min, max) {
-            const normalizedMin = Number(min || 0);
-            const normalizedMax = Number(max || 0);
-
-            if (Math.abs(normalizedMax - normalizedMin) < 0.01) {
-                return '$' + normalizedMin.toFixed(2);
-            }
-
-            return '$' + normalizedMin.toFixed(2) + ' - $' + normalizedMax.toFixed(2);
+        function formatUpToMoney(value) {
+            return 'Up to $' + Number(value || 0).toFixed(2);
         }
 
         function roundCurrency(value) {

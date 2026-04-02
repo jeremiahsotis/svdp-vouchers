@@ -241,17 +241,22 @@
                     </div>
                     <div class="svdp-summary-row">
                         <span>Estimated Total</span>
-                        <strong id="svdpSummaryTotal">$0.00</strong>
+                        <strong id="svdpSummaryTotal">Up to $0.00</strong>
                     </div>
                     <div class="svdp-summary-row">
                         <span>Estimated Conference Portion</span>
-                        <strong id="svdpSummaryRequestor">$0.00</strong>
+                        <strong id="svdpSummaryRequestor">Up to $0.00</strong>
                     </div>
 
-                    <label class="svdp-checkbox-row">
-                        <input type="checkbox" name="deliveryRequired" id="svdpDeliveryRequired" value="1">
-                        <span>Add Delivery (+$50.00)</span>
-                    </label>
+                    <input type="checkbox" name="deliveryRequired" id="svdpDeliveryRequired" value="1" hidden>
+                    <button
+                        type="button"
+                        id="svdpDeliveryToggle"
+                        class="svdp-btn svdp-delivery-toggle"
+                        aria-pressed="false"
+                    >
+                        Add Delivery
+                    </button>
 
                     <div id="svdpDeliveryFeeNote" class="svdp-summary-row svdp-summary-row-delivery">
                         <span>Delivery Fee</span>
@@ -360,14 +365,14 @@
                 <strong
                     id="svdpApprovalEstimatedTotal"
                     style="color: #111 !important; font-weight: 700 !important; opacity: 1 !important; -webkit-text-fill-color: #111 !important;"
-                >$0.00</strong>
+                >Up to $0.00</strong>
             </div>
             <div class="svdp-summary-row">
                 <span>Estimated Conference portion</span>
                 <strong
                     id="svdpApprovalConferencePortion"
                     style="color: #111 !important; font-weight: 700 !important; opacity: 1 !important; -webkit-text-fill-color: #111 !important;"
-                >$0.00</strong>
+                >Up to $0.00</strong>
             </div>
             <div class="svdp-summary-row">
                 <span>Delivery fee</span>
@@ -381,7 +386,7 @@
                 <strong
                     id="svdpApprovalTotalCommitment"
                     style="color: #111 !important; font-weight: 700 !important; opacity: 1 !important; -webkit-text-fill-color: #111 !important;"
-                >$0.00</strong>
+                >Up to $0.00</strong>
             </div>
 
             <div class="svdp-modal-buttons">

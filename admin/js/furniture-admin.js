@@ -50,6 +50,7 @@
             $('#svdp-edit-catalog-price-min').val(button.attr('data-price-min'));
             $('#svdp-edit-catalog-price-max').val(button.attr('data-price-max'));
             $('#svdp-edit-catalog-price-fixed').val(button.attr('data-price-fixed'));
+            $('#svdp-edit-catalog-show-price-as-max').prop('checked', Number(button.attr('data-show-price-as-max')) === 1);
             $('#svdp-edit-catalog-discount-type').val(button.attr('data-discount-type'));
             $('#svdp-edit-catalog-discount-value').val(button.attr('data-discount-value'));
             $('#svdp-edit-catalog-sort-order').val(button.attr('data-sort-order'));
@@ -166,6 +167,7 @@
             price_min: form.find('[name="price_min"]').val(),
             price_max: form.find('[name="price_max"]').val(),
             price_fixed: form.find('[name="price_fixed"]').val(),
+            show_price_as_max: form.find('[name="show_price_as_max"]').is(':checked') ? 1 : 0,
             discount_type: form.find('[name="discount_type"]').val(),
             discount_value: form.find('[name="discount_value"]').val(),
             sort_order: form.find('[name="sort_order"]').val()

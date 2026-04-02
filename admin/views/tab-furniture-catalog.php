@@ -51,6 +51,16 @@ $default_discount_value = SVDP_Furniture_Catalog::DEFAULT_DISCOUNT_VALUE;
                 </div>
             </div>
 
+            <div class="svdp-admin-grid svdp-pricing-fields" data-pricing-fields="range">
+                <div class="svdp-admin-field">
+                    <label for="svdp-catalog-show-price-as-max">
+                        <input type="checkbox" id="svdp-catalog-show-price-as-max" name="show_price_as_max" value="1">
+                        Show public catalog pricing as "Up to" the maximum amount
+                    </label>
+                    <p class="description">When checked, range-priced catalog cards show "Up to $X" instead of the full min-to-max range.</p>
+                </div>
+            </div>
+
             <div class="svdp-admin-grid svdp-pricing-fields" data-pricing-fields="fixed" style="display: none;">
                 <div class="svdp-admin-field">
                     <label for="svdp-catalog-price-fixed"><strong>Fixed Price</strong></label>
@@ -126,9 +136,12 @@ $default_discount_value = SVDP_Furniture_Catalog::DEFAULT_DISCOUNT_VALUE;
                         $item_discount_value = isset($item->discount_value) && $item->discount_value !== null
                             ? (float) $item->discount_value
                             : (float) $default_discount_value;
+                        $show_price_as_max = !empty($item->show_price_as_max) && $item->pricing_type === 'range';
                         $pricing_label = $item->pricing_type === 'fixed'
                             ? '$' . number_format((float) $item->price_fixed, 2)
-                            : '$' . number_format((float) $item->price_min, 2) . ' - $' . number_format((float) $item->price_max, 2);
+                            : ($show_price_as_max
+                                ? 'Up to $' . number_format((float) $item->price_max, 2)
+                                : '$' . number_format((float) $item->price_min, 2) . ' - $' . number_format((float) $item->price_max, 2));
                         $coverage_label = $item_discount_type === 'fixed'
                             ? '$' . number_format($item_discount_value, 2) . ' fixed'
                             : number_format($item_discount_value, 2) . '%';
@@ -156,6 +169,7 @@ $default_discount_value = SVDP_Furniture_Catalog::DEFAULT_DISCOUNT_VALUE;
                                         data-price-min="<?php echo esc_attr($item->price_min); ?>"
                                         data-price-max="<?php echo esc_attr($item->price_max); ?>"
                                         data-price-fixed="<?php echo esc_attr($item->price_fixed); ?>"
+                                        data-show-price-as-max="<?php echo esc_attr($show_price_as_max ? 1 : 0); ?>"
                                         data-discount-type="<?php echo esc_attr($item_discount_type); ?>"
                                         data-discount-value="<?php echo esc_attr(number_format($item_discount_value, 2, '.', '')); ?>"
                                         data-sort-order="<?php echo esc_attr($item->sort_order); ?>"
@@ -222,6 +236,16 @@ $default_discount_value = SVDP_Furniture_Catalog::DEFAULT_DISCOUNT_VALUE;
                 <div class="svdp-admin-field">
                     <label for="svdp-edit-catalog-price-max"><strong>Maximum Price</strong></label>
                     <input type="number" id="svdp-edit-catalog-price-max" name="price_max" min="0" step="0.01" class="small-text">
+                </div>
+            </div>
+
+            <div class="svdp-admin-grid svdp-pricing-fields" data-pricing-fields="range">
+                <div class="svdp-admin-field">
+                    <label for="svdp-edit-catalog-show-price-as-max">
+                        <input type="checkbox" id="svdp-edit-catalog-show-price-as-max" name="show_price_as_max" value="1">
+                        Show public catalog pricing as "Up to" the maximum amount
+                    </label>
+                    <p class="description">When checked, range-priced catalog cards show "Up to $X" instead of the full min-to-max range.</p>
                 </div>
             </div>
 
