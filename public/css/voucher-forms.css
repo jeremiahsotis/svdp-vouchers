@@ -470,16 +470,22 @@
     color: #fff;
 }
 
-.svdp-checkbox-row {
-    display: flex;
-    gap: 10px;
-    align-items: center;
+.svdp-delivery-toggle {
+    width: 100%;
     margin: 16px 0 12px;
-    font-weight: 600;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
 }
 
-.svdp-checkbox-row input {
-    width: auto;
+.svdp-delivery-toggle:hover {
+    background: rgba(255, 255, 255, 0.14);
+}
+
+.svdp-delivery-toggle.is-active {
+    background: #006BA8;
+    border-color: #2f82b8;
+    color: #fff;
 }
 
 .svdp-delivery-note {

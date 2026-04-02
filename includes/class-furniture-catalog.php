@@ -12,6 +12,7 @@ class SVDP_Furniture_Catalog {
 
     const DEFAULT_DISCOUNT_TYPE = 'percent';
     const DEFAULT_DISCOUNT_VALUE = '50.00';
+    const DEFAULT_SHOW_PRICE_AS_MAX = 0;
 
     /**
      * Supported catalog categories.
@@ -299,6 +300,9 @@ class SVDP_Furniture_Catalog {
             'name' => $name,
             'category' => $category,
             'pricing_type' => $pricing_type,
+            'show_price_as_max' => array_key_exists('show_price_as_max', $data)
+                ? (!empty($data['show_price_as_max']) ? 1 : 0)
+                : ($pricing_type === 'range' && $existing ? intval($existing->show_price_as_max ?? self::DEFAULT_SHOW_PRICE_AS_MAX) : self::DEFAULT_SHOW_PRICE_AS_MAX),
             'discount_type' => $discount_type,
             'discount_value' => $discount_value,
             'sort_order' => $sort_order,
@@ -335,6 +339,7 @@ class SVDP_Furniture_Catalog {
             $prepared['price_min'] = null;
             $prepared['price_max'] = null;
             $prepared['price_fixed'] = $price_fixed;
+            $prepared['show_price_as_max'] = 0;
         }
 
         return $prepared;
@@ -382,6 +387,7 @@ class SVDP_Furniture_Catalog {
         $price_min = $item->price_min !== null ? (float) $item->price_min : null;
         $price_max = $item->price_max !== null ? (float) $item->price_max : null;
         $price_fixed = $item->price_fixed !== null ? (float) $item->price_fixed : null;
+        $show_price_as_max = !empty($item->show_price_as_max) && $pricing_type === 'range';
         $discount_type = isset($item->discount_type) && $item->discount_type === 'fixed'
             ? 'fixed'
             : self::DEFAULT_DISCOUNT_TYPE;
@@ -391,6 +397,8 @@ class SVDP_Furniture_Catalog {
 
         if ($pricing_type === 'fixed') {
             $price_display = '$' . number_format((float) $price_fixed, 2);
+        } elseif ($show_price_as_max) {
+            $price_display = 'Up to $' . number_format((float) $price_max, 2);
         } else {
             $price_display = '$' . number_format((float) $price_min, 2) . ' - $' . number_format((float) $price_max, 2);
         }
@@ -404,6 +412,7 @@ class SVDP_Furniture_Catalog {
             'priceMin' => $price_min,
             'priceMax' => $price_max,
             'priceFixed' => $price_fixed,
+            'showPriceAsMax' => $show_price_as_max,
             'discountType' => $discount_type,
             'discountValue' => $discount_value,
             'sortOrder' => (int) $item->sort_order,
