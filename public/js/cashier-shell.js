@@ -3,6 +3,8 @@
 
     const config = window.svdpCashierShell || {};
     const itemValues = window.svdpVouchers?.itemValues || { adult: 5.00, child: 3.00 };
+    const neighborVoucherLanguageKey = 'svdpNeighborVoucherLanguage';
+    const defaultNeighborVoucherLanguage = 'en';
 
     let keepaliveTimer = null;
     let pendingEmergencyAction = null;
@@ -18,6 +20,7 @@
         bindShellEvents();
         loadOverrideReasons();
         startKeepalive();
+        hydrateNeighborVoucherControls(document);
     });
 
     function ensureStore() {
@@ -61,6 +64,13 @@
         if (voucherCard) {
             shouldScrollDetailOnSwap = true;
             setSelectedVoucher(voucherCard.getAttribute('data-voucher-id'));
+            return;
+        }
+
+        const documentAction = event.target.closest('[data-neighbor-document-action]');
+        if (documentAction) {
+            event.preventDefault();
+            handleNeighborDocumentAction(documentAction);
             return;
         }
 
@@ -137,6 +147,11 @@
     }
 
     function handleInput(event) {
+        if (event.target.matches('[data-neighbor-voucher-language]')) {
+            savePreferredNeighborVoucherLanguage(event.target.value);
+            return;
+        }
+
         const form = event.target.closest('form[data-cashier-action]');
         if (!form) {
             return;
@@ -178,6 +193,8 @@
             if (detail) {
                 setSelectedVoucher(detail.getAttribute('data-current-voucher-id'));
             }
+
+            hydrateNeighborVoucherControls(event.target);
 
             const redeemForm = event.target.querySelector('form[data-cashier-action="redeem"]');
             if (redeemForm) {
@@ -257,6 +274,90 @@
                 store.keepaliveLabel = 'Connection Retrying';
             }
         }
+    }
+
+    function handleNeighborDocumentAction(actionElement) {
+        const action = actionElement.getAttribute('data-neighbor-document-action');
+        const language = resolveNeighborVoucherLanguage(actionElement);
+        const url = buildNeighborVoucherDocumentUrl(actionElement, language, action === 'print');
+
+        if (!url) {
+            showFlash('error', 'Neighbor voucher link is unavailable for this record.');
+            return;
+        }
+
+        const popup = window.open(url, '_blank');
+        if (!popup) {
+            showFlash('error', 'Allow pop-ups to open or print the neighbor voucher.');
+            return;
+        }
+
+        savePreferredNeighborVoucherLanguage(language);
+    }
+
+    function resolveNeighborVoucherLanguage(actionElement) {
+        const languageSelect = actionElement
+            .closest('[data-neighbor-document-controls]')
+            ?.querySelector('[data-neighbor-voucher-language]');
+
+        return savePreferredNeighborVoucherLanguage(languageSelect ? languageSelect.value : getPreferredNeighborVoucherLanguage());
+    }
+
+    function buildNeighborVoucherDocumentUrl(actionElement, language, autoPrint) {
+        const baseUrl = actionElement.getAttribute('data-document-url') || actionElement.getAttribute('href');
+        if (!baseUrl) {
+            return '';
+        }
+
+        const url = new URL(baseUrl, window.location.origin);
+
+        url.searchParams.set('view', 'neighbor-document');
+        url.searchParams.set('language', language || defaultNeighborVoucherLanguage);
+
+        if (autoPrint) {
+            url.searchParams.set('auto_print', '1');
+        } else {
+            url.searchParams.delete('auto_print');
+        }
+
+        return url.toString();
+    }
+
+    function hydrateNeighborVoucherControls(scope) {
+        const preferredLanguage = getPreferredNeighborVoucherLanguage();
+        if (!scope || !preferredLanguage) {
+            return;
+        }
+
+        scope.querySelectorAll('[data-neighbor-voucher-language]').forEach(function(select) {
+            const hasOption = Array.prototype.some.call(select.options, function(option) {
+                return option.value === preferredLanguage;
+            });
+
+            if (hasOption) {
+                select.value = preferredLanguage;
+            }
+        });
+    }
+
+    function getPreferredNeighborVoucherLanguage() {
+        try {
+            return window.localStorage.getItem(neighborVoucherLanguageKey) || defaultNeighborVoucherLanguage;
+        } catch (error) {
+            return defaultNeighborVoucherLanguage;
+        }
+    }
+
+    function savePreferredNeighborVoucherLanguage(language) {
+        const normalizedLanguage = String(language || '').trim() || defaultNeighborVoucherLanguage;
+
+        try {
+            window.localStorage.setItem(neighborVoucherLanguageKey, normalizedLanguage);
+        } catch (error) {
+            // Ignore storage failures and continue with the in-memory value.
+        }
+
+        return normalizedLanguage;
     }
 
     function handleSessionLost() {
