@@ -20,6 +20,7 @@ define('SVDP_VOUCHERS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SVDP_VOUCHERS_PLUGIN_URL', plugin_dir_url(__FILE__));
 
 // Include required files
+require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-pdf-dependency.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-database.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-settings.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-permissions.php';
@@ -37,6 +38,9 @@ require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-shortcodes.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-admin.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-manager.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-override-reason.php';
+
+// Load plugin-local PDF support before document features attempt to use it.
+SVDP_PDF_Dependency::bootstrap();
 
 /**
  * Main plugin class
