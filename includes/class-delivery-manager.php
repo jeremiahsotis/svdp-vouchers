@@ -14,28 +14,56 @@ if (!defined('ABSPATH')) {
 class SVDP_Delivery_Manager {
 
     /**
-     * Registered delivery methods keyed by slug.
+     * Delivery method registry.
      *
-     * @var array<string, SVDP_Delivery_Method_Interface>
+     * @var SVDP_Delivery_Method_Registry
      */
-    protected $methods = array();
+    protected $method_registry;
 
     /**
-     * Registered delivery providers keyed by slug.
+     * Delivery provider registry.
      *
-     * @var array<string, SVDP_Delivery_Provider_Interface>
+     * @var SVDP_Delivery_Provider_Registry
      */
-    protected $providers = array();
+    protected $provider_registry;
 
     /**
      * Create a delivery manager instance.
      *
-     * @param array $methods Initial method objects.
-     * @param array $providers Initial provider objects.
+     * @param array|SVDP_Delivery_Method_Registry $methods Initial method objects or registry.
+     * @param array|SVDP_Delivery_Provider_Registry $providers Initial provider objects or registry.
      */
     public function __construct($methods = array(), $providers = array()) {
-        $this->register_methods($methods);
-        $this->register_providers($providers);
+        $this->method_registry = $methods instanceof SVDP_Delivery_Method_Registry
+            ? $methods
+            : new SVDP_Delivery_Method_Registry();
+        $this->provider_registry = $providers instanceof SVDP_Delivery_Provider_Registry
+            ? $providers
+            : new SVDP_Delivery_Provider_Registry();
+
+        if (!($methods instanceof SVDP_Delivery_Method_Registry)) {
+            $this->register_methods($methods);
+        }
+
+        if (!($providers instanceof SVDP_Delivery_Provider_Registry)) {
+            $this->register_providers($providers);
+        }
+    }
+
+    /**
+     * Create a delivery manager with the default checkpoint 2 stack.
+     *
+     * @return self
+     */
+    public static function create_default() {
+        return new self(
+            array(
+                new SVDP_Delivery_Method_Email(),
+            ),
+            array(
+                new SVDP_Email_Provider_WP_Mail(),
+            )
+        );
     }
 
     /**
@@ -45,17 +73,7 @@ class SVDP_Delivery_Manager {
      * @return self
      */
     public function register_method($method) {
-        if (!$method instanceof SVDP_Delivery_Method_Interface) {
-            throw new InvalidArgumentException('Delivery methods must implement SVDP_Delivery_Method_Interface.');
-        }
-
-        $slug = $this->normalize_identifier($method->get_slug());
-
-        if ($slug === '') {
-            throw new InvalidArgumentException('Delivery methods must provide a non-empty slug.');
-        }
-
-        $this->methods[$slug] = $method;
+        $this->method_registry->register($method);
 
         return $this;
     }
@@ -67,9 +85,7 @@ class SVDP_Delivery_Manager {
      * @return self
      */
     public function register_methods($methods) {
-        foreach ((array) $methods as $method) {
-            $this->register_method($method);
-        }
+        $this->method_registry->register_many($methods);
 
         return $this;
     }
@@ -81,17 +97,7 @@ class SVDP_Delivery_Manager {
      * @return self
      */
     public function register_provider($provider) {
-        if (!$provider instanceof SVDP_Delivery_Provider_Interface) {
-            throw new InvalidArgumentException('Delivery providers must implement SVDP_Delivery_Provider_Interface.');
-        }
-
-        $slug = $this->normalize_identifier($provider->get_slug());
-
-        if ($slug === '') {
-            throw new InvalidArgumentException('Delivery providers must provide a non-empty slug.');
-        }
-
-        $this->providers[$slug] = $provider;
+        $this->provider_registry->register($provider);
 
         return $this;
     }
@@ -103,9 +109,7 @@ class SVDP_Delivery_Manager {
      * @return self
      */
     public function register_providers($providers) {
-        foreach ((array) $providers as $provider) {
-            $this->register_provider($provider);
-        }
+        $this->provider_registry->register_many($providers);
 
         return $this;
     }
@@ -117,9 +121,7 @@ class SVDP_Delivery_Manager {
      * @return SVDP_Delivery_Method_Interface|null
      */
     public function get_method($slug) {
-        $slug = $this->normalize_identifier($slug);
-
-        return isset($this->methods[$slug]) ? $this->methods[$slug] : null;
+        return $this->method_registry->get($slug);
     }
 
     /**
@@ -129,9 +131,7 @@ class SVDP_Delivery_Manager {
      * @return SVDP_Delivery_Provider_Interface|null
      */
     public function get_provider($slug) {
-        $slug = $this->normalize_identifier($slug);
-
-        return isset($this->providers[$slug]) ? $this->providers[$slug] : null;
+        return $this->provider_registry->get($slug);
     }
 
     /**
