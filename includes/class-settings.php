@@ -20,7 +20,7 @@ class SVDP_Settings {
             ['setting_key' => 'delivery_sms_provider', 'setting_value' => 'telnyx', 'setting_type' => 'text'],
             ['setting_key' => 'delivery_sms_telnyx_api_key', 'setting_value' => '', 'setting_type' => 'text'],
             ['setting_key' => 'delivery_sms_telnyx_from_number', 'setting_value' => '', 'setting_type' => 'text'],
-            ['setting_key' => 'delivery_security_resend_revoke_threshold', 'setting_value' => '3', 'setting_type' => 'text'],
+            ['setting_key' => 'delivery_security_resend_revoke_threshold', 'setting_value' => '5', 'setting_type' => 'text'],
         ];
     }
 
@@ -92,7 +92,7 @@ class SVDP_Settings {
      * @param int $default Default threshold when the setting is unset.
      * @return int
      */
-    public static function get_delivery_security_resend_revoke_threshold($default = 3) {
+    public static function get_delivery_security_resend_revoke_threshold($default = 5) {
         $threshold = (int) self::get_setting('delivery_security_resend_revoke_threshold', $default);
 
         return $threshold > 0 ? $threshold : (int) $default;
