@@ -12,6 +12,7 @@ class SVDP_Database {
     public static function maybe_upgrade() {
         $current_version = get_option('svdp_vouchers_schema_version', '');
         if ($current_version === self::SCHEMA_VERSION && self::has_current_schema()) {
+            self::insert_default_settings();
             return;
         }
 
@@ -202,20 +203,20 @@ class SVDP_Database {
         global $wpdb;
         $table = $wpdb->prefix . 'svdp_settings';
 
-        $count = $wpdb->get_var("SELECT COUNT(*) FROM $table");
-        if ($count > 0) {
+        if (!self::table_exists($table)) {
             return;
         }
 
-        $settings = [
-            ['setting_key' => 'adult_item_value', 'setting_value' => '5.00', 'setting_type' => 'decimal'],
-            ['setting_key' => 'child_item_value', 'setting_value' => '3.00', 'setting_type' => 'decimal'],
-            ['setting_key' => 'store_hours', 'setting_value' => 'Monday-Friday 9am-5pm', 'setting_type' => 'text'],
-            ['setting_key' => 'redemption_instructions', 'setting_value' => 'Neighbors should visit the store and provide their first name, last name, and date of birth at the counter.', 'setting_type' => 'textarea'],
-            ['setting_key' => 'available_voucher_types', 'setting_value' => 'clothing,furniture', 'setting_type' => 'text'],
-        ];
+        foreach (SVDP_Settings::get_registered_defaults() as $setting) {
+            $exists = $wpdb->get_var($wpdb->prepare(
+                "SELECT id FROM $table WHERE setting_key = %s LIMIT 1",
+                $setting['setting_key']
+            ));
 
-        foreach ($settings as $setting) {
+            if ($exists) {
+                continue;
+            }
+
             $wpdb->insert($table, $setting);
         }
     }

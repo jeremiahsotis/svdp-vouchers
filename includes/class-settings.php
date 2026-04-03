@@ -5,6 +5,26 @@
 class SVDP_Settings {
 
     /**
+     * Get the default settings registered by the plugin.
+     *
+     * @return array<int, array<string, string>>
+     */
+    public static function get_registered_defaults() {
+        return [
+            ['setting_key' => 'adult_item_value', 'setting_value' => '5.00', 'setting_type' => 'decimal'],
+            ['setting_key' => 'child_item_value', 'setting_value' => '3.00', 'setting_type' => 'decimal'],
+            ['setting_key' => 'store_hours', 'setting_value' => 'Monday-Friday 9am-5pm', 'setting_type' => 'text'],
+            ['setting_key' => 'redemption_instructions', 'setting_value' => 'Neighbors should visit the store and provide their first name, last name, and date of birth at the counter.', 'setting_type' => 'textarea'],
+            ['setting_key' => 'available_voucher_types', 'setting_value' => 'clothing,furniture', 'setting_type' => 'text'],
+            ['setting_key' => 'delivery_email_provider', 'setting_value' => 'wp_mail', 'setting_type' => 'text'],
+            ['setting_key' => 'delivery_sms_provider', 'setting_value' => 'telnyx', 'setting_type' => 'text'],
+            ['setting_key' => 'delivery_sms_telnyx_api_key', 'setting_value' => '', 'setting_type' => 'text'],
+            ['setting_key' => 'delivery_sms_telnyx_from_number', 'setting_value' => '', 'setting_type' => 'text'],
+            ['setting_key' => 'delivery_security_resend_revoke_threshold', 'setting_value' => '5', 'setting_type' => 'text'],
+        ];
+    }
+
+    /**
      * Get a setting value
      *
      * @param string $key Setting key
@@ -25,6 +45,57 @@ class SVDP_Settings {
         }
 
         return $default;
+    }
+
+    /**
+     * Resolve the configured provider slug for a delivery method.
+     *
+     * @param string $method_slug Delivery method slug.
+     * @param string $fallback Fallback slug when nothing is configured.
+     * @return string
+     */
+    public static function get_delivery_provider($method_slug, $fallback = '') {
+        $method_slug = self::normalize_slug($method_slug);
+        $fallback = self::normalize_slug($fallback);
+
+        $setting_map = [
+            'email' => 'delivery_email_provider',
+            'sms' => 'delivery_sms_provider',
+        ];
+
+        if (!isset($setting_map[$method_slug])) {
+            return $fallback;
+        }
+
+        $provider = self::normalize_slug(
+            self::get_setting($setting_map[$method_slug], $fallback)
+        );
+
+        return $provider !== '' ? $provider : $fallback;
+    }
+
+    /**
+     * Get the Telnyx SMS configuration in the format expected by the provider.
+     *
+     * @return array<string, string>
+     */
+    public static function get_telnyx_sms_settings() {
+        return [
+            'api_key' => trim((string) self::get_setting('delivery_sms_telnyx_api_key', '')),
+            'from_number' => trim((string) self::get_setting('delivery_sms_telnyx_from_number', '')),
+        ];
+    }
+
+    /**
+     * Get the resend revoke threshold used by future delivery security flows.
+     *
+     * @param int $default Default threshold when the setting is unset.
+     * @return int
+     */
+    public static function get_delivery_security_resend_revoke_threshold($default = 5) {
+        $threshold = (int) self::get_setting('delivery_security_resend_revoke_threshold', $default);
+
+        return $threshold > 0 ? $threshold : (int) $default;
     }
 
     /**
@@ -235,5 +306,17 @@ class SVDP_Settings {
      */
     public static function get_redemption_instructions() {
         return self::get_setting('redemption_instructions', 'Neighbors should visit the store and provide their first name, last name, and date of birth at the counter.');
+    }
+
+    /**
+     * Normalize a slug-like setting value.
+     *
+     * @param string $value Raw setting value.
+     * @return string
+     */
+    private static function normalize_slug($value) {
+        $value = strtolower(trim((string) $value));
+
+        return preg_replace('/[^a-z0-9_-]/', '', $value);
     }
 }
