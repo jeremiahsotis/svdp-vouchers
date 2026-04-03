@@ -37,6 +37,14 @@ class SVDP_Delivery_Method_Email implements SVDP_Delivery_Method_Interface {
     public function get_provider_slug($payload = array()) {
         $provider = $this->extract_provider_override($payload);
 
+        if ($provider !== '') {
+            return $provider;
+        }
+
+        if (class_exists('SVDP_Settings')) {
+            $provider = SVDP_Settings::get_delivery_provider($this->get_slug(), self::DEFAULT_PROVIDER);
+        }
+
         return $provider !== '' ? $provider : self::DEFAULT_PROVIDER;
     }
 

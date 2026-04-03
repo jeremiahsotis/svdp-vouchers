@@ -36,6 +36,7 @@ class SVDP_SMS_Provider_Telnyx implements SVDP_Delivery_Provider_Interface {
         }
 
         $payload = is_array($payload) ? $payload : array();
+        $configuration = $this->get_configuration();
 
         $message = isset($payload['message']) ? trim((string) $payload['message']) : '';
         if ($message === '') {
@@ -46,7 +47,25 @@ class SVDP_SMS_Provider_Telnyx implements SVDP_Delivery_Provider_Interface {
             'success' => true,
             'provider' => $this->get_slug(),
             'recipient' => $recipient,
+            'from_number' => $configuration['from_number'],
+            'has_api_key' => $configuration['api_key'] !== '',
             'stub' => true,
+        );
+    }
+
+    /**
+     * Get the provider configuration without triggering live delivery behavior.
+     *
+     * @return array<string, string>
+     */
+    protected function get_configuration() {
+        if (class_exists('SVDP_Settings')) {
+            return SVDP_Settings::get_telnyx_sms_settings();
+        }
+
+        return array(
+            'api_key' => '',
+            'from_number' => '',
         );
     }
 
