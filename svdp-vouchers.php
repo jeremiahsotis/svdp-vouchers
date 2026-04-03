@@ -29,7 +29,9 @@ require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-delivery-method-registry
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-delivery-provider-registry.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-delivery-manager.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/delivery/class-delivery-method-email.php';
+require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/delivery/class-delivery-method-sms.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/providers/class-email-provider-wp-mail.php';
+require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/providers/class-sms-provider-telnyx.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-permissions.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-conference.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-voucher.php';

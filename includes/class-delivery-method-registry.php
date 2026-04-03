@@ -32,17 +32,23 @@ class SVDP_Delivery_Method_Registry {
      * Register a delivery method.
      *
      * @param mixed $method Delivery method instance.
-     * @return self
+     * @return self|array|WP_Error
      */
     public function register($method) {
         if (!$method instanceof SVDP_Delivery_Method_Interface) {
-            throw new InvalidArgumentException('Delivery methods must implement SVDP_Delivery_Method_Interface.');
+            return self::error(
+                'delivery_method_invalid',
+                'Delivery methods must implement SVDP_Delivery_Method_Interface.'
+            );
         }
 
         $slug = $this->normalize_identifier($method->get_slug());
 
         if ($slug === '') {
-            throw new InvalidArgumentException('Delivery methods must provide a non-empty slug.');
+            return self::error(
+                'delivery_method_slug_required',
+                'Delivery methods must provide a non-empty slug.'
+            );
         }
 
         $this->methods[$slug] = $method;
@@ -54,11 +60,15 @@ class SVDP_Delivery_Method_Registry {
      * Register multiple delivery methods.
      *
      * @param array $methods Delivery method instances.
-     * @return self
+     * @return self|array|WP_Error
      */
     public function register_many($methods) {
         foreach ((array) $methods as $method) {
-            $this->register($method);
+            $result = $this->register($method);
+
+            if ($this->is_error_result($result)) {
+                return $result;
+            }
         }
 
         return $this;
@@ -95,5 +105,43 @@ class SVDP_Delivery_Method_Registry {
         $identifier = strtolower(trim((string) $identifier));
 
         return preg_replace('/[^a-z0-9_-]/', '', $identifier);
+    }
+
+    /**
+     * Determine whether a value is a WP-style error result.
+     *
+     * @param mixed $value Potential error value.
+     * @return bool
+     */
+    protected function is_error_result($value) {
+        if (function_exists('is_wp_error') && is_wp_error($value)) {
+            return true;
+        }
+
+        return is_array($value)
+            && !empty($value['error'])
+            && !empty($value['code'])
+            && array_key_exists('message', $value);
+    }
+
+    /**
+     * Create an error object without requiring WordPress during local linting.
+     *
+     * @param string $code Error code.
+     * @param string $message Error message.
+     * @param array $data Optional error context.
+     * @return array|WP_Error
+     */
+    protected static function error($code, $message, $data = array()) {
+        if (class_exists('WP_Error')) {
+            return new WP_Error($code, $message, $data);
+        }
+
+        return array(
+            'error' => true,
+            'code' => $code,
+            'message' => $message,
+            'data' => $data,
+        );
     }
 }

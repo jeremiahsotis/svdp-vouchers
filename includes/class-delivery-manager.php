@@ -51,29 +51,46 @@ class SVDP_Delivery_Manager {
     }
 
     /**
-     * Create a delivery manager with the default checkpoint 2 stack.
+     * Create a delivery manager with the default checkpoint 3 stack.
      *
-     * @return self
+     * @return self|array|WP_Error
      */
     public static function create_default() {
-        return new self(
-            array(
-                new SVDP_Delivery_Method_Email(),
-            ),
-            array(
-                new SVDP_Email_Provider_WP_Mail(),
-            )
-        );
+        $manager = new self();
+
+        $methods_result = $manager->register_methods(array(
+            new SVDP_Delivery_Method_Email(),
+            new SVDP_Delivery_Method_SMS(),
+        ));
+
+        if (self::is_error_result($methods_result)) {
+            return $methods_result;
+        }
+
+        $providers_result = $manager->register_providers(array(
+            new SVDP_Email_Provider_WP_Mail(),
+            new SVDP_SMS_Provider_Telnyx(),
+        ));
+
+        if (self::is_error_result($providers_result)) {
+            return $providers_result;
+        }
+
+        return $manager;
     }
 
     /**
      * Register a delivery method.
      *
      * @param mixed $method Delivery method instance.
-     * @return self
+     * @return self|array|WP_Error
      */
     public function register_method($method) {
-        $this->method_registry->register($method);
+        $result = $this->method_registry->register($method);
+
+        if (self::is_error_result($result)) {
+            return $result;
+        }
 
         return $this;
     }
@@ -82,10 +99,14 @@ class SVDP_Delivery_Manager {
      * Register multiple delivery methods.
      *
      * @param array $methods Delivery method instances.
-     * @return self
+     * @return self|array|WP_Error
      */
     public function register_methods($methods) {
-        $this->method_registry->register_many($methods);
+        $result = $this->method_registry->register_many($methods);
+
+        if (self::is_error_result($result)) {
+            return $result;
+        }
 
         return $this;
     }
@@ -94,10 +115,14 @@ class SVDP_Delivery_Manager {
      * Register a delivery provider.
      *
      * @param mixed $provider Delivery provider instance.
-     * @return self
+     * @return self|array|WP_Error
      */
     public function register_provider($provider) {
-        $this->provider_registry->register($provider);
+        $result = $this->provider_registry->register($provider);
+
+        if (self::is_error_result($result)) {
+            return $result;
+        }
 
         return $this;
     }
@@ -106,10 +131,14 @@ class SVDP_Delivery_Manager {
      * Register multiple delivery providers.
      *
      * @param array $providers Delivery provider instances.
-     * @return self
+     * @return self|array|WP_Error
      */
     public function register_providers($providers) {
-        $this->provider_registry->register_many($providers);
+        $result = $this->provider_registry->register_many($providers);
+
+        if (self::is_error_result($result)) {
+            return $result;
+        }
 
         return $this;
     }
@@ -150,7 +179,13 @@ class SVDP_Delivery_Manager {
             return self::error('delivery_method_not_registered', 'Delivery method is not registered.');
         }
 
-        $provider_slug = $this->normalize_identifier($delivery_method->get_provider_slug($payload));
+        $provider_slug = $delivery_method->get_provider_slug($payload);
+
+        if (self::is_error_result($provider_slug)) {
+            return $provider_slug;
+        }
+
+        $provider_slug = $this->normalize_identifier($provider_slug);
 
         if ($provider_slug === '') {
             return self::error('delivery_provider_not_defined', 'Delivery method did not resolve a delivery provider.');
@@ -164,7 +199,7 @@ class SVDP_Delivery_Manager {
 
         $provider_payload = $delivery_method->build_payload($recipient, $payload);
 
-        if (function_exists('is_wp_error') && is_wp_error($provider_payload)) {
+        if (self::is_error_result($provider_payload)) {
             return $provider_payload;
         }
 
@@ -206,5 +241,22 @@ class SVDP_Delivery_Manager {
             'message' => $message,
             'data' => $data,
         );
+    }
+
+    /**
+     * Determine whether a value is a WP-style error result.
+     *
+     * @param mixed $value Potential error value.
+     * @return bool
+     */
+    protected static function is_error_result($value) {
+        if (function_exists('is_wp_error') && is_wp_error($value)) {
+            return true;
+        }
+
+        return is_array($value)
+            && !empty($value['error'])
+            && !empty($value['code'])
+            && array_key_exists('message', $value);
     }
 }
