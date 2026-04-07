@@ -151,6 +151,80 @@ class SVDP_Voucher {
     public static function get_vouchers($request) {
         return self::get_cashier_vouchers();
     }
+
+    /**
+     * Build the reusable neighbor lookup key from an existing voucher payload.
+     *
+     * @param array|object $voucher Voucher row or formatted voucher payload.
+     * @return string
+     */
+    public static function get_neighbor_lookup_key_for_voucher($voucher) {
+        $identity = self::extract_voucher_identity($voucher);
+        if ($identity === null) {
+            return '';
+        }
+
+        return SVDP_Neighbor_Delivery_Preferences::build_lookup_key(
+            $identity['first_name'],
+            $identity['last_name'],
+            $identity['dob']
+        );
+    }
+
+    /**
+     * Retrieve reusable delivery preferences for a voucher identity.
+     *
+     * @param array|object $voucher Voucher row or formatted voucher payload.
+     * @return array<string, mixed>|null
+     */
+    public static function get_preferences_for_voucher($voucher) {
+        $identity = self::extract_voucher_identity($voucher);
+        if ($identity === null) {
+            return null;
+        }
+
+        return SVDP_Neighbor_Delivery_Preferences::get_by_identity(
+            $identity['first_name'],
+            $identity['last_name'],
+            $identity['dob']
+        );
+    }
+
+    /**
+     * Retrieve reusable delivery preferences using a voucher ID.
+     *
+     * @param int $voucher_id Voucher ID.
+     * @return array<string, mixed>|null
+     */
+    public static function get_preferences_for_voucher_id($voucher_id) {
+        $voucher = self::get_voucher_identity_row($voucher_id);
+        if ($voucher === null) {
+            return null;
+        }
+
+        return self::get_preferences_for_voucher($voucher);
+    }
+
+    /**
+     * Create or update reusable delivery preferences using voucher identity fields.
+     *
+     * @param array|object         $voucher Voucher row or formatted voucher payload.
+     * @param array<string, mixed> $preference_data Preference values to persist.
+     * @return array<string, mixed>|false
+     */
+    public static function upsert_preferences_for_voucher($voucher, $preference_data = []) {
+        $identity = self::extract_voucher_identity($voucher);
+        if ($identity === null || !is_array($preference_data)) {
+            return false;
+        }
+
+        return SVDP_Neighbor_Delivery_Preferences::upsert_preferences_for_identity(
+            $identity['first_name'],
+            $identity['last_name'],
+            $identity['dob'],
+            $preference_data
+        );
+    }
     
     /**
      * Check if coat can be issued (resets August 1st)
@@ -1326,6 +1400,67 @@ class SVDP_Voucher {
         }, (array) $parts)));
 
         return implode(', ', $parts);
+    }
+
+    /**
+     * Fetch only the identity fields needed for neighbor preference lookups.
+     *
+     * @param int $voucher_id Voucher ID.
+     * @return array<string, mixed>|null
+     */
+    private static function get_voucher_identity_row($voucher_id) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'svdp_vouchers';
+
+        $voucher_id = intval($voucher_id);
+        if ($voucher_id <= 0) {
+            return null;
+        }
+
+        $voucher = $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT id, first_name, last_name, dob
+                 FROM $table
+                 WHERE id = %d
+                 LIMIT 1",
+                $voucher_id
+            ),
+            ARRAY_A
+        );
+
+        return is_array($voucher) ? $voucher : null;
+    }
+
+    /**
+     * Normalize voucher identity fields from array- or object-shaped payloads.
+     *
+     * @param array|object $voucher Voucher row or formatted voucher payload.
+     * @return array<string, string>|null
+     */
+    private static function extract_voucher_identity($voucher) {
+        if (is_object($voucher)) {
+            $voucher = (array) $voucher;
+        }
+
+        if (!is_array($voucher)) {
+            return null;
+        }
+
+        $identity = SVDP_Neighbor_Delivery_Preferences::normalize_identity_fields(
+            $voucher['first_name'] ?? $voucher['firstName'] ?? '',
+            $voucher['last_name'] ?? $voucher['lastName'] ?? '',
+            $voucher['dob'] ?? ''
+        );
+
+        if ($identity['first_name'] === '' || $identity['last_name'] === '' || $identity['dob'] === '') {
+            return null;
+        }
+
+        return [
+            'first_name' => $identity['first_name'],
+            'last_name' => $identity['last_name'],
+            'dob' => $identity['dob'],
+        ];
     }
 
     /**

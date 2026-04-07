@@ -79,6 +79,23 @@ class SVDP_Neighbor_Delivery_Preferences {
     }
 
     /**
+     * Retrieve preferences by neighbor identity fields.
+     *
+     * @param string $first_name First name.
+     * @param string $last_name Last name.
+     * @param string $dob Date of birth.
+     * @return array<string, mixed>|null
+     */
+    public static function get_by_identity($first_name, $last_name, $dob) {
+        $lookup_key = self::build_lookup_key($first_name, $last_name, $dob);
+        if ($lookup_key === '') {
+            return null;
+        }
+
+        return self::get_by_lookup_key($lookup_key);
+    }
+
+    /**
      * Create or update a delivery preferences record keyed by neighbor identity.
      *
      * @param array<string, mixed> $data Preference data.
@@ -149,6 +166,32 @@ class SVDP_Neighbor_Delivery_Preferences {
         }
 
         return self::get_by_lookup_key($lookup_key);
+    }
+
+    /**
+     * Create or update preferences using explicit identity fields as the source of truth.
+     *
+     * @param string              $first_name First name.
+     * @param string              $last_name Last name.
+     * @param string              $dob Date of birth.
+     * @param array<string, mixed> $data Preference data.
+     * @return array<string, mixed>|false
+     */
+    public static function upsert_preferences_for_identity($first_name, $last_name, $dob, $data = []) {
+        if (!is_array($data)) {
+            return false;
+        }
+
+        $identity = self::normalize_identity_fields($first_name, $last_name, $dob);
+        if ($identity['first_name'] === '' || $identity['last_name'] === '' || $identity['dob'] === '') {
+            return false;
+        }
+
+        $data['first_name'] = $identity['first_name'];
+        $data['last_name'] = $identity['last_name'];
+        $data['dob'] = $identity['dob'];
+
+        return self::upsert_preferences($data);
     }
 
     /**
