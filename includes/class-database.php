@@ -4,7 +4,7 @@
  */
 class SVDP_Database {
 
-    const SCHEMA_VERSION = '5';
+    const SCHEMA_VERSION = '6';
 
     /**
      * Run idempotent schema upgrades for the plugin.
@@ -36,7 +36,7 @@ class SVDP_Database {
      * Confirm the current schema version also has the latest required columns.
      *
      * This protects long-running installs if the stored schema version is current
-     * but one or more furniture columns were not added successfully.
+     * but one or more required columns were not added successfully.
      *
      * @return bool
      */
@@ -44,15 +44,32 @@ class SVDP_Database {
         global $wpdb;
 
         $catalog_items_table = $wpdb->prefix . 'svdp_catalog_items';
+        $preferences_table = $wpdb->prefix . 'svdp_neighbor_delivery_preferences';
         $voucher_items_table = $wpdb->prefix . 'svdp_voucher_items';
 
-        if (!self::table_exists($catalog_items_table) || !self::table_exists($voucher_items_table)) {
+        if (!self::table_exists($catalog_items_table)
+            || !self::table_exists($voucher_items_table)
+            || !self::table_exists($preferences_table)) {
             return false;
         }
 
         return self::column_exists($catalog_items_table, 'show_price_as_max')
             && self::column_exists($catalog_items_table, 'discount_type')
             && self::column_exists($catalog_items_table, 'discount_value')
+            && self::column_exists($preferences_table, 'neighbor_lookup_key')
+            && self::column_exists($preferences_table, 'first_name')
+            && self::column_exists($preferences_table, 'last_name')
+            && self::column_exists($preferences_table, 'dob')
+            && self::column_exists($preferences_table, 'preferred_language')
+            && self::column_exists($preferences_table, 'is_opted_in')
+            && self::column_exists($preferences_table, 'auto_send_enabled')
+            && self::column_exists($preferences_table, 'email_enabled')
+            && self::column_exists($preferences_table, 'email_address')
+            && self::column_exists($preferences_table, 'sms_enabled')
+            && self::column_exists($preferences_table, 'phone_number')
+            && self::column_exists($preferences_table, 'notifications_paused')
+            && self::column_exists($preferences_table, 'created_at')
+            && self::column_exists($preferences_table, 'updated_at')
             && self::column_exists($voucher_items_table, 'discount_type_snapshot')
             && self::column_exists($voucher_items_table, 'discount_value_snapshot')
             && self::column_exists($voucher_items_table, 'conference_share_amount')
@@ -151,6 +168,7 @@ class SVDP_Database {
         dbDelta($conferences_sql);
         dbDelta($settings_sql);
 
+        self::create_neighbor_delivery_preferences_table();
         self::create_furniture_tables();
         self::create_managers_table();
         self::create_override_reasons_table();
@@ -158,6 +176,38 @@ class SVDP_Database {
 
         self::insert_default_conferences();
         self::insert_default_settings();
+    }
+
+    /**
+     * Create the reusable neighbor delivery preferences table.
+     */
+    private static function create_neighbor_delivery_preferences_table() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'svdp_neighbor_delivery_preferences';
+        $charset_collate = $wpdb->get_charset_collate();
+
+        $sql = "CREATE TABLE $table (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            neighbor_lookup_key char(40) NOT NULL,
+            first_name varchar(100) NOT NULL,
+            last_name varchar(100) NOT NULL,
+            dob date NOT NULL,
+            preferred_language varchar(20) DEFAULT NULL,
+            is_opted_in tinyint(1) NOT NULL DEFAULT 0,
+            auto_send_enabled tinyint(1) NOT NULL DEFAULT 0,
+            email_enabled tinyint(1) NOT NULL DEFAULT 0,
+            email_address varchar(200) DEFAULT NULL,
+            sms_enabled tinyint(1) NOT NULL DEFAULT 0,
+            phone_number varchar(50) DEFAULT NULL,
+            notifications_paused tinyint(1) NOT NULL DEFAULT 0,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY neighbor_lookup_key (neighbor_lookup_key)
+        ) $charset_collate;";
+
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+        dbDelta($sql);
     }
 
     /**
