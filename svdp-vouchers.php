@@ -229,6 +229,18 @@ class SVDP_Vouchers_Plugin {
             'permission_callback' => [$this, 'user_can_access_cashier']
         ]);
 
+        register_rest_route('svdp/v1', '/cashier/vouchers/(?P<id>\d+)/delivery-preferences', [
+            'methods' => 'GET',
+            'callback' => ['SVDP_Cashier_Shell', 'get_neighbor_delivery_preferences'],
+            'permission_callback' => [$this, 'user_can_access_cashier']
+        ]);
+
+        register_rest_route('svdp/v1', '/cashier/vouchers/(?P<id>\d+)/delivery-preferences', [
+            'methods' => 'POST',
+            'callback' => ['SVDP_Cashier_Shell', 'save_neighbor_delivery_preferences'],
+            'permission_callback' => [$this, 'user_can_access_cashier']
+        ]);
+
         register_rest_route('svdp/v1', '/cashier/vouchers/(?P<id>\d+)/items/(?P<item_id>\d+)/photo', [
             'methods' => 'POST',
             'callback' => ['SVDP_Furniture_Voucher', 'upload_item_photo'],

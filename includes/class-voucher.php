@@ -172,6 +172,21 @@ class SVDP_Voucher {
     }
 
     /**
+     * Build the reusable neighbor lookup key from a voucher ID.
+     *
+     * @param int $voucher_id Voucher ID.
+     * @return string
+     */
+    public static function get_neighbor_lookup_key_for_voucher_id($voucher_id) {
+        $voucher = self::get_voucher_identity_row($voucher_id);
+        if ($voucher === null) {
+            return '';
+        }
+
+        return self::get_neighbor_lookup_key_for_voucher($voucher);
+    }
+
+    /**
      * Retrieve reusable delivery preferences for a voucher identity.
      *
      * @param array|object $voucher Voucher row or formatted voucher payload.
@@ -224,6 +239,22 @@ class SVDP_Voucher {
             $identity['dob'],
             $preference_data
         );
+    }
+
+    /**
+     * Create or update reusable delivery preferences using a voucher ID.
+     *
+     * @param int                 $voucher_id Voucher ID.
+     * @param array<string, mixed> $preference_data Preference values to persist.
+     * @return array<string, mixed>|false
+     */
+    public static function upsert_preferences_for_voucher_id($voucher_id, $preference_data = []) {
+        $voucher = self::get_voucher_identity_row($voucher_id);
+        if ($voucher === null) {
+            return false;
+        }
+
+        return self::upsert_preferences_for_voucher($voucher, $preference_data);
     }
     
     /**

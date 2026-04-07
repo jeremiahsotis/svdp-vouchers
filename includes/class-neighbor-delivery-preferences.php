@@ -195,6 +195,37 @@ class SVDP_Neighbor_Delivery_Preferences {
     }
 
     /**
+     * Normalize a stored preferences row for cashier/backend consumers.
+     *
+     * @param array|object|null $preferences Stored preferences row.
+     * @return array<string, mixed>|null
+     */
+    public static function normalize_preference_payload($preferences) {
+        if (is_object($preferences)) {
+            $preferences = (array) $preferences;
+        }
+
+        if (!is_array($preferences)) {
+            return null;
+        }
+
+        $preferred_language = self::normalize_lookup_fragment($preferences['preferred_language'] ?? '');
+        $email_address = self::sanitize_nullable_email($preferences['email_address'] ?? null);
+        $phone_number = self::sanitize_nullable_phone($preferences['phone_number'] ?? null);
+
+        return [
+            'preferred_language' => $preferred_language !== '' ? $preferred_language : null,
+            'is_opted_in' => !empty($preferences['is_opted_in']),
+            'auto_send_enabled' => !empty($preferences['auto_send_enabled']),
+            'email_enabled' => !empty($preferences['email_enabled']),
+            'email_address' => $email_address,
+            'sms_enabled' => !empty($preferences['sms_enabled']),
+            'phone_number' => $phone_number,
+            'notifications_paused' => !empty($preferences['notifications_paused']),
+        ];
+    }
+
+    /**
      * Resolve the preferences table name.
      *
      * @return string
