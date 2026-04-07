@@ -1033,7 +1033,7 @@ class SVDP_Voucher {
      * @param int $voucher_id Voucher ID.
      * @return array
      */
-    private static function get_furniture_voucher_items($voucher_id) {
+    public static function get_furniture_voucher_items($voucher_id) {
         return SVDP_Furniture_Voucher::get_voucher_items(intval($voucher_id));
     }
 

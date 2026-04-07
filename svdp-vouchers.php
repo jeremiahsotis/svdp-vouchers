@@ -35,6 +35,7 @@ require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/providers/class-sms-provider-t
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-permissions.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-conference.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-voucher.php';
+require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-voucher-live-status.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-voucher-i18n.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-neighbor-delivery-preferences.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-voucher-delivery-snapshot.php';
