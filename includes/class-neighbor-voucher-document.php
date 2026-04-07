@@ -184,13 +184,21 @@ class SVDP_Neighbor_Voucher_Document {
      * @return string|WP_Error
      */
     public static function render_html($voucher, $args = []) {
+        $voucher = self::normalize_voucher_payload($voucher);
+        if (is_wp_error($voucher)) {
+            return $voucher;
+        }
+
         $document = self::get_template_context($voucher, $args);
         if (is_wp_error($document)) {
             return $document;
         }
 
+        $delivery_view = SVDP_Voucher_Delivery_View::build_for_voucher_id($voucher['id']);
+
         return self::render_template(self::TEMPLATE_RELATIVE_PATH, [
             'document' => $document,
+            'delivery_view' => $delivery_view,
         ]);
     }
 

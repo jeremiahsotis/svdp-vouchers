@@ -39,6 +39,7 @@ require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-voucher-live-status.php'
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-voucher-i18n.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-neighbor-delivery-preferences.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-voucher-delivery-snapshot.php';
+require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-voucher-delivery-view.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-neighbor-voucher-document.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-furniture-catalog.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-furniture-cancellation-reason.php';

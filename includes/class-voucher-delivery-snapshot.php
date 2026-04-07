@@ -10,6 +10,16 @@ if (!defined('ABSPATH')) {
 class SVDP_Voucher_Delivery_Snapshot {
 
     /**
+     * Fetch the most recent snapshot for a voucher ID.
+     *
+     * @param int $voucher_id Voucher ID.
+     * @return array<string, mixed>|null
+     */
+    public static function get_for_voucher_id($voucher_id) {
+        return self::get_latest_snapshot_for_voucher($voucher_id);
+    }
+
+    /**
      * Create a new immutable delivery snapshot row for a voucher.
      *
      * @param mixed $voucher Voucher ID, voucher row, or voucher-shaped payload containing an ID.
