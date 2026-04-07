@@ -195,10 +195,14 @@ class SVDP_Neighbor_Voucher_Document {
         }
 
         $delivery_view = SVDP_Voucher_Delivery_View::build_for_voucher_id($voucher['id']);
+        if (!is_array($delivery_view)) {
+            $delivery_view = SVDP_Voucher_Delivery_View::build($voucher, null);
+        }
 
         return self::render_template(self::TEMPLATE_RELATIVE_PATH, [
             'document' => $document,
             'delivery_view' => $delivery_view,
+            'voucher' => $voucher,
         ]);
     }
 

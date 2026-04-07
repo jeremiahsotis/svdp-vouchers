@@ -1,6 +1,76 @@
 <?php
+if (!isset($delivery_view) || !is_array($delivery_view)) {
+    return;
+}
+
+$voucher = isset($voucher) && is_object($voucher) ? (array) $voucher : (is_array($voucher ?? null) ? $voucher : []);
+$document = is_array($document ?? null) ? $document : [];
+$voucher_status = $delivery_view['live_status']['status']['voucher_status'] ?? $voucher['status'] ?? null;
+$redemption = $delivery_view['live_status']['redemption'] ?? [];
+if (!is_array($redemption)) {
+    $redemption = [];
+}
+$redemption_total = intval(
+    $redemption['total_items_redeemed']
+    ?? (($redemption['adults_redeemed'] ?? $voucher['items_adult_redeemed'] ?? 0) + ($redemption['children_redeemed'] ?? $voucher['items_children_redeemed'] ?? 0))
+);
+$coat = $delivery_view['live_status']['coat'] ?? [];
+if (!is_array($coat)) {
+    $coat = [];
+}
+$coat_issued = !empty($coat['issued']) || !empty($voucher['coat_issued_date']) || strtolower((string) ($voucher['coat_status'] ?? '')) === 'issued';
+$items = $delivery_view['live_status']['items'] ?? [];
+if (!is_array($items)) {
+    $items = [];
+}
+$delivery = $delivery_view['live_status']['delivery'] ?? [];
+if (!is_array($delivery)) {
+    $delivery = [];
+}
+$timestamps = $delivery_view['live_status']['timestamps'] ?? [];
+if (!is_array($timestamps)) {
+    $timestamps = [];
+}
+
+$format_date = static function ($date_raw) {
+    $date_raw = trim((string) $date_raw);
+    if ($date_raw === '') {
+        return '';
+    }
+
+    try {
+        return (new DateTime($date_raw))->format('m/d/Y');
+    } catch (Exception $exception) {
+        return $date_raw;
+    }
+};
+
+$format_expiration_date = static function ($created_date) {
+    $created_date = trim((string) $created_date);
+    if ($created_date === '') {
+        return '';
+    }
+
+    try {
+        $expiration = new DateTime($created_date);
+        $expiration->modify('+30 days');
+        return $expiration->format('m/d/Y');
+    } catch (Exception $exception) {
+        return '';
+    }
+};
+
 $requested_items = is_array($document['requested_items'] ?? null) ? $document['requested_items'] : [];
-$show_delivery_note = !empty($document['delivery_required']);
+$delivery_required = (bool) ($delivery['required'] ?? $voucher['delivery_required'] ?? $document['delivery_required'] ?? false);
+$delivery_completed = (bool) ($delivery['completed'] ?? false);
+$requested_items_total = intval($items['total_items'] ?? $voucher['voucher_items_count'] ?? $document['requested_items_total'] ?? 0);
+$requested_items_total_label = $requested_items_total > 0
+    ? SVDP_Voucher_I18n::format_item_count($requested_items_total, $document['language'] ?? 'en')
+    : '';
+$created_date_display = $format_date($timestamps['created_at'] ?? $voucher['voucher_created_date'] ?? null);
+$valid_through_display = $format_expiration_date($timestamps['created_at'] ?? $voucher['voucher_created_date'] ?? null);
+$delivery_label = SVDP_Voucher_I18n::get_delivery_label($delivery_required, $document['language'] ?? 'en');
+$show_delivery_note = $delivery_required;
 $copy = is_array($document['copy'] ?? null) ? $document['copy'] : [];
 $font_family = trim((string) ($document['font_family'] ?? 'DejaVu Sans, Helvetica, Arial, sans-serif'));
 $html_lang = trim((string) ($document['html_lang'] ?? $document['language'] ?? 'en'));
@@ -79,7 +149,14 @@ $is_pdf = !empty($document['is_pdf']);
     </style>
 </head>
 <body>
-    <div class="sheet">
+    <div
+        class="sheet"
+        data-voucher-status="<?php echo esc_attr((string) $voucher_status); ?>"
+        data-redemption-total="<?php echo esc_attr((string) $redemption_total); ?>"
+        data-coat-issued="<?php echo esc_attr($coat_issued ? '1' : '0'); ?>"
+        data-delivery-completed="<?php echo esc_attr($delivery_completed ? '1' : '0'); ?>"
+        data-live-items-total="<?php echo esc_attr((string) $requested_items_total); ?>"
+    >
         <header class="header">
             <h1><?php echo esc_html($copy['document_heading'] ?? 'Neighbor Voucher'); ?></h1>
             <p><?php echo esc_html($copy['document_intro'] ?? 'Bring this voucher with you when you arrive for pickup or delivery.'); ?></p>
@@ -109,15 +186,15 @@ $is_pdf = !empty($document['is_pdf']);
                 </div>
                 <div>
                     <span class="label"><?php echo esc_html($copy['label_delivery'] ?? 'Delivery'); ?></span>
-                    <span class="value"><?php echo esc_html($document['delivery_label'] ?? ''); ?></span>
+                    <span class="value"><?php echo esc_html($delivery_label); ?></span>
                 </div>
                 <div>
                     <span class="label"><?php echo esc_html($copy['label_created'] ?? 'Created'); ?></span>
-                    <span class="value"><?php echo esc_html($document['created_date_display'] ?? ''); ?></span>
+                    <span class="value"><?php echo esc_html($created_date_display); ?></span>
                 </div>
                 <div>
                     <span class="label"><?php echo esc_html($copy['label_valid_through'] ?? 'Valid Through'); ?></span>
-                    <span class="value"><?php echo esc_html($document['valid_through_display'] ?? ''); ?></span>
+                    <span class="value"><?php echo esc_html($valid_through_display); ?></span>
                 </div>
             </div>
 
@@ -134,8 +211,8 @@ $is_pdf = !empty($document['is_pdf']);
         <section class="section">
             <div class="section-header">
                 <h2><?php echo esc_html($copy['heading_requested_items'] ?? 'Requested Items'); ?></h2>
-                <?php if (!empty($document['requested_items_total'])): ?>
-                    <span class="pill"><?php echo esc_html($document['requested_items_total_label'] ?? ''); ?></span>
+                <?php if ($requested_items_total > 0): ?>
+                    <span class="pill"><?php echo esc_html($requested_items_total_label); ?></span>
                 <?php endif; ?>
             </div>
 
