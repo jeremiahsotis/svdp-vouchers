@@ -4,7 +4,7 @@
  */
 class SVDP_Database {
 
-    const SCHEMA_VERSION = '6';
+    const SCHEMA_VERSION = '7';
 
     /**
      * Run idempotent schema upgrades for the plugin.
@@ -45,11 +45,13 @@ class SVDP_Database {
 
         $catalog_items_table = $wpdb->prefix . 'svdp_catalog_items';
         $preferences_table = $wpdb->prefix . 'svdp_neighbor_delivery_preferences';
+        $snapshot_table = $wpdb->prefix . 'svdp_voucher_delivery_snapshots';
         $voucher_items_table = $wpdb->prefix . 'svdp_voucher_items';
 
         if (!self::table_exists($catalog_items_table)
             || !self::table_exists($voucher_items_table)
-            || !self::table_exists($preferences_table)) {
+            || !self::table_exists($preferences_table)
+            || !self::table_exists($snapshot_table)) {
             return false;
         }
 
@@ -70,6 +72,12 @@ class SVDP_Database {
             && self::column_exists($preferences_table, 'notifications_paused')
             && self::column_exists($preferences_table, 'created_at')
             && self::column_exists($preferences_table, 'updated_at')
+            && self::column_exists($snapshot_table, 'voucher_id')
+            && self::column_exists($snapshot_table, 'language_code')
+            && self::column_exists($snapshot_table, 'payload_json')
+            && self::column_exists($snapshot_table, 'created_by_user_id')
+            && self::column_exists($snapshot_table, 'created_at')
+            && self::column_exists($snapshot_table, 'updated_at')
             && self::column_exists($voucher_items_table, 'discount_type_snapshot')
             && self::column_exists($voucher_items_table, 'discount_value_snapshot')
             && self::column_exists($voucher_items_table, 'conference_share_amount')
@@ -169,6 +177,7 @@ class SVDP_Database {
         dbDelta($settings_sql);
 
         self::create_neighbor_delivery_preferences_table();
+        self::create_voucher_delivery_snapshots_table();
         self::create_furniture_tables();
         self::create_managers_table();
         self::create_override_reasons_table();
@@ -204,6 +213,31 @@ class SVDP_Database {
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
             UNIQUE KEY neighbor_lookup_key (neighbor_lookup_key)
+        ) $charset_collate;";
+
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+        dbDelta($sql);
+    }
+
+    /**
+     * Create the immutable voucher delivery snapshots table.
+     */
+    private static function create_voucher_delivery_snapshots_table() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'svdp_voucher_delivery_snapshots';
+        $charset_collate = $wpdb->get_charset_collate();
+
+        $sql = "CREATE TABLE $table (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            voucher_id bigint(20) NOT NULL,
+            language_code varchar(50) NOT NULL,
+            payload_json longtext NOT NULL,
+            created_by_user_id bigint(20) DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY idx_svdp_delivery_snapshots_voucher (voucher_id),
+            KEY idx_svdp_delivery_snapshots_voucher_language_created (voucher_id, language_code, created_at)
         ) $charset_collate;";
 
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
