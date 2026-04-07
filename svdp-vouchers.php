@@ -36,6 +36,7 @@ require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-permissions.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-conference.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-voucher.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-voucher-i18n.php';
+require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-neighbor-delivery-preferences.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-neighbor-voucher-document.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-furniture-catalog.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-furniture-cancellation-reason.php';
@@ -225,6 +226,18 @@ class SVDP_Vouchers_Plugin {
         register_rest_route('svdp/v1', '/cashier/vouchers/(?P<id>\d+)/email', [
             'methods' => 'POST',
             'callback' => ['SVDP_Cashier_Shell', 'email_neighbor_document'],
+            'permission_callback' => [$this, 'user_can_access_cashier']
+        ]);
+
+        register_rest_route('svdp/v1', '/cashier/vouchers/(?P<id>\d+)/delivery-preferences', [
+            'methods' => 'GET',
+            'callback' => ['SVDP_Cashier_Shell', 'get_neighbor_delivery_preferences'],
+            'permission_callback' => [$this, 'user_can_access_cashier']
+        ]);
+
+        register_rest_route('svdp/v1', '/cashier/vouchers/(?P<id>\d+)/delivery-preferences', [
+            'methods' => 'POST',
+            'callback' => ['SVDP_Cashier_Shell', 'save_neighbor_delivery_preferences'],
             'permission_callback' => [$this, 'user_can_access_cashier']
         ]);
 

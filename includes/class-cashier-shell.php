@@ -112,6 +112,64 @@ class SVDP_Cashier_Shell {
     }
 
     /**
+     * Fetch reusable neighbor delivery preferences for a voucher.
+     */
+    public static function get_neighbor_delivery_preferences($request) {
+        $voucher_id = intval($request['id']);
+        $lookup_key = SVDP_Voucher::get_neighbor_lookup_key_for_voucher_id($voucher_id);
+
+        if ($lookup_key === '') {
+            return new WP_Error('voucher_not_found', 'Voucher not found.', ['status' => 404]);
+        }
+
+        $preferences = SVDP_Voucher::get_preferences_for_voucher_id($voucher_id);
+
+        return rest_ensure_response([
+            'success' => true,
+            'voucherId' => $voucher_id,
+            'preferences' => SVDP_Neighbor_Delivery_Preferences::normalize_preference_payload($preferences),
+        ]);
+    }
+
+    /**
+     * Save reusable neighbor delivery preferences for a voucher.
+     */
+    public static function save_neighbor_delivery_preferences($request) {
+        $voucher_id = intval($request['id']);
+        $lookup_key = SVDP_Voucher::get_neighbor_lookup_key_for_voucher_id($voucher_id);
+
+        if ($lookup_key === '') {
+            return new WP_Error('voucher_not_found', 'Voucher not found.', ['status' => 404]);
+        }
+
+        $params = self::get_request_data($request);
+        $stored_preferences = SVDP_Voucher::upsert_preferences_for_voucher_id($voucher_id, [
+            'preferred_language' => sanitize_text_field($params['preferred_language'] ?? ''),
+            'is_opted_in' => $params['is_opted_in'] ?? 0,
+            'auto_send_enabled' => $params['auto_send_enabled'] ?? 0,
+            'email_enabled' => $params['email_enabled'] ?? 0,
+            'email_address' => sanitize_email($params['email_address'] ?? ''),
+            'sms_enabled' => $params['sms_enabled'] ?? 0,
+            'phone_number' => sanitize_text_field($params['phone_number'] ?? ''),
+            'notifications_paused' => $params['notifications_paused'] ?? 0,
+        ]);
+
+        if ($stored_preferences === false) {
+            return new WP_Error(
+                'neighbor_delivery_preferences_save_failed',
+                'Failed to save neighbor delivery preferences.',
+                ['status' => 500]
+            );
+        }
+
+        return rest_ensure_response([
+            'success' => true,
+            'voucherId' => $voucher_id,
+            'preferences' => SVDP_Neighbor_Delivery_Preferences::normalize_preference_payload($stored_preferences),
+        ]);
+    }
+
+    /**
      * Apply list filters in PHP so the fragment can stay server rendered.
      */
     private static function filter_vouchers($vouchers, $filters) {
@@ -224,6 +282,18 @@ class SVDP_Cashier_Shell {
             'sort' => sanitize_text_field($request->get_param('sort') ?: 'date-desc'),
             'selected_id' => intval($request->get_param('selected_id')),
         ];
+    }
+
+    /**
+     * Merge JSON and form parameters so cashier hooks can accept either transport.
+     */
+    private static function get_request_data($request) {
+        $json_params = $request->get_json_params();
+        if (!is_array($json_params)) {
+            $json_params = [];
+        }
+
+        return array_merge($request->get_params(), $json_params);
     }
 
     /**
