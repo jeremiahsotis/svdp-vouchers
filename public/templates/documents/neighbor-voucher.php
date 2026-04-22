@@ -3,22 +3,21 @@ if (!isset($delivery_view) || !is_array($delivery_view)) {
     return;
 }
 
-$voucher = isset($voucher) && is_object($voucher) ? (array) $voucher : (is_array($voucher ?? null) ? $voucher : []);
 $document = is_array($document ?? null) ? $document : [];
-$voucher_status = $delivery_view['live_status']['status']['voucher_status'] ?? $voucher['status'] ?? null;
+$voucher_status = $delivery_view['live_status']['status']['voucher_status'] ?? null;
 $redemption = $delivery_view['live_status']['redemption'] ?? [];
 if (!is_array($redemption)) {
     $redemption = [];
 }
 $redemption_total = intval(
     $redemption['total_items_redeemed']
-    ?? (($redemption['adults_redeemed'] ?? $voucher['items_adult_redeemed'] ?? 0) + ($redemption['children_redeemed'] ?? $voucher['items_children_redeemed'] ?? 0))
+    ?? (($redemption['adults_redeemed'] ?? 0) + ($redemption['children_redeemed'] ?? 0))
 );
 $coat = $delivery_view['live_status']['coat'] ?? [];
 if (!is_array($coat)) {
     $coat = [];
 }
-$coat_issued = !empty($coat['issued']) || !empty($voucher['coat_issued_date']) || strtolower((string) ($voucher['coat_status'] ?? '')) === 'issued';
+$coat_issued = !empty($coat['issued']);
 $items = $delivery_view['live_status']['items'] ?? [];
 if (!is_array($items)) {
     $items = [];
@@ -61,14 +60,22 @@ $format_expiration_date = static function ($created_date) {
 };
 
 $requested_items = is_array($document['requested_items'] ?? null) ? $document['requested_items'] : [];
-$delivery_required = (bool) ($delivery['required'] ?? $voucher['delivery_required'] ?? $document['delivery_required'] ?? false);
+$delivery_required = (bool) ($delivery['required'] ?? $document['delivery_required'] ?? false);
 $delivery_completed = (bool) ($delivery['completed'] ?? false);
-$requested_items_total = intval($items['total_items'] ?? $voucher['voucher_items_count'] ?? $document['requested_items_total'] ?? 0);
+$requested_items_total = intval($items['total_items'] ?? $document['requested_items_total'] ?? 0);
 $requested_items_total_label = $requested_items_total > 0
     ? SVDP_Voucher_I18n::format_item_count($requested_items_total, $document['language'] ?? 'en')
     : '';
-$created_date_display = $format_date($timestamps['created_at'] ?? $voucher['voucher_created_date'] ?? null);
-$valid_through_display = $format_expiration_date($timestamps['created_at'] ?? $voucher['voucher_created_date'] ?? null);
+$created_date_display = trim((string) ($document['created_date_display'] ?? ''));
+if (!empty($timestamps['created_at'])) {
+    $created_date_display = $format_date($timestamps['created_at']);
+}
+
+$valid_through_display = trim((string) ($document['valid_through_display'] ?? ''));
+if (!empty($timestamps['created_at'])) {
+    $valid_through_display = $format_expiration_date($timestamps['created_at']);
+}
+
 $delivery_label = SVDP_Voucher_I18n::get_delivery_label($delivery_required, $document['language'] ?? 'en');
 $show_delivery_note = $delivery_required;
 $copy = is_array($document['copy'] ?? null) ? $document['copy'] : [];
