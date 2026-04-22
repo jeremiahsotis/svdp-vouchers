@@ -897,7 +897,7 @@
             message += '• Delivery fee: <strong>$' + escapeHtml(Number(estimateSummary.deliveryFee || 0).toFixed(2)) + '</strong><br>';
 
             message += '• This household can receive another furniture voucher after: <strong>' + escapeHtml(response.nextEligibleDate) + '</strong><br>';
-            message += '<br><em>Final fulfilled pricing may vary from the estimate range shown above.</em>';
+            message += '<br><em>The amount shown here is the maximum Conference cost for this voucher. Final fulfilled pricing may be lower based on the items chosen.</em>';
 
             return message;
         }
