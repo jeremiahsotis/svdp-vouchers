@@ -198,6 +198,16 @@
     gap: 16px;
 }
 
+.svdp-furniture-policy-note {
+    margin: 0 0 16px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: #fff5df;
+    border: 1px solid #f2d8a0;
+    color: #6b4d16;
+    line-height: 1.6;
+}
+
 .svdp-furniture-search-shell {
     margin-bottom: 0;
 }
@@ -468,6 +478,16 @@
 
 .svdp-summary-row strong {
     color: #fff;
+}
+
+.svdp-summary-policy-note {
+    margin: 0 0 16px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    font-size: 13px;
+    line-height: 1.5;
 }
 
 .svdp-delivery-toggle {

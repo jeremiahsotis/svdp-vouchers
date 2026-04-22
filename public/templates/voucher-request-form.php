@@ -155,8 +155,9 @@
                 <div class="svdp-furniture-selection-column">
                     <div class="svdp-branch-note">
                         <strong>Furniture Request</strong>
-                        <span>Select one or more items by category. Final fulfilled pricing may vary from the estimate shown here.</span>
+                        <span>Select one or more items by category. The amount shown here is the maximum Conference cost for this voucher. Final fulfilled pricing may be lower based on the items chosen.</span>
                     </div>
+                    <p class="svdp-furniture-policy-note">This voucher expires 30 days after issuance. It must be redeemed in one visit; remaining items cannot be saved for a later visit.</p>
                     <div class="svdp-furniture-browser">
                         <div class="svdp-form-group svdp-furniture-search-shell">
                             <label for="svdpFurnitureSearch">Search Furniture Catalog</label>
@@ -247,6 +248,7 @@
                         <span>Estimated Conference Portion</span>
                         <strong id="svdpSummaryRequestor">Up to $0.00</strong>
                     </div>
+                    <p class="svdp-summary-policy-note">Conference prices are 50% of the retail prices shown, except Mattress/Frame Bundles, which use the exact price shown.</p>
 
                     <input type="checkbox" name="deliveryRequired" id="svdpDeliveryRequired" value="1" hidden>
                     <button
