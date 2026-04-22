@@ -129,6 +129,8 @@ $is_pdf = !empty($document['is_pdf']);
             <?php if ($show_delivery_note): ?>
                 <div class="note"><?php echo esc_html($copy['delivery_included_note'] ?? 'Delivery is included with this voucher.'); ?></div>
             <?php endif; ?>
+
+            <div class="note"><?php echo esc_html($copy['redemption_rule_note'] ?? 'This voucher expires 30 days after issuance. It must be redeemed in one visit; remaining items cannot be saved for a later visit.'); ?></div>
         </section>
 
         <section class="section">

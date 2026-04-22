@@ -155,8 +155,9 @@
                 <div class="svdp-furniture-selection-column">
                     <div class="svdp-branch-note">
                         <strong>Furniture Request</strong>
-                        <span>Select one or more items by category. Final fulfilled pricing may vary from the estimate shown here.</span>
+                        <span>Select one or more items by category. The amount shown here is the maximum Conference cost for this voucher. Final fulfilled pricing may be lower based on the items chosen.</span>
                     </div>
+                    <p class="svdp-furniture-policy-note">This voucher expires 30 days after issuance. It must be redeemed in one visit; remaining items cannot be saved for a later visit.</p>
                     <div class="svdp-furniture-browser">
                         <div class="svdp-form-group svdp-furniture-search-shell">
                             <label for="svdpFurnitureSearch">Search Furniture Catalog</label>
@@ -247,6 +248,7 @@
                         <span>Estimated Conference Portion</span>
                         <strong id="svdpSummaryRequestor">Up to $0.00</strong>
                     </div>
+                    <p class="svdp-summary-policy-note">Conference prices are 50% of the retail prices shown, except Mattress/Frame Bundles, which use the exact price shown.</p>
 
                     <input type="checkbox" name="deliveryRequired" id="svdpDeliveryRequired" value="1" hidden>
                     <button
@@ -359,6 +361,7 @@
         <div class="svdp-modal-content">
             <h3 id="svdpFurnitureApprovalTitle">Conference Approval Required</h3>
             <p>This voucher is not submitted until you approve this amount.</p>
+            <p>The amount shown here is the maximum Conference cost for this voucher. Final fulfilled pricing may be lower based on the items chosen.</p>
 
             <div class="svdp-summary-row">
                 <span>Estimated item total</span>
@@ -388,6 +391,8 @@
                     style="color: #111 !important; font-weight: 700 !important; opacity: 1 !important; -webkit-text-fill-color: #111 !important;"
                 >Up to $0.00</strong>
             </div>
+            <p>Conference prices are 50% of the retail prices shown, except Mattress/Frame Bundles, which use the exact price shown.</p>
+            <p>Voucher must be redeemed in one visit within 30 days.</p>
 
             <div class="svdp-modal-buttons">
                 <button type="button" id="svdpCancelFurnitureApproval" class="svdp-btn svdp-btn-secondary">Cancel this voucher</button>
