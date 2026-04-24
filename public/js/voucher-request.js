@@ -159,15 +159,36 @@
                 syncVoucherBranch();
             });
 
-            catalogContainer.on('click', '[data-category-card]', function() {
-                const categoryKey = $(this).attr('data-category-card');
+            catalogContainer.on('click', '[data-category-card]', function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+                activateCategoryCard($(this));
+            });
 
-                if (!categoryKey) {
+            catalogContainer.on('keydown', '[data-category-card]', function(event) {
+                if (!isCategoryActivationKey(event)) {
                     return;
                 }
 
-                state.openCategories[categoryKey] = !state.openCategories[categoryKey];
-                syncCategorySectionState();
+                event.preventDefault();
+                event.stopPropagation();
+                activateCategoryCard($(this));
+            });
+
+            catalogContainer.on('mouseenter', '[data-category-card]', function() {
+                $(this).addClass('is-hover');
+            });
+
+            catalogContainer.on('mouseleave blur', '[data-category-card]', function() {
+                $(this).removeClass('is-hover is-active');
+            });
+
+            catalogContainer.on('pointerdown', '[data-category-card]', function() {
+                $(this).addClass('is-active');
+            });
+
+            catalogContainer.on('pointerup pointercancel', '[data-category-card]', function() {
+                $(this).removeClass('is-active');
             });
 
             catalogContainer.on('click', '[data-catalog-adjust]', function() {
@@ -188,6 +209,21 @@
                 updateCatalogQuantities();
                 updateFurnitureSummary();
             });
+        }
+
+        function isCategoryActivationKey(event) {
+            return event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar';
+        }
+
+        function activateCategoryCard(card) {
+            const categoryKey = card.attr('data-category-card');
+
+            if (!categoryKey) {
+                return;
+            }
+
+            state.openCategories[categoryKey] = !state.openCategories[categoryKey];
+            syncCategorySectionState();
         }
 
         function initializeConferenceControls() {
@@ -525,6 +561,7 @@
 
                 card.attr('aria-expanded', isOpen ? 'true' : 'false');
                 card.toggleClass('is-open', isOpen);
+                card.toggleClass('is-selected', isOpen);
                 section.prop('hidden', !shouldShowSection);
                 section.toggleClass('is-open', shouldShowSection);
             });

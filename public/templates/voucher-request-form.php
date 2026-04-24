@@ -179,8 +179,9 @@ if (in_array('furniture', $request_voucher_types, true)) {
                         <div id="svdpFurnitureCatalog" class="svdp-furniture-catalog" data-catalog-loaded="false">
                             <div id="svdpFurnitureCategoryCards" class="svdp-furniture-category-grid">
                                 <?php foreach ($furniture_categories as $category_key => $category_label): ?>
-                                    <button
-                                        type="button"
+                                    <div
+                                        role="button"
+                                        tabindex="0"
                                         class="svdp-furniture-category-card"
                                         data-category-card="<?php echo esc_attr($category_key); ?>"
                                         aria-controls="svdpFurnitureCategorySection-<?php echo esc_attr($category_key); ?>"
@@ -196,7 +197,7 @@ if (in_array('furniture', $request_voucher_types, true)) {
                                             <span class="svdp-furniture-category-card-count" data-category-selected-count="<?php echo esc_attr($category_key); ?>">0 selected</span>
                                             <span class="svdp-furniture-category-card-status" data-category-available-count="<?php echo esc_attr($category_key); ?>">Loading items</span>
                                         </span>
-                                    </button>
+                                    </div>
                                 <?php endforeach; ?>
                             </div>
 
