@@ -1,52 +1,56 @@
-<div class="svdp-voucher-form">
+<?php
+$store_hours = SVDP_Settings::get_setting('store_hours', '');
+$redemption_instructions = SVDP_Settings::get_setting('redemption_instructions', '');
+$custom_form_text = !empty($conference) ? ($conference->custom_form_text ?? '') : '';
+$custom_rules_text = !empty($conference) ? ($conference->custom_rules_text ?? '') : '';
+$request_voucher_types = SVDP_Settings::get_public_request_voucher_types();
+
+if (!empty($conference)) {
+    $request_voucher_types = array_values(array_intersect(
+        $request_voucher_types,
+        SVDP_Settings::normalize_voucher_types($conference->allowed_voucher_types, $request_voucher_types)
+    ));
+}
+
+if (empty($request_voucher_types)) {
+    $request_voucher_types = ['clothing'];
+}
+
+$default_voucher_type = in_array('clothing', $request_voucher_types, true)
+    ? 'clothing'
+    : $request_voucher_types[0];
+$voucher_type_labels = [
+    'clothing' => 'Clothing',
+    'furniture' => 'Furniture / Household Goods',
+];
+$voucher_type_descriptions = [
+    'clothing' => 'Keep the current clothing voucher request flow.',
+    'furniture' => 'Select requested furniture items, capture delivery needs, and save the estimate range.',
+];
+$furniture_categories = class_exists('SVDP_Furniture_Catalog')
+    ? SVDP_Furniture_Catalog::get_categories()
+    : [
+        'used_furniture' => 'Used Furniture',
+        'handmade_furniture' => 'Handmade Furniture',
+        'mattresses_frames' => 'Mattresses & Frames',
+        'household_goods' => 'Household Goods',
+    ];
+$furniture_category_hints = [
+    'used_furniture' => 'Sofas, tables, chairs, and more',
+    'handmade_furniture' => 'Built pieces and restored essentials',
+    'mattresses_frames' => 'Beds, bunks, frames, and supports',
+    'household_goods' => 'Kitchen, bath, and daily-use goods',
+];
+$voucher_form_classes = ['svdp-voucher-form'];
+if (in_array('furniture', $request_voucher_types, true)) {
+    $voucher_form_classes[] = 'svdp-voucher-form-has-furniture';
+}
+?>
+
+<div class="<?php echo esc_attr(implode(' ', $voucher_form_classes)); ?>">
 
     <h2>Voucher Request Form</h2>
     <p class="svdp-form-intro">Use this form to request a voucher on behalf of a neighbor in need.</p>
-
-    <?php
-    $store_hours = SVDP_Settings::get_setting('store_hours', '');
-    $redemption_instructions = SVDP_Settings::get_setting('redemption_instructions', '');
-    $custom_form_text = !empty($conference) ? ($conference->custom_form_text ?? '') : '';
-    $custom_rules_text = !empty($conference) ? ($conference->custom_rules_text ?? '') : '';
-    $request_voucher_types = SVDP_Settings::get_public_request_voucher_types();
-
-    if (!empty($conference)) {
-        $request_voucher_types = array_values(array_intersect(
-            $request_voucher_types,
-            SVDP_Settings::normalize_voucher_types($conference->allowed_voucher_types, $request_voucher_types)
-        ));
-    }
-
-    if (empty($request_voucher_types)) {
-        $request_voucher_types = ['clothing'];
-    }
-
-    $default_voucher_type = in_array('clothing', $request_voucher_types, true)
-        ? 'clothing'
-        : $request_voucher_types[0];
-    $voucher_type_labels = [
-        'clothing' => 'Clothing',
-        'furniture' => 'Furniture / Household Goods',
-    ];
-    $voucher_type_descriptions = [
-        'clothing' => 'Keep the current clothing voucher request flow.',
-        'furniture' => 'Select requested furniture items, capture delivery needs, and save the estimate range.',
-    ];
-    $furniture_categories = class_exists('SVDP_Furniture_Catalog')
-        ? SVDP_Furniture_Catalog::get_categories()
-        : [
-            'used_furniture' => 'Used Furniture',
-            'handmade_furniture' => 'Handmade Furniture',
-            'mattresses_frames' => 'Mattresses & Frames',
-            'household_goods' => 'Household Goods',
-        ];
-    $furniture_category_hints = [
-        'used_furniture' => 'Sofas, tables, chairs, and more',
-        'handmade_furniture' => 'Built pieces and restored essentials',
-        'mattresses_frames' => 'Beds, bunks, frames, and supports',
-        'household_goods' => 'Kitchen, bath, and daily-use goods',
-    ];
-    ?>
 
     <?php if (!empty($store_hours) || !empty($redemption_instructions)): ?>
     <div class="svdp-instructions">

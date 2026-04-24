@@ -7,6 +7,7 @@
 .svdp-cashier-container {
     max-width: 100%;
     padding: 20px;
+    box-sizing: border-box;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
 }
 
@@ -16,6 +17,10 @@
     background: #fff;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.svdp-voucher-form-has-furniture {
+    max-width: 1180px;
 }
 
 /* Form Introduction */
@@ -183,7 +188,7 @@
 
 .svdp-furniture-branch-layout {
     display: grid;
-    grid-template-columns: minmax(0, 1.25fr) minmax(260px, 0.75fr);
+    grid-template-columns: minmax(0, 1fr);
     gap: 20px;
     align-items: start;
 }
@@ -222,25 +227,29 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
+    min-width: 0;
 }
 
 .svdp-furniture-category-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
     gap: 14px;
 }
 
 .svdp-furniture-category-card {
     display: flex;
+    flex-wrap: wrap;
     justify-content: space-between;
     align-items: flex-start;
     gap: 16px;
     min-height: 124px;
+    width: 100%;
     padding: 18px;
     border: 1px solid #dce7ef;
     border-radius: 18px;
     background: linear-gradient(180deg, #ffffff 0%, #f2f7fb 100%);
     box-shadow: 0 14px 32px rgba(18, 52, 77, 0.06);
+    box-sizing: border-box;
     text-decoration: none;
     font: inherit;
     text-align: left;
@@ -264,7 +273,9 @@
 .svdp-furniture-category-card-copy {
     display: flex;
     flex-direction: column;
+    flex: 1 1 220px;
     gap: 8px;
+    min-width: 0;
 }
 
 .svdp-furniture-category-card-title {
@@ -283,8 +294,12 @@
 .svdp-furniture-category-card-meta {
     display: flex;
     flex-direction: column;
+    flex: 0 1 11rem;
     align-items: flex-end;
     gap: 8px;
+    margin-left: auto;
+    max-width: 100%;
+    min-width: 0;
     text-align: right;
 }
 
@@ -298,6 +313,11 @@
     border-radius: 999px;
     font-size: 13px;
     font-weight: 700;
+    line-height: 1.35;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    text-align: center;
+    white-space: normal;
 }
 
 .svdp-furniture-category-card-count {
@@ -334,12 +354,18 @@
 
 .svdp-furniture-category-section-header {
     display: flex;
+    flex-wrap: wrap;
     justify-content: space-between;
     align-items: flex-start;
     gap: 16px;
     padding: 18px 20px 14px;
     background: #f4f8fb;
     border-bottom: 1px solid #e3edf4;
+}
+
+.svdp-furniture-category-section-copy {
+    flex: 1 1 220px;
+    min-width: 0;
 }
 
 .svdp-furniture-category-section-copy h4 {
@@ -357,6 +383,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    flex: 0 1 11rem;
     min-height: 30px;
     padding: 6px 12px;
     border-radius: 999px;
@@ -364,7 +391,11 @@
     color: #006BA8;
     font-size: 13px;
     font-weight: 700;
-    white-space: nowrap;
+    line-height: 1.35;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    text-align: center;
+    white-space: normal;
 }
 
 .svdp-furniture-category-section-body {
@@ -454,8 +485,7 @@
 }
 
 .svdp-furniture-summary {
-    position: sticky;
-    top: 20px;
+    min-width: 0;
     padding: 18px;
     border-radius: 16px;
     background: #12344d;
@@ -470,6 +500,8 @@
 
 .svdp-summary-row {
     display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 12px;
     margin-bottom: 12px;
@@ -478,6 +510,7 @@
 
 .svdp-summary-row strong {
     color: #fff;
+    text-align: right;
 }
 
 .svdp-summary-policy-note {
@@ -526,6 +559,18 @@
 
 .svdp-furniture-summary .svdp-help-text {
     color: rgba(255, 255, 255, 0.82);
+}
+
+@media (min-width: 1101px) {
+    .svdp-furniture-branch-layout {
+        grid-template-columns: minmax(0, 1fr) minmax(320px, 340px);
+        gap: 24px;
+    }
+
+    .svdp-furniture-summary {
+        position: sticky;
+        top: 20px;
+    }
 }
 
 /* Buttons */
@@ -1674,10 +1719,6 @@
         padding: 16px;
     }
 
-    .svdp-furniture-category-grid {
-        grid-template-columns: 1fr;
-    }
-
     .svdp-furniture-branch-layout {
         grid-template-columns: 1fr;
     }
@@ -1713,10 +1754,10 @@
     }
 
     .svdp-furniture-summary {
-        position: sticky;
-        bottom: 12px;
+        position: static;
         top: auto;
-        z-index: 20;
+        bottom: auto;
+        z-index: auto;
     }
 
     .svdp-furniture-category-card,
@@ -1727,6 +1768,7 @@
     .svdp-furniture-category-card-meta {
         width: 100%;
         align-items: flex-start;
+        margin-left: 0;
         text-align: left;
     }
 }
