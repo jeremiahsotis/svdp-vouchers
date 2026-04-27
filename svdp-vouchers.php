@@ -38,6 +38,8 @@ require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-shortcodes.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-admin.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-manager.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-override-reason.php';
+require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/address/class-address-provider-interface.php';
+require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/address/class-address-provider-nominatim.php';
 
 /**
  * Main plugin class
@@ -128,6 +130,19 @@ class SVDP_Vouchers_Plugin {
             'methods' => 'POST',
             'callback' => ['SVDP_Voucher', 'create_voucher'],
             'permission_callback' => '__return_true'
+        ]);
+
+        // Address search for optional delivery verification
+        register_rest_route('svdp/v1', '/address/search', [
+            'methods' => 'GET',
+            'callback' => [$this, 'search_addresses'],
+            'permission_callback' => '__return_true',
+            'args' => [
+                'q' => [
+                    'required' => true,
+                    'sanitize_callback' => 'sanitize_text_field',
+                ],
+            ],
         ]);
 
         // Get active catalog items for the public furniture request flow
@@ -262,6 +277,34 @@ class SVDP_Vouchers_Plugin {
             'permission_callback' => [$this, 'user_can_manage_admin']
         ]);
 
+    }
+
+    /**
+     * Search address candidates through the configured provider.
+     */
+    public function search_addresses($request) {
+        $query = sanitize_text_field((string) $request->get_param('q'));
+        if (strlen($query) < 3) {
+            return rest_ensure_response(['results' => []]);
+        }
+
+        $provider = apply_filters('svdp_address_provider', new SVDP_Address_Provider_Nominatim());
+        if (!$provider instanceof SVDP_Address_Provider_Interface) {
+            return new WP_Error(
+                'invalid_address_provider',
+                'Address provider is not configured correctly.',
+                ['status' => 500]
+            );
+        }
+
+        $results = $provider->search($query, ['limit' => 5]);
+        if (is_wp_error($results)) {
+            return $results;
+        }
+
+        return rest_ensure_response([
+            'results' => $results,
+        ]);
     }
 
     /**
