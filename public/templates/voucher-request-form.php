@@ -301,6 +301,10 @@ if (in_array('furniture', $request_voucher_types, true)) {
                             <label>ZIP Code *</label>
                             <input type="text" name="deliveryZip" maxlength="20">
                         </div>
+                        <input type="hidden" name="deliveryLat" id="svdpDeliveryLat">
+                        <input type="hidden" name="deliveryLng" id="svdpDeliveryLng">
+                        <input type="hidden" name="deliveryVerified" id="svdpDeliveryVerified" value="0">
+                        <input type="hidden" name="deliveryNormalized" id="svdpDeliveryNormalized">
                     </div>
 
                     <p class="svdp-help-text">Delivery is added separately when selected.</p>
