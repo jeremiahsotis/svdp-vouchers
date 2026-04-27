@@ -4,7 +4,7 @@
  */
 class SVDP_Database {
 
-    const SCHEMA_VERSION = '5';
+    const SCHEMA_VERSION = '6';
 
     /**
      * Run idempotent schema upgrades for the plugin.
@@ -42,14 +42,21 @@ class SVDP_Database {
     private static function has_current_schema() {
         global $wpdb;
 
+        $vouchers_table = $wpdb->prefix . 'svdp_vouchers';
         $catalog_items_table = $wpdb->prefix . 'svdp_catalog_items';
         $voucher_items_table = $wpdb->prefix . 'svdp_voucher_items';
 
-        if (!self::table_exists($catalog_items_table) || !self::table_exists($voucher_items_table)) {
+        if (!self::table_exists($vouchers_table) || !self::table_exists($catalog_items_table) || !self::table_exists($voucher_items_table)) {
             return false;
         }
 
-        return self::column_exists($catalog_items_table, 'show_price_as_max')
+        return self::column_exists($vouchers_table, 'delivery_lat')
+            && self::column_exists($vouchers_table, 'delivery_lng')
+            && self::column_exists($vouchers_table, 'delivery_verified')
+            && self::column_exists($vouchers_table, 'delivery_verification_source')
+            && self::column_exists($vouchers_table, 'delivery_verification_confidence')
+            && self::column_exists($vouchers_table, 'delivery_normalized_address')
+            && self::column_exists($catalog_items_table, 'show_price_as_max')
             && self::column_exists($catalog_items_table, 'discount_type')
             && self::column_exists($catalog_items_table, 'discount_value')
             && self::column_exists($voucher_items_table, 'discount_type_snapshot')
@@ -91,6 +98,12 @@ class SVDP_Database {
             items_children_redeemed int(11) DEFAULT 0,
             redemption_total_value decimal(10,2) DEFAULT NULL,
             denial_reason text DEFAULT NULL,
+            delivery_lat decimal(10,7) DEFAULT NULL,
+            delivery_lng decimal(10,7) DEFAULT NULL,
+            delivery_verified tinyint(1) NOT NULL DEFAULT 0,
+            delivery_verification_source varchar(100) DEFAULT NULL,
+            delivery_verification_confidence decimal(5,4) DEFAULT NULL,
+            delivery_normalized_address varchar(500) DEFAULT NULL,
             coat_status varchar(50) DEFAULT 'Available',
             coat_issued_date date DEFAULT NULL,
             coat_adults_issued int(11) DEFAULT NULL,
@@ -154,6 +167,7 @@ class SVDP_Database {
         self::create_managers_table();
         self::create_override_reasons_table();
         self::add_override_columns();
+        self::add_address_verification_columns();
 
         self::insert_default_conferences();
         self::insert_default_settings();
@@ -645,6 +659,42 @@ class SVDP_Database {
             $wpdb->query("ALTER TABLE $table
                 ADD KEY manager_id (manager_id),
                 ADD KEY reason_id (reason_id)");
+        }
+    }
+
+    /**
+     * Add optional address verification columns to vouchers table.
+     */
+    public static function add_address_verification_columns() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'svdp_vouchers';
+
+        if (!self::table_exists($table)) {
+            return;
+        }
+
+        if (!self::column_exists($table, 'delivery_lat')) {
+            $wpdb->query("ALTER TABLE $table ADD COLUMN delivery_lat decimal(10,7) DEFAULT NULL AFTER denial_reason");
+        }
+
+        if (!self::column_exists($table, 'delivery_lng')) {
+            $wpdb->query("ALTER TABLE $table ADD COLUMN delivery_lng decimal(10,7) DEFAULT NULL AFTER delivery_lat");
+        }
+
+        if (!self::column_exists($table, 'delivery_verified')) {
+            $wpdb->query("ALTER TABLE $table ADD COLUMN delivery_verified tinyint(1) NOT NULL DEFAULT 0 AFTER delivery_lng");
+        }
+
+        if (!self::column_exists($table, 'delivery_verification_source')) {
+            $wpdb->query("ALTER TABLE $table ADD COLUMN delivery_verification_source varchar(100) DEFAULT NULL AFTER delivery_verified");
+        }
+
+        if (!self::column_exists($table, 'delivery_verification_confidence')) {
+            $wpdb->query("ALTER TABLE $table ADD COLUMN delivery_verification_confidence decimal(5,4) DEFAULT NULL AFTER delivery_verification_source");
+        }
+
+        if (!self::column_exists($table, 'delivery_normalized_address')) {
+            $wpdb->query("ALTER TABLE $table ADD COLUMN delivery_normalized_address varchar(500) DEFAULT NULL AFTER delivery_verification_confidence");
         }
     }
 
