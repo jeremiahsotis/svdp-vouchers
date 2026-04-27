@@ -147,7 +147,9 @@ if (in_array('furniture', $request_voucher_types, true)) {
             </div>
         <?php endif; ?>
 
-        <p class="svdp-voucher-rule-note">This voucher expires 30 days after issuance. It must be redeemed in one visit; remaining items cannot be saved for a later visit.</p>
+        <p class="svdp-voucher-rule-note">
+            <?php echo esc_html(SVDP_Voucher_Rules::get_redemption_rule_text()); ?>
+        </p>
 
         <div class="svdp-form-branch" data-voucher-branch="clothing">
             <div class="svdp-branch-note">
@@ -403,7 +405,7 @@ if (in_array('furniture', $request_voucher_types, true)) {
                 >Up to $0.00</strong>
             </div>
             <p>Most items are calculated at 50% of the retail prices shown. Mattress/Frame Bundles use the exact price shown.</p>
-            <p>Voucher must be redeemed in one visit within 30 days.</p>
+            <p><?php echo esc_html(SVDP_Voucher_Rules::get_redemption_rule_text()); ?></p>
 
             <div class="svdp-modal-buttons">
                 <button type="button" id="svdpCancelFurnitureApproval" class="svdp-btn svdp-btn-secondary">Cancel this voucher</button>

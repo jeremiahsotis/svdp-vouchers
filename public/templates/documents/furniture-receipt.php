@@ -39,6 +39,12 @@ $completed_date = !empty($voucher['furniture_completed_at']) ? $voucher['furnitu
         </header>
 
         <section class="section">
+            <p style="margin: 0; font-weight: 600;">
+                <?php echo esc_html(SVDP_Voucher_Rules::get_redemption_rule_text()); ?>
+            </p>
+        </section>
+
+        <section class="section">
             <div class="grid">
                 <div>
                     <span class="label">Neighbor</span>
