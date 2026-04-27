@@ -239,11 +239,6 @@ class SVDP_Furniture_Voucher {
             return $actual_price;
         }
 
-        $photo_count = self::get_item_photo_count($context['item_id']);
-        if ($photo_count < 1) {
-            return new WP_Error('photo_required_for_completion', 'Upload at least one photo before completing this item.', ['status' => 400]);
-        }
-
         global $wpdb;
         $items_table = $wpdb->prefix . 'svdp_voucher_items';
         $updated = $wpdb->update(

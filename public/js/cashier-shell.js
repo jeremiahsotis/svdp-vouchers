@@ -773,15 +773,10 @@
 
     function validateFurnitureCompleteForm(form) {
         const actualPrice = parseDecimal(form.elements.actualPrice.value);
-        const photoCount = parseNumber(form.getAttribute('data-photo-count'));
         const errors = [];
 
         if (!Number.isFinite(actualPrice) || actualPrice <= 0) {
             errors.push('Enter an actual price greater than zero.');
-        }
-
-        if (photoCount < 1) {
-            errors.push('Upload at least one photo before completing this item.');
         }
 
         showInlineError(form, errors.join(' '));

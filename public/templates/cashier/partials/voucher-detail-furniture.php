@@ -100,7 +100,7 @@ $detail_refresh_trigger = $can_mutate_furniture
         <div class="svdp-cashier-panel-header">
             <div>
                 <h3>Item Resolution</h3>
-                <p>Resolve each requested item in store-walk order. Completed items require an actual price and at least one photo.</p>
+                <p>Resolve each requested item in store-walk order. Complete an item after entering actual price. Photos are optional records.</p>
             </div>
         </div>
 
@@ -243,7 +243,7 @@ $detail_refresh_trigger = $can_mutate_furniture
                                         enctype="multipart/form-data"
                                     >
                                         <div class="svdp-form-group">
-                                            <label>Add Photo *</label>
+                                            <label>Add Photo</label>
                                             <input
                                                 type="file"
                                                 name="photo"
@@ -254,13 +254,13 @@ $detail_refresh_trigger = $can_mutate_furniture
                                                     pendingPhotoPreview = $event.target.files.length ? URL.createObjectURL($event.target.files[0]) : '';
                                                 "
                                             >
-                                            <small class="svdp-help-text">Each upload is normalized to JPEG, resized, and stored under this voucher item.</small>
+                                            <small class="svdp-help-text">Photos are optional, and uploaded images are normalized to JPEG, resized, and stored under this voucher item for records.</small>
                                         </div>
 
                                         <div class="svdp-furniture-upload-preview" x-show="pendingPhotoName">
                                             <div>
                                                 <strong x-text="pendingPhotoName"></strong>
-                                                <p>Upload this photo before marking the item completed.</p>
+                                                <p>Upload this photo to attach it to the item record.</p>
                                             </div>
                                             <template x-if="pendingPhotoPreview">
                                                 <img :src="pendingPhotoPreview" alt="Selected furniture photo preview">
@@ -291,7 +291,7 @@ $detail_refresh_trigger = $can_mutate_furniture
                                         </div>
 
                                         <div class="svdp-cashier-inline-summary">
-                                            <span>Photos attached: <?php echo esc_html(intval($item['photo_count'])); ?></span>
+                                            <span>Photos optional: <?php echo esc_html(intval($item['photo_count'])); ?> attached</span>
                                             <span>Actual price required</span>
                                             <?php if (!empty($item['has_substitution'])): ?>
                                                 <span><?php echo esc_html($item['substitution_label']); ?> saved</span>
