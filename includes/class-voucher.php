@@ -1486,6 +1486,17 @@ class SVDP_Voucher {
             $voucher->delivery_state ?? '',
             $voucher->delivery_zip ?? '',
         ];
+        $raw_delivery_display = self::format_delivery_address($delivery_address_parts);
+        $delivery_address_normalized = $voucher->delivery_normalized_address ?? '';
+        $delivery_address_verified = !empty($voucher->delivery_verified);
+        $delivery_address_display = $raw_delivery_display;
+
+        if ($delivery_address_verified && !empty($delivery_address_normalized)) {
+            if (strcasecmp(trim($delivery_address_normalized), trim($raw_delivery_display)) !== 0) {
+                $delivery_address_display = $raw_delivery_display . ' (verified)';
+            }
+        }
+
         $estimated_total_min = isset($voucher->estimated_total_min) && $voucher->estimated_total_min !== null ? (float) $voucher->estimated_total_min : null;
         $estimated_total_max = isset($voucher->estimated_total_max) && $voucher->estimated_total_max !== null ? (float) $voucher->estimated_total_max : null;
         $estimated_requestor_portion_min = isset($voucher->estimated_requestor_portion_min) && $voucher->estimated_requestor_portion_min !== null ? (float) $voucher->estimated_requestor_portion_min : null;
@@ -1531,7 +1542,9 @@ class SVDP_Voucher {
                 'state' => $voucher->delivery_state ?? null,
                 'zip' => $voucher->delivery_zip ?? null,
             ] : null,
-            'delivery_address_display' => $is_furniture ? self::format_delivery_address($delivery_address_parts) : '',
+            'delivery_address_display' => $is_furniture ? $delivery_address_display : '',
+            'delivery_address_verified' => $is_furniture ? (bool) $delivery_address_verified : false,
+            'delivery_address_normalized' => $is_furniture ? ($delivery_address_normalized ?: null) : null,
             'estimated_total_min' => $estimated_total_min,
             'estimated_total_max' => $estimated_total_max,
             'estimated_total_display' => $is_furniture ? self::format_money_range($estimated_total_min, $estimated_total_max) : '',
