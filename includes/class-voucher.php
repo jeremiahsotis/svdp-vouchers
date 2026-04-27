@@ -329,6 +329,7 @@ class SVDP_Voucher {
         $voucher_type = isset($params['voucherType'])
             ? self::normalize_voucher_type(sanitize_text_field($params['voucherType']))
             : 'clothing';
+        $address_verification = self::sanitize_address_verification_payload($params);
 
         // Extract new override fields
         $manager_id = isset($params['manager_id']) ? intval($params['manager_id']) : null;
@@ -399,6 +400,7 @@ class SVDP_Voucher {
                 'override_note' => $override_note,
                 'manager_id' => $manager_id,
                 'reason_id' => $reason_id,
+                'address_verification' => $address_verification,
                 'params' => $params,
             ]);
         }
@@ -420,7 +422,7 @@ class SVDP_Voucher {
         $voucher_items_count = $household_size * $items_per_person;
 
         // Insert voucher
-        $result = $wpdb->insert($table, [
+        $voucher_data = [
             'first_name' => $first_name,
             'last_name' => $last_name,
             'dob' => $dob,
@@ -437,7 +439,9 @@ class SVDP_Voucher {
             'override_note' => $override_note,
             'manager_id' => $manager_id,
             'reason_id' => $reason_id,
-        ]);
+        ];
+
+        $result = $wpdb->insert($table, array_merge($voucher_data, $address_verification));
         
         if ($result === false) {
             return new WP_Error('database_error', 'Failed to create voucher');
@@ -508,7 +512,7 @@ class SVDP_Voucher {
 
         $estimates = self::calculate_furniture_estimates($requested_items, $catalog_row_map, $delivery['required']);
 
-        $result = $wpdb->insert($vouchers_table, [
+        $voucher_data = [
             'first_name' => $context['first_name'],
             'last_name' => $context['last_name'],
             'dob' => $context['dob'],
@@ -525,7 +529,12 @@ class SVDP_Voucher {
             'override_note' => $context['override_note'],
             'manager_id' => $context['manager_id'],
             'reason_id' => $context['reason_id'],
-        ]);
+        ];
+
+        $result = $wpdb->insert(
+            $vouchers_table,
+            array_merge($voucher_data, $context['address_verification'] ?? [])
+        );
 
         if ($result === false) {
             return new WP_Error('database_error', 'Failed to create furniture voucher.');
@@ -680,6 +689,66 @@ class SVDP_Voucher {
         return [
             'required' => $delivery_required,
             'address' => $address,
+        ];
+    }
+
+    /**
+     * Sanitize optional address verification payload fields.
+     *
+     * @param array $params Request parameters.
+     * @return array
+     */
+    private static function sanitize_address_verification_payload($params) {
+        $raw_lat = $params['deliveryLat'] ?? $params['delivery_lat'] ?? null;
+        $raw_lng = $params['deliveryLng'] ?? $params['delivery_lng'] ?? null;
+        $latitude = is_numeric($raw_lat) ? (float) $raw_lat : null;
+        $longitude = is_numeric($raw_lng) ? (float) $raw_lng : null;
+
+        if ($latitude !== null && ($latitude < -90 || $latitude > 90)) {
+            $latitude = null;
+        }
+
+        if ($longitude !== null && ($longitude < -180 || $longitude > 180)) {
+            $longitude = null;
+        }
+
+        $raw_verified = $params['deliveryVerified'] ?? $params['delivery_verified'] ?? false;
+        $verified = is_bool($raw_verified)
+            ? $raw_verified
+            : in_array(strtolower(trim((string) $raw_verified)), ['1', 'true', 'yes', 'on'], true);
+
+        if ($latitude === null || $longitude === null) {
+            $verified = false;
+        }
+
+        $normalized_address = sanitize_text_field(
+            $params['deliveryNormalized']
+                ?? $params['deliveryNormalizedAddress']
+                ?? $params['delivery_normalized_address']
+                ?? ''
+        );
+        if (strlen($normalized_address) > 500) {
+            $normalized_address = substr($normalized_address, 0, 500);
+        }
+
+        $source = sanitize_text_field($params['deliveryVerificationSource'] ?? $params['delivery_verification_source'] ?? '');
+        if ($source === '' && $verified) {
+            $source = 'nominatim';
+        }
+
+        $raw_confidence = $params['deliveryVerificationConfidence'] ?? $params['delivery_verification_confidence'] ?? null;
+        $confidence = is_numeric($raw_confidence) ? (float) $raw_confidence : null;
+        if ($confidence !== null) {
+            $confidence = max(0.0, min(1.0, round($confidence, 4)));
+        }
+
+        return [
+            'delivery_lat' => $latitude,
+            'delivery_lng' => $longitude,
+            'delivery_verified' => $verified ? 1 : 0,
+            'delivery_verification_source' => $verified ? $source : null,
+            'delivery_verification_confidence' => $verified ? $confidence : null,
+            'delivery_normalized_address' => $normalized_address !== '' ? $normalized_address : null,
         ];
     }
 
