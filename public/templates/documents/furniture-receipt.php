@@ -69,6 +69,9 @@ $completed_date = !empty($voucher['furniture_completed_at']) ? $voucher['furnitu
             <h2 style="margin: 0 0 12px; color: #12344d;">Delivery</h2>
             <?php if ($delivery_required && !empty($voucher['delivery_address_display'])): ?>
                 <p style="margin: 0; line-height: 1.6;">Delivery requested to <?php echo esc_html($voucher['delivery_address_display']); ?>.</p>
+                <?php if (empty($voucher['delivery_address_verified'])): ?>
+                    <p style="margin:0;color:#b45309;">Address not verified</p>
+                <?php endif; ?>
             <?php else: ?>
                 <p style="margin: 0; line-height: 1.6;">Pickup requested. No delivery address was provided.</p>
             <?php endif; ?>
