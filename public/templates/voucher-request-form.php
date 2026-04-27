@@ -147,6 +147,8 @@ if (in_array('furniture', $request_voucher_types, true)) {
             </div>
         <?php endif; ?>
 
+        <p class="svdp-voucher-rule-note">This voucher expires 30 days after issuance. It must be redeemed in one visit; remaining items cannot be saved for a later visit.</p>
+
         <div class="svdp-form-branch" data-voucher-branch="clothing">
             <div class="svdp-branch-note">
                 <strong>Clothing Request</strong>
@@ -161,7 +163,6 @@ if (in_array('furniture', $request_voucher_types, true)) {
                         <strong>Furniture Request</strong>
                         <span>Select one or more items by category. The amount shown is the maximum Conference cost for this voucher. Final fulfilled pricing may be lower based on the items chosen.</span>
                     </div>
-                    <p class="svdp-furniture-policy-note">This voucher expires 30 days after issuance. It must be redeemed in one visit; remaining items cannot be saved for a later visit.</p>
                     <div class="svdp-furniture-browser">
                         <div class="svdp-form-group svdp-furniture-search-shell">
                             <label for="svdpFurnitureSearch">Search Furniture Catalog</label>

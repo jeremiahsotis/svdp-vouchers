@@ -197,6 +197,18 @@
     min-width: 0;
 }
 
+.svdp-voucher-rule-note {
+    margin: 0 0 20px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: #fff5df;
+    border: 1px solid #f2d8a0;
+    color: #5f4310;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.6;
+}
+
 .svdp-furniture-browser {
     display: flex;
     flex-direction: column;
