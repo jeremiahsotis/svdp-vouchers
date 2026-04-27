@@ -385,6 +385,7 @@
             form.find('[name="deliveryLng"]').val('');
             form.find('[name="deliveryVerified"]').val('0');
             form.find('[name="deliveryNormalized"]').val('');
+            form.find('.svdp-address-verified').remove();
         }
 
         function hideAddressSuggestions() {
@@ -491,6 +492,10 @@
             form.find('[name="deliveryLng"]').val(suggestion.longitude ?? '');
             form.find('[name="deliveryVerified"]').val('1');
             form.find('[name="deliveryNormalized"]').val(suggestion.normalized_address || suggestion.label || '');
+            form.find('.svdp-address-verified').remove();
+            form.find('[name="deliveryLine1"]').after(
+                '<div class="svdp-help-text svdp-address-verified">Address verified</div>'
+            );
             hideAddressSuggestions();
         }
 
