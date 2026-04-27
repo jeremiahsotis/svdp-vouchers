@@ -417,11 +417,11 @@
 }
 
 .svdp-catalog-item {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    gap: 16px;
-    padding: 14px 0;
+    gap: 14px;
+    padding: 13px 0;
     border-top: 1px solid #edf3f7;
 }
 
@@ -438,26 +438,82 @@
     color: #006BA8;
 }
 
-.svdp-catalog-item-copy h5 {
-    margin: 0 0 4px;
-    color: #12344d;
-    font-size: 16px;
+.svdp-catalog-item-main {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
 }
 
-.svdp-catalog-item-copy p {
+.svdp-catalog-item-copy h5 {
     margin: 0;
+    color: #12344d;
+    font-size: 16px;
+    line-height: 1.35;
+}
+
+.svdp-catalog-pricing {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    max-width: 520px;
+}
+
+.svdp-catalog-price {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    padding: 7px 9px;
+    border: 1px solid #e0ebf2;
+    border-radius: 8px;
+    background: #f8fbfd;
+}
+
+.svdp-catalog-price-label {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
     color: #587082;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.svdp-catalog-price strong {
+    color: #12344d;
+    font-size: 15px;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
+
+.svdp-catalog-price-conference {
+    border-color: #bdd8e8;
+    background: #eef7fc;
+}
+
+.svdp-catalog-price-conference .svdp-catalog-price-label,
+.svdp-catalog-price-conference strong {
+    color: #006BA8;
+}
+
+.svdp-catalog-price-note {
+    color: #4d6779;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.25;
 }
 
 .svdp-catalog-item-controls {
-    display: flex;
+    display: grid;
+    grid-template-columns: 44px 30px 44px;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
+    justify-content: end;
 }
 
 .svdp-qty-btn {
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
     border: 1px solid #bdd3e1;
     border-radius: 999px;
     background: #fff;
@@ -473,7 +529,7 @@
 }
 
 .svdp-qty-value {
-    min-width: 20px;
+    min-width: 30px;
     text-align: center;
     font-weight: 700;
     color: #12344d;
@@ -1862,13 +1918,28 @@
     }
 
     .svdp-catalog-item {
-        flex-direction: column;
+        grid-template-columns: 1fr;
         align-items: flex-start;
+        gap: 12px;
+        padding: 14px 0;
+    }
+
+    .svdp-catalog-pricing {
+        width: 100%;
+        max-width: none;
     }
 
     .svdp-catalog-item-controls {
         width: 100%;
-        justify-content: flex-end;
+        grid-template-columns: 44px minmax(32px, 1fr) 44px;
+        justify-content: stretch;
+        max-width: 190px;
+        margin-left: auto;
+    }
+
+    .svdp-qty-btn {
+        width: 44px;
+        height: 44px;
     }
 }
 

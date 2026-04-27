@@ -551,9 +551,11 @@
 
                 return '' +
                     '<article class="svdp-catalog-item' + (quantity > 0 ? ' is-selected' : '') + '" data-catalog-item="' + itemId + '">' +
-                        '<div class="svdp-catalog-item-copy">' +
-                            '<h5>' + escapeHtml(item.name) + '</h5>' +
-                            '<p>' + escapeHtml(item.priceDisplay) + '</p>' +
+                        '<div class="svdp-catalog-item-main">' +
+                            '<div class="svdp-catalog-item-copy">' +
+                                '<h5>' + escapeHtml(item.name) + '</h5>' +
+                            '</div>' +
+                            renderCatalogItemPricing(item) +
                         '</div>' +
                         '<div class="svdp-catalog-item-controls">' +
                             '<button type="button" class="svdp-qty-btn" data-catalog-adjust="decrement" data-catalog-item-id="' + itemId + '" aria-label="Remove one ' + escapeHtml(item.name) + '"' + (quantity === 0 ? ' disabled' : '') + '>-</button>' +
@@ -562,6 +564,31 @@
                         '</div>' +
                     '</article>';
             }).join('');
+        }
+
+        function renderCatalogItemPricing(item) {
+            const estimate = getCatalogItemEstimate(item);
+            const conferenceDisplay = formatCatalogItemPriceDisplay(
+                estimate.conferencePortionMin,
+                estimate.conferencePortionMax,
+                item.pricingType === 'range' && item.showPriceAsMax
+            );
+            const coverageLabel = getConferenceCoverageLabel(item);
+            const escapedCoverageLabel = escapeHtml(coverageLabel);
+
+            return '' +
+                '<div class="svdp-catalog-pricing" aria-label="Pricing for ' + escapeHtml(item.name) + '">' +
+                    '<div class="svdp-catalog-price svdp-catalog-price-retail">' +
+                        '<span class="svdp-catalog-price-label">Retail price</span>' +
+                        '<strong>' + escapeHtml(item.priceDisplay) + '</strong>' +
+                    '</div>' +
+                    '<div class="svdp-catalog-price svdp-catalog-price-conference">' +
+                        '<span class="svdp-catalog-price-label">Conference cost ' +
+                            '<span class="svdp-catalog-price-note">' + escapedCoverageLabel + '</span>' +
+                        '</span>' +
+                        '<strong>' + escapeHtml(conferenceDisplay) + '</strong>' +
+                    '</div>' +
+                '</div>';
         }
 
         function syncCategorySectionState() {
@@ -753,6 +780,41 @@
             }
 
             return roundCurrency(normalizedPrice * (Math.min(normalizedDiscountValue, 100) / 100));
+        }
+
+        function getConferenceCoverageLabel(item) {
+            const discountType = item && item.discountType === 'fixed' ? 'fixed' : 'percent';
+            const rawDiscountValue = Number(item && item.discountValue != null ? item.discountValue : 50);
+            const normalizedDiscountValue = Number.isFinite(rawDiscountValue)
+                ? Math.max(rawDiscountValue, 0)
+                : 50;
+
+            if (discountType === 'fixed') {
+                return 'Up to $' + normalizedDiscountValue.toFixed(2) + ' covered';
+            }
+
+            return formatPercentLabel(Math.min(normalizedDiscountValue, 100)) + ' of retail';
+        }
+
+        function formatPercentLabel(value) {
+            return Number(value || 0)
+                .toFixed(2)
+                .replace(/\.?0+$/, '') + '%';
+        }
+
+        function formatCatalogItemPriceDisplay(minValue, maxValue, showAsMax) {
+            const min = roundCurrency(minValue);
+            const max = roundCurrency(maxValue);
+
+            if (showAsMax) {
+                return formatUpToMoney(max);
+            }
+
+            if (min === max) {
+                return formatMoney(max);
+            }
+
+            return formatMoney(min) + ' - ' + formatMoney(max);
         }
 
         function updateCategorySelectedCounts() {
@@ -990,6 +1052,10 @@
 
         function formatUpToMoney(value) {
             return 'Up to $' + Number(value || 0).toFixed(2);
+        }
+
+        function formatMoney(value) {
+            return '$' + Number(value || 0).toFixed(2);
         }
 
         function roundCurrency(value) {
