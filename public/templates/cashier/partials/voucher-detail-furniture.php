@@ -90,7 +90,12 @@ $detail_refresh_trigger = $can_mutate_furniture
     <section class="svdp-cashier-info-panel">
         <h3>Delivery Details</h3>
         <?php if (!empty($voucher['delivery_required']) && !empty($voucher['delivery_address_display'])): ?>
-            <p><?php echo esc_html($voucher['delivery_address_display']); ?></p>
+            <p>
+                <?php echo esc_html($voucher['delivery_address_display']); ?>
+                <?php if (empty($voucher['delivery_address_verified'])): ?>
+                    <br><small style="color:#b45309;">Address not verified</small>
+                <?php endif; ?>
+            </p>
         <?php else: ?>
             <p>Pickup requested. No delivery address was provided.</p>
         <?php endif; ?>
