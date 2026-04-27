@@ -42,7 +42,11 @@
             searchTokens: [],
             selectedItems: {},
             currentVoucherType: form.data('default-voucher-type') || 'clothing',
-            pendingApproval: null
+            pendingApproval: null,
+            addressSearchTimer: null,
+            addressSearchRequest: null,
+            addressSearchQuery: '',
+            addressSuggestions: []
         };
         const PRICING_COPY = {
             maximumCommitmentLabel: 'Maximum Conference commitment',
@@ -55,6 +59,7 @@
         initializeConferenceControls();
         initializeSearchControls();
         initializeDeliveryControls();
+        initializeAddressAutocomplete();
         initializeApprovalModalControls();
         syncVoucherTypeAvailability();
         syncVoucherBranch();
@@ -264,6 +269,59 @@
             });
         }
 
+        function initializeAddressAutocomplete() {
+            const line1Input = form.find('[name="deliveryLine1"]');
+            if (line1Input.length === 0) {
+                return;
+            }
+
+            const addressInputs = form.find('[name="deliveryLine1"], [name="deliveryCity"], [name="deliveryState"], [name="deliveryZip"]');
+            const suggestions = $('<div>', {
+                id: 'svdpDeliveryAddressSuggestions',
+                class: 'svdp-address-suggestions',
+                role: 'listbox',
+                hidden: true
+            }).css({
+                marginTop: '6px',
+                border: '1px solid #dce7ef',
+                borderRadius: '6px',
+                background: '#fff',
+                boxShadow: '0 10px 22px rgba(18, 52, 77, 0.10)',
+                overflow: 'hidden'
+            });
+
+            line1Input
+                .attr('autocomplete', 'off')
+                .attr('aria-autocomplete', 'list')
+                .attr('aria-controls', 'svdpDeliveryAddressSuggestions')
+                .after(suggestions);
+
+            addressInputs.on('input', function() {
+                clearAddressVerificationFields();
+                scheduleAddressSearch();
+            });
+
+            addressInputs.on('focus', function() {
+                if (state.addressSuggestions.length > 0 && isDeliveryAddressSearchEnabled()) {
+                    getAddressSuggestionDropdown().prop('hidden', false);
+                }
+            });
+
+            suggestions.on('mousedown', '[data-address-suggestion-index]', function(event) {
+                event.preventDefault();
+                selectAddressSuggestion(Number($(this).attr('data-address-suggestion-index')));
+            });
+
+            $(document).on('click', function(event) {
+                const target = $(event.target);
+                if (target.closest('#svdpDeliveryAddressSuggestions').length || target.closest('[name="deliveryLine1"]').length) {
+                    return;
+                }
+
+                hideAddressSuggestions();
+            });
+        }
+
         function initializeApprovalModalControls() {
             approvalConfirmButton.on('click', function() {
                 const pendingApproval = state.pendingApproval;
@@ -305,6 +363,135 @@
             requiredDeliveryFields.forEach(function(fieldName) {
                 form.find('[name="' + fieldName + '"]').prop('required', showDeliveryFields);
             });
+
+            if (showDeliveryFields) {
+                scheduleAddressSearch();
+            } else {
+                hideAddressSuggestions();
+                clearAddressVerificationFields();
+            }
+        }
+
+        function isDeliveryAddressSearchEnabled() {
+            return getCurrentVoucherType() === 'furniture' && deliveryRequiredInput.is(':checked');
+        }
+
+        function getAddressSuggestionDropdown() {
+            return $('#svdpDeliveryAddressSuggestions');
+        }
+
+        function clearAddressVerificationFields() {
+            form.find('[name="deliveryLat"]').val('');
+            form.find('[name="deliveryLng"]').val('');
+            form.find('[name="deliveryVerified"]').val('0');
+            form.find('[name="deliveryNormalized"]').val('');
+        }
+
+        function hideAddressSuggestions() {
+            getAddressSuggestionDropdown().prop('hidden', true).empty();
+            state.addressSuggestions = [];
+        }
+
+        function scheduleAddressSearch() {
+            window.clearTimeout(state.addressSearchTimer);
+
+            if (!isDeliveryAddressSearchEnabled()) {
+                hideAddressSuggestions();
+                return;
+            }
+
+            const query = getDeliveryAddressSearchQuery();
+            if (query.length < 3) {
+                hideAddressSuggestions();
+                return;
+            }
+
+            state.addressSearchTimer = window.setTimeout(function() {
+                fetchAddressSuggestions(query);
+            }, 300);
+        }
+
+        function getDeliveryAddressSearchQuery() {
+            return [
+                $.trim(form.find('[name="deliveryLine1"]').val()),
+                $.trim(form.find('[name="deliveryCity"]').val()),
+                $.trim(form.find('[name="deliveryState"]').val()),
+                $.trim(form.find('[name="deliveryZip"]').val())
+            ].filter(function(part) {
+                return part !== '';
+            }).join(', ');
+        }
+
+        function fetchAddressSuggestions(query) {
+            if (state.addressSearchRequest && state.addressSearchRequest.readyState !== 4) {
+                state.addressSearchRequest.abort();
+            }
+
+            state.addressSearchQuery = query;
+            state.addressSearchRequest = $.ajax({
+                url: svdpVouchers.restUrl + 'svdp/v1/address/search',
+                method: 'GET',
+                headers: {
+                    'X-WP-Nonce': svdpVouchers.nonce
+                },
+                data: {
+                    q: query
+                },
+                success: function(response) {
+                    if (query !== state.addressSearchQuery || !isDeliveryAddressSearchEnabled()) {
+                        return;
+                    }
+
+                    const results = Array.isArray(response)
+                        ? response
+                        : (Array.isArray(response.results) ? response.results : []);
+
+                    renderAddressSuggestions(results);
+                },
+                error: function(xhr) {
+                    if (xhr && xhr.statusText === 'abort') {
+                        return;
+                    }
+
+                    hideAddressSuggestions();
+                }
+            });
+        }
+
+        function renderAddressSuggestions(results) {
+            const suggestions = getAddressSuggestionDropdown();
+            state.addressSuggestions = results.slice(0, 5);
+
+            if (state.addressSuggestions.length === 0) {
+                suggestions.prop('hidden', true).empty();
+                return;
+            }
+
+            suggestions.html(state.addressSuggestions.map(function(result, index) {
+                const label = result.label || result.normalized_address || '';
+
+                return '' +
+                    '<button type="button" role="option" data-address-suggestion-index="' + index + '"' +
+                        ' style="display:block;width:100%;padding:9px 11px;border:0;border-bottom:1px solid #e5edf3;background:#fff;text-align:left;cursor:pointer;font:inherit;color:#12344d;line-height:1.35;">' +
+                        escapeHtml(label) +
+                    '</button>';
+            }).join(''));
+
+            suggestions.find('button:last-child').css('border-bottom', '0');
+            suggestions.prop('hidden', false);
+        }
+
+        function selectAddressSuggestion(index) {
+            const suggestion = state.addressSuggestions[index];
+            if (!suggestion) {
+                return;
+            }
+
+            form.find('[name="deliveryLat"]').val(suggestion.latitude ?? '');
+            form.find('[name="deliveryLng"]').val(suggestion.longitude ?? '');
+            form.find('[name="deliveryVerified"]').val('1');
+            form.find('[name="deliveryNormalized"]').val(suggestion.normalized_address || suggestion.label || '');
+            hideAddressSuggestions();
         }
 
         function getCurrentVoucherType() {
@@ -912,6 +1099,10 @@
                     state: $.trim(form.find('[name="deliveryState"]').val()),
                     zip: $.trim(form.find('[name="deliveryZip"]').val())
                 };
+                payload.deliveryLat = deliveryRequiredInput.is(':checked') ? $.trim(form.find('[name="deliveryLat"]').val()) : '';
+                payload.deliveryLng = deliveryRequiredInput.is(':checked') ? $.trim(form.find('[name="deliveryLng"]').val()) : '';
+                payload.deliveryVerified = deliveryRequiredInput.is(':checked') ? $.trim(form.find('[name="deliveryVerified"]').val()) : '0';
+                payload.deliveryNormalized = deliveryRequiredInput.is(':checked') ? $.trim(form.find('[name="deliveryNormalized"]').val()) : '';
             }
 
             return payload;
@@ -1027,6 +1218,8 @@
             state.selectedItems = {};
             state.pendingApproval = null;
             searchInput.val('');
+            hideAddressSuggestions();
+            clearAddressVerificationFields();
             setCurrentVoucherType(form.data('default-voucher-type') || 'clothing');
             syncVoucherTypeAvailability();
             syncDeliveryControls();
