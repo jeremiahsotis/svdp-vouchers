@@ -25,7 +25,7 @@ $voucher_type_labels = [
 ];
 $voucher_type_descriptions = [
     'clothing' => 'Keep the current clothing voucher request flow.',
-    'furniture' => 'Select requested furniture items, capture delivery needs, and save the estimate range.',
+    'furniture' => 'Select requested furniture items, capture delivery needs, and review the maximum Conference commitment.',
 ];
 $furniture_categories = class_exists('SVDP_Furniture_Catalog')
     ? SVDP_Furniture_Catalog::get_categories()
@@ -159,7 +159,7 @@ if (in_array('furniture', $request_voucher_types, true)) {
                 <div class="svdp-furniture-selection-column">
                     <div class="svdp-branch-note">
                         <strong>Furniture Request</strong>
-                        <span>Select one or more items by category. The amount shown here is the maximum Conference cost for this voucher. Final fulfilled pricing may be lower based on the items chosen.</span>
+                        <span>Select one or more items by category. The amount shown is the maximum Conference cost for this voucher. Final fulfilled pricing may be lower based on the items chosen.</span>
                     </div>
                     <p class="svdp-furniture-policy-note">This voucher expires 30 days after issuance. It must be redeemed in one visit; remaining items cannot be saved for a later visit.</p>
                     <div class="svdp-furniture-browser">
@@ -242,18 +242,19 @@ if (in_array('furniture', $request_voucher_types, true)) {
                 <aside id="svdpFurnitureSummary" class="svdp-furniture-summary">
                     <h4>Selected Items Summary</h4>
                     <div class="svdp-summary-row">
-                        <span>Selected Items</span>
+                        <span>Selected items</span>
                         <strong id="svdpSummaryItemCount">0</strong>
                     </div>
                     <div class="svdp-summary-row">
-                        <span>Estimated Total</span>
+                        <span>Selected item retail maximum</span>
                         <strong id="svdpSummaryTotal">Up to $0.00</strong>
                     </div>
                     <div class="svdp-summary-row">
-                        <span>Estimated Conference Portion</span>
+                        <span>Maximum Conference commitment</span>
                         <strong id="svdpSummaryRequestor">Up to $0.00</strong>
                     </div>
-                    <p class="svdp-summary-policy-note">Conference prices are 50% of the retail prices shown, except Mattress/Frame Bundles, which use the exact price shown.</p>
+                    <p class="svdp-summary-policy-note">The amount shown is the maximum Conference cost for this voucher. Final fulfilled pricing may be lower based on the items chosen.</p>
+                    <p class="svdp-summary-policy-note">Most items are calculated at 50% of the retail prices shown. Mattress/Frame Bundles use the exact price shown.</p>
 
                     <input type="checkbox" name="deliveryRequired" id="svdpDeliveryRequired" value="1" hidden>
                     <button
@@ -266,8 +267,12 @@ if (in_array('furniture', $request_voucher_types, true)) {
                     </button>
 
                     <div id="svdpDeliveryFeeNote" class="svdp-summary-row svdp-summary-row-delivery">
-                        <span>Delivery Fee</span>
+                        <span>Delivery fee</span>
                         <strong id="svdpSummaryDeliveryFee">$0.00</strong>
+                    </div>
+                    <div class="svdp-summary-row">
+                        <span>Total maximum Conference commitment</span>
+                        <strong id="svdpSummaryTotalCommitment">Up to $0.00</strong>
                     </div>
 
                     <div id="svdpDeliveryAddressFields" class="svdp-delivery-address-fields" hidden>
@@ -295,7 +300,7 @@ if (in_array('furniture', $request_voucher_types, true)) {
                         </div>
                     </div>
 
-                    <p class="svdp-help-text">Conference coverage is based on each catalog item. Delivery is added separately when selected.</p>
+                    <p class="svdp-help-text">Delivery is added separately when selected.</p>
                 </aside>
             </div>
         </div>
@@ -365,18 +370,18 @@ if (in_array('furniture', $request_voucher_types, true)) {
     >
         <div class="svdp-modal-content">
             <h3 id="svdpFurnitureApprovalTitle">Conference Approval Required</h3>
-            <p>This voucher is not submitted until you approve this amount.</p>
-            <p>The amount shown here is the maximum Conference cost for this voucher. Final fulfilled pricing may be lower based on the items chosen.</p>
+            <p>This voucher is not submitted until you approve the maximum Conference commitment.</p>
+            <p>The amount shown is the maximum Conference cost for this voucher. Final fulfilled pricing may be lower based on the items chosen.</p>
 
             <div class="svdp-summary-row">
-                <span>Estimated item total</span>
+                <span>Selected item retail maximum</span>
                 <strong
                     id="svdpApprovalEstimatedTotal"
                     style="color: #111 !important; font-weight: 700 !important; opacity: 1 !important; -webkit-text-fill-color: #111 !important;"
                 >Up to $0.00</strong>
             </div>
             <div class="svdp-summary-row">
-                <span>Estimated Conference portion</span>
+                <span>Maximum Conference commitment</span>
                 <strong
                     id="svdpApprovalConferencePortion"
                     style="color: #111 !important; font-weight: 700 !important; opacity: 1 !important; -webkit-text-fill-color: #111 !important;"
@@ -390,19 +395,19 @@ if (in_array('furniture', $request_voucher_types, true)) {
                 >$0.00</strong>
             </div>
             <div class="svdp-summary-row">
-                <span>Estimated total Conference commitment</span>
+                <span>Total maximum Conference commitment</span>
                 <strong
                     id="svdpApprovalTotalCommitment"
                     style="color: #111 !important; font-weight: 700 !important; opacity: 1 !important; -webkit-text-fill-color: #111 !important;"
                 >Up to $0.00</strong>
             </div>
-            <p>Conference prices are 50% of the retail prices shown, except Mattress/Frame Bundles, which use the exact price shown.</p>
+            <p>Most items are calculated at 50% of the retail prices shown. Mattress/Frame Bundles use the exact price shown.</p>
             <p>Voucher must be redeemed in one visit within 30 days.</p>
 
             <div class="svdp-modal-buttons">
                 <button type="button" id="svdpCancelFurnitureApproval" class="svdp-btn svdp-btn-secondary">Cancel this voucher</button>
                 <button type="button" id="svdpEditFurnitureApproval" class="svdp-btn svdp-btn-secondary">Edit this voucher</button>
-                <button type="button" id="svdpConfirmFurnitureApproval" class="svdp-btn svdp-btn-primary">I approve this amount</button>
+                <button type="button" id="svdpConfirmFurnitureApproval" class="svdp-btn svdp-btn-primary">Approve maximum commitment</button>
             </div>
         </div>
     </div>

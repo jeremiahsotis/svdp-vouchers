@@ -41,7 +41,7 @@ This checkpoint closes Slice 1 by making the actual voucher/receipt surface matc
 - calm, direct, non-punitive language
 
 ### Not Allowed
-- “Neighbor owes”
+- neighbor-payment phrasing
 - Conference percentage explanations
 - retail vs discounted pricing explanations
 - internal operational jargon

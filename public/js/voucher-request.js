@@ -17,6 +17,7 @@
         const deliveryToggleButton = $('#svdpDeliveryToggle');
         const deliveryAddressFields = $('#svdpDeliveryAddressFields');
         const summaryDeliveryFee = $('#svdpSummaryDeliveryFee');
+        const summaryTotalCommitment = $('#svdpSummaryTotalCommitment');
         const approvalModal = $('#svdpFurnitureApprovalModal');
         const approvalEstimatedTotal = $('#svdpApprovalEstimatedTotal');
         const approvalConferencePortion = $('#svdpApprovalConferencePortion');
@@ -42,6 +43,11 @@
             selectedItems: {},
             currentVoucherType: form.data('default-voucher-type') || 'clothing',
             pendingApproval: null
+        };
+        const PRICING_COPY = {
+            maximumCommitmentLabel: 'Maximum Conference commitment',
+            explanation: 'The amount shown is the maximum Conference cost for this voucher. Final fulfilled pricing may be lower based on the items chosen.',
+            pricingRule: 'Most items are calculated at 50% of the retail prices shown. Mattress/Frame Bundles use the exact price shown.'
         };
 
         initializeDateInput();
@@ -617,6 +623,7 @@
             summaryTotal.text(formatUpToMoney(estimateSummary.estimatedTotalMax));
             summaryConference.text(formatUpToMoney(estimateSummary.conferencePortionMax));
             summaryDeliveryFee.text('$' + estimateSummary.deliveryFee.toFixed(2));
+            summaryTotalCommitment.text(formatUpToMoney(estimateSummary.totalConferenceCommitmentMax));
             updateCategorySelectedCounts();
         }
 
@@ -939,12 +946,13 @@
             message += 'The requested furniture items have been saved for cashier review.<br><br>';
             message += '<strong>Request Summary:</strong><br>';
             message += '• Selected items: <strong>' + escapeHtml(String(estimateSummary.itemCount || 0)) + '</strong><br>';
-            message += '• Estimated item total: <strong>' + escapeHtml(formatUpToMoney(estimateSummary.estimatedTotalMax || 0)) + '</strong><br>';
-            message += '• Estimated Conference portion: <strong>' + escapeHtml(formatUpToMoney(estimateSummary.conferencePortionMax || 0)) + '</strong><br>';
+            message += '• Selected item retail maximum: <strong>' + escapeHtml(formatUpToMoney(estimateSummary.estimatedTotalMax || 0)) + '</strong><br>';
+            message += '• ' + PRICING_COPY.maximumCommitmentLabel + ': <strong>' + escapeHtml(formatUpToMoney(estimateSummary.conferencePortionMax || 0)) + '</strong><br>';
             message += '• Delivery fee: <strong>$' + escapeHtml(Number(estimateSummary.deliveryFee || 0).toFixed(2)) + '</strong><br>';
 
             message += '• This household can receive another furniture voucher after: <strong>' + escapeHtml(response.nextEligibleDate) + '</strong><br>';
-            message += '<br><em>The amount shown here is the maximum Conference cost for this voucher. Final fulfilled pricing may be lower based on the items chosen.</em>';
+            message += '<br><em>' + PRICING_COPY.explanation + '</em>';
+            message += '<br><em>' + PRICING_COPY.pricingRule + '</em>';
 
             return message;
         }
