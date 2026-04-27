@@ -228,7 +228,7 @@ if (in_array('furniture', $request_voucher_types, true)) {
 
                             <div id="svdpFurnitureSearchEmpty" class="svdp-empty-state svdp-furniture-search-empty" hidden>
                                 <div class="svdp-empty-icon">🔎</div>
-                                <div class="svdp-empty-text">No furniture items match that search yet.</div>
+                                <div class="svdp-empty-text">No furniture items match this search. Clear the search to browse all categories.</div>
                             </div>
 
                             <div id="svdpFurnitureCatalogLoading" class="svdp-loading">

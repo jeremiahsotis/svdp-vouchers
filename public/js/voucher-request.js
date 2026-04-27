@@ -12,6 +12,7 @@
         const catalogLoadingState = $('#svdpFurnitureCatalogLoading');
         const searchInput = $('#svdpFurnitureSearch');
         const searchEmptyState = $('#svdpFurnitureSearchEmpty');
+        const categoryCardsGrid = $('#svdpFurnitureCategoryCards');
         const deliveryRequiredInput = $('#svdpDeliveryRequired');
         const deliveryToggleButton = $('#svdpDeliveryToggle');
         const deliveryAddressFields = $('#svdpDeliveryAddressFields');
@@ -37,6 +38,7 @@
             catalogById: {},
             openCategories: {},
             searchQuery: '',
+            searchTokens: [],
             selectedItems: {},
             currentVoucherType: form.data('default-voucher-type') || 'clothing',
             pendingApproval: null
@@ -234,7 +236,9 @@
 
         function initializeSearchControls() {
             searchInput.on('input', function() {
-                state.searchQuery = normalizeSearchQuery($(this).val());
+                const searchState = getNormalizedSearchState($(this).val());
+                state.searchQuery = searchState.query;
+                state.searchTokens = searchState.tokens;
 
                 if (state.catalogLoaded) {
                     renderCatalog();
@@ -451,7 +455,7 @@
 
         function renderCatalog() {
             const visibleCounts = {};
-            const searchActive = state.searchQuery !== '';
+            const searchActive = hasActiveSearch();
             let totalVisibleMatches = 0;
 
             catalogContainer.find('.svdp-furniture-shell-error').remove();
@@ -493,8 +497,10 @@
                 );
             });
 
+            categoryCardsGrid.prop('hidden', searchActive);
             searchEmptyState.prop('hidden', !searchActive || totalVisibleMatches > 0);
             catalogContainer.attr('data-catalog-loaded', 'true');
+            catalogContainer.attr('data-search-active', searchActive ? 'true' : 'false');
             catalogLoadingState.prop('hidden', true);
             syncCategorySectionState();
             updateCatalogQuantities();
@@ -504,18 +510,22 @@
         function getVisibleItemsForCategory(category) {
             const items = category && Array.isArray(category.items) ? category.items : [];
 
-            if (!state.searchQuery) {
+            if (!hasActiveSearch()) {
                 return items;
             }
 
             return items.filter(function(item) {
-                const searchableText = normalizeSearchQuery([
+                const searchableTokens = getNormalizedSearchTokens([
                     item.name,
                     item.categoryLabel,
                     item.priceDisplay
                 ].join(' '));
 
-                return searchableText.indexOf(state.searchQuery) !== -1;
+                return state.searchTokens.every(function(searchToken) {
+                    return searchableTokens.some(function(itemToken) {
+                        return itemToken.indexOf(searchToken) !== -1;
+                    });
+                });
             });
         }
 
@@ -549,7 +559,7 @@
         }
 
         function syncCategorySectionState() {
-            const searchActive = state.searchQuery !== '';
+            const searchActive = hasActiveSearch();
 
             catalogContainer.find('[data-category-card]').each(function() {
                 const card = $(this);
@@ -943,6 +953,7 @@
             form[0].reset();
             state.openCategories = {};
             state.searchQuery = '';
+            state.searchTokens = [];
             state.selectedItems = {};
             state.pendingApproval = null;
             searchInput.val('');
@@ -990,7 +1001,60 @@
         }
 
         function normalizeSearchQuery(value) {
-            return $.trim(String(value || '')).toLowerCase();
+            return String(value || '')
+                .toLowerCase()
+                .replace(/&/g, ' and ')
+                .replace(/['’]/g, '')
+                .replace(/[^a-z0-9]+/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function getNormalizedSearchState(value) {
+            const query = normalizeSearchQuery(value);
+
+            return {
+                query: query,
+                tokens: getNormalizedSearchTokens(query)
+            };
+        }
+
+        function getNormalizedSearchTokens(value) {
+            const normalizedValue = normalizeSearchQuery(value);
+
+            if (!normalizedValue) {
+                return [];
+            }
+
+            return normalizedValue.split(' ').reduce(function(tokens, token) {
+                const normalizedToken = normalizeSearchToken(token);
+
+                if (normalizedToken && tokens.indexOf(normalizedToken) === -1) {
+                    tokens.push(normalizedToken);
+                }
+
+                return tokens;
+            }, []);
+        }
+
+        function normalizeSearchToken(token) {
+            if (token.length > 4 && /ies$/.test(token)) {
+                return token.slice(0, -3) + 'y';
+            }
+
+            if (token.length > 4 && /(ches|shes|sses|xes|zes)$/.test(token)) {
+                return token.slice(0, -2);
+            }
+
+            if (token.length > 3 && /s$/.test(token) && !/(ss|us|is)$/.test(token)) {
+                return token.slice(0, -1);
+            }
+
+            return token;
+        }
+
+        function hasActiveSearch() {
+            return state.searchTokens.length > 0;
         }
 
         function escapeHtml(value) {
