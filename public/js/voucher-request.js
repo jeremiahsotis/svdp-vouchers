@@ -229,6 +229,10 @@
         }
 
         function activateCategoryCard(card) {
+            if (hasActiveSearch()) {
+                return;
+            }
+
             const categoryKey = card.attr('data-category-card');
 
             if (!categoryKey) {
@@ -712,6 +716,10 @@
             updateCategorySelectedCounts();
         }
 
+        function getCategorySection(categoryKey) {
+            return catalogContainer.find('[data-category-section="' + categoryKey + '"]').first();
+        }
+
         function getVisibleItemsForCategory(category) {
             const items = category && Array.isArray(category.items) ? category.items : [];
 
@@ -796,16 +804,27 @@
             catalogContainer.find('[data-category-card]').each(function() {
                 const card = $(this);
                 const categoryKey = card.attr('data-category-card');
-                const section = catalogContainer.find('[data-category-section="' + categoryKey + '"]');
+                const section = getCategorySection(categoryKey);
                 const visibleCount = Number(section.attr('data-visible-item-count') || 0);
-                const isOpen = searchActive ? visibleCount > 0 : !!state.openCategories[categoryKey];
-                const shouldShowSection = searchActive ? visibleCount > 0 : isOpen;
 
+                if (searchActive) {
+                    const shouldShowSection = visibleCount > 0;
+
+                    section.prop('hidden', !shouldShowSection);
+                    section.toggleClass('is-open', shouldShowSection);
+                    card.attr('aria-expanded', shouldShowSection ? 'true' : 'false');
+                    card.toggleClass('is-open', shouldShowSection);
+                    card.toggleClass('is-selected', shouldShowSection);
+                    return;
+                }
+
+                const isOpen = !!state.openCategories[categoryKey];
+
+                section.prop('hidden', !isOpen);
+                section.toggleClass('is-open', isOpen);
                 card.attr('aria-expanded', isOpen ? 'true' : 'false');
                 card.toggleClass('is-open', isOpen);
                 card.toggleClass('is-selected', isOpen);
-                section.prop('hidden', !shouldShowSection);
-                section.toggleClass('is-open', shouldShowSection);
             });
         }
 
