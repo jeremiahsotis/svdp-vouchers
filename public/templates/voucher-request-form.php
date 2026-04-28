@@ -4,6 +4,7 @@ $redemption_instructions = SVDP_Settings::get_setting('redemption_instructions',
 $custom_form_text = !empty($conference) ? ($conference->custom_form_text ?? '') : '';
 $custom_rules_text = !empty($conference) ? ($conference->custom_rules_text ?? '') : '';
 $request_voucher_types = SVDP_Settings::get_public_request_voucher_types();
+$pricing_copy = SVDP_Voucher_Rules::get_pricing_copy();
 
 if (!empty($conference)) {
     $request_voucher_types = array_values(array_intersect(
@@ -25,7 +26,7 @@ $voucher_type_labels = [
 ];
 $voucher_type_descriptions = [
     'clothing' => 'Keep the current clothing voucher request flow.',
-    'furniture' => 'Select requested furniture items, capture delivery needs, and review the maximum Conference commitment.',
+    'furniture' => 'Select requested furniture items, capture delivery needs, and review the ' . $pricing_copy['maximumCommitmentLabel'] . '.',
 ];
 $furniture_categories = class_exists('SVDP_Furniture_Catalog')
     ? SVDP_Furniture_Catalog::get_categories()
@@ -163,7 +164,7 @@ if (in_array('furniture', $request_voucher_types, true)) {
                 <div class="svdp-furniture-selection-column">
                     <div class="svdp-branch-note">
                         <strong>Furniture Request</strong>
-                        <span>Select one or more items by category. The amount shown is the maximum Conference cost for this voucher. Final fulfilled pricing may be lower based on the items chosen.</span>
+                        <span>Select one or more items by category. <?php echo esc_html($pricing_copy['pricingExplanation']); ?></span>
                     </div>
                     <div class="svdp-furniture-browser">
                         <div class="svdp-form-group svdp-furniture-search-shell">
@@ -249,15 +250,15 @@ if (in_array('furniture', $request_voucher_types, true)) {
                         <strong id="svdpSummaryItemCount">0</strong>
                     </div>
                     <div class="svdp-summary-row">
-                        <span>Selected item retail maximum</span>
+                        <span><?php echo esc_html($pricing_copy['selectedItemRetailMaximumLabel']); ?></span>
                         <strong id="svdpSummaryTotal">Up to $0.00</strong>
                     </div>
                     <div class="svdp-summary-row">
-                        <span>Maximum Conference commitment</span>
+                        <span><?php echo esc_html($pricing_copy['maximumCommitmentLabel']); ?></span>
                         <strong id="svdpSummaryRequestor">Up to $0.00</strong>
                     </div>
-                    <p class="svdp-summary-policy-note">The amount shown is the maximum Conference cost for this voucher. Final fulfilled pricing may be lower based on the items chosen.</p>
-                    <p class="svdp-summary-policy-note">Most items are calculated at 50% of the retail prices shown. Mattress/Frame Bundles use the exact price shown.</p>
+                    <p class="svdp-summary-policy-note"><?php echo esc_html($pricing_copy['pricingExplanation']); ?></p>
+                    <p class="svdp-summary-policy-note"><?php echo esc_html($pricing_copy['pricingRule']); ?></p>
 
                     <input type="checkbox" name="deliveryRequired" id="svdpDeliveryRequired" value="1" hidden>
                     <button
@@ -270,11 +271,11 @@ if (in_array('furniture', $request_voucher_types, true)) {
                     </button>
 
                     <div id="svdpDeliveryFeeNote" class="svdp-summary-row svdp-summary-row-delivery">
-                        <span>Delivery fee</span>
+                        <span><?php echo esc_html($pricing_copy['deliveryFeeLabel']); ?></span>
                         <strong id="svdpSummaryDeliveryFee">$0.00</strong>
                     </div>
                     <div class="svdp-summary-row">
-                        <span>Total maximum Conference commitment</span>
+                        <span><?php echo esc_html($pricing_copy['totalMaximumCommitmentLabel']); ?></span>
                         <strong id="svdpSummaryTotalCommitment">Up to $0.00</strong>
                     </div>
 
@@ -377,38 +378,38 @@ if (in_array('furniture', $request_voucher_types, true)) {
     >
         <div class="svdp-modal-content">
             <h3 id="svdpFurnitureApprovalTitle">Conference Approval Required</h3>
-            <p>This voucher is not submitted until you approve the maximum Conference commitment.</p>
-            <p>The amount shown is the maximum Conference cost for this voucher. Final fulfilled pricing may be lower based on the items chosen.</p>
+            <p><?php echo esc_html($pricing_copy['approvalNotSubmittedText']); ?></p>
+            <p><?php echo esc_html($pricing_copy['pricingExplanation']); ?></p>
 
             <div class="svdp-summary-row">
-                <span>Selected item retail maximum</span>
+                <span><?php echo esc_html($pricing_copy['selectedItemRetailMaximumLabel']); ?></span>
                 <strong
                     id="svdpApprovalEstimatedTotal"
                     style="color: #111 !important; font-weight: 700 !important; opacity: 1 !important; -webkit-text-fill-color: #111 !important;"
                 >Up to $0.00</strong>
             </div>
             <div class="svdp-summary-row">
-                <span>Maximum Conference commitment</span>
+                <span><?php echo esc_html($pricing_copy['maximumCommitmentLabel']); ?></span>
                 <strong
                     id="svdpApprovalConferencePortion"
                     style="color: #111 !important; font-weight: 700 !important; opacity: 1 !important; -webkit-text-fill-color: #111 !important;"
                 >Up to $0.00</strong>
             </div>
             <div class="svdp-summary-row">
-                <span>Delivery fee</span>
+                <span><?php echo esc_html($pricing_copy['deliveryFeeLabel']); ?></span>
                 <strong
                     id="svdpApprovalDeliveryFee"
                     style="color: #111 !important; font-weight: 700 !important; opacity: 1 !important; -webkit-text-fill-color: #111 !important;"
                 >$0.00</strong>
             </div>
             <div class="svdp-summary-row">
-                <span>Total maximum Conference commitment</span>
+                <span><?php echo esc_html($pricing_copy['totalMaximumCommitmentLabel']); ?></span>
                 <strong
                     id="svdpApprovalTotalCommitment"
                     style="color: #111 !important; font-weight: 700 !important; opacity: 1 !important; -webkit-text-fill-color: #111 !important;"
                 >Up to $0.00</strong>
             </div>
-            <p>Most items are calculated at 50% of the retail prices shown. Mattress/Frame Bundles use the exact price shown.</p>
+            <p><?php echo esc_html($pricing_copy['pricingRule']); ?></p>
             <p><?php echo esc_html(SVDP_Voucher_Rules::get_redemption_rule_text()); ?></p>
 
             <div class="svdp-modal-buttons">

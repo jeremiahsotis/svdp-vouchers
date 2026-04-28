@@ -1,5 +1,6 @@
 <?php
 $invoice_date_display = date('m/d/Y', strtotime($invoice_date));
+$pricing_copy = SVDP_Voucher_Rules::get_pricing_copy();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -101,19 +102,19 @@ $invoice_date_display = date('m/d/Y', strtotime($invoice_date));
 
             <div class="summary">
                 <div class="summary-row">
-                    <span>Actual fulfilled item total</span>
+                    <span><?php echo esc_html($pricing_copy['actualFulfilledItemTotalLabel']); ?></span>
                     <strong><?php echo esc_html('$' . number_format((float) $totals['items_total'], 2)); ?></strong>
                 </div>
                 <div class="summary-row">
-                    <span>Conference share (50%)</span>
+                    <span><?php echo esc_html($pricing_copy['conferenceShareLabel']); ?></span>
                     <strong><?php echo esc_html('$' . number_format((float) $totals['conference_share_total'], 2)); ?></strong>
                 </div>
                 <div class="summary-row">
-                    <span>Delivery fee</span>
+                    <span><?php echo esc_html($pricing_copy['deliveryFeeLabel']); ?></span>
                     <strong><?php echo esc_html('$' . number_format((float) $totals['delivery_fee'], 2)); ?></strong>
                 </div>
                 <div class="summary-row">
-                    <span>Total invoice amount</span>
+                    <span><?php echo esc_html($pricing_copy['totalInvoiceAmountLabel']); ?></span>
                     <strong><?php echo esc_html('$' . number_format((float) $totals['amount'], 2)); ?></strong>
                 </div>
             </div>

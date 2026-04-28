@@ -523,7 +523,7 @@ class SVDP_Voucher {
             'vincentian_email' => $context['vincentian_email'],
             'created_by' => $context['conference_obj']->is_emergency ? 'Cashier' : 'Vincentian',
             'voucher_created_date' => current_time('Y-m-d'),
-            'voucher_value' => $estimates['requestor_portion_max'],
+            'voucher_value' => $estimates['total_conference_commitment_max'],
             'voucher_type' => 'furniture',
             'voucher_items_count' => $estimates['item_count'],
             'override_note' => $context['override_note'],
@@ -583,6 +583,10 @@ class SVDP_Voucher {
             'estimatedTotalMax' => $estimates['total_max'],
             'estimatedRequestorPortionMin' => $estimates['requestor_portion_min'],
             'estimatedRequestorPortionMax' => $estimates['requestor_portion_max'],
+            'estimatedConferencePortionMin' => $estimates['requestor_portion_min'],
+            'estimatedConferencePortionMax' => $estimates['requestor_portion_max'],
+            'totalConferenceCommitmentMin' => $estimates['total_conference_commitment_min'],
+            'totalConferenceCommitmentMax' => $estimates['total_conference_commitment_max'],
             'nextEligibleDate' => $next_eligible->format('F j, Y'),
         ];
     }
@@ -763,6 +767,8 @@ class SVDP_Voucher {
     private static function calculate_furniture_estimates($requested_items, $catalog_row_map, $delivery_required) {
         $estimated_total_min = 0.0;
         $estimated_total_max = 0.0;
+        $conference_commitment_min = 0.0;
+        $conference_commitment_max = 0.0;
         $item_count = 0;
 
         foreach ($requested_items as $catalog_item_id => $quantity) {
@@ -773,26 +779,42 @@ class SVDP_Voucher {
             $catalog_row = $catalog_row_map[$catalog_item_id];
             $quantity = intval($quantity);
             $item_count += $quantity;
+            $discount_type = self::get_catalog_discount_type($catalog_row);
+            $discount_value = self::get_catalog_discount_value($catalog_row);
 
             if ($catalog_row->pricing_type === 'fixed') {
                 $fixed_price = (float) $catalog_row->price_fixed;
                 $estimated_total_min += $fixed_price * $quantity;
                 $estimated_total_max += $fixed_price * $quantity;
+                $share = self::calculate_furniture_item_shares($discount_type, $discount_value, $fixed_price);
+                $conference_commitment_min += $share['conference_share_amount'] * $quantity;
+                $conference_commitment_max += $share['conference_share_amount'] * $quantity;
             } else {
-                $estimated_total_min += (float) $catalog_row->price_min * $quantity;
-                $estimated_total_max += (float) $catalog_row->price_max * $quantity;
+                $price_min = (float) $catalog_row->price_min;
+                $price_max = (float) $catalog_row->price_max;
+                $estimated_total_min += $price_min * $quantity;
+                $estimated_total_max += $price_max * $quantity;
+                $min_share = self::calculate_furniture_item_shares($discount_type, $discount_value, $price_min);
+                $max_share = self::calculate_furniture_item_shares($discount_type, $discount_value, $price_max);
+                $conference_commitment_min += $min_share['conference_share_amount'] * $quantity;
+                $conference_commitment_max += $max_share['conference_share_amount'] * $quantity;
             }
         }
 
         $delivery_fee = $delivery_required ? 50.0 : 0.0;
+        $conference_commitment_min = round($conference_commitment_min, 2);
+        $conference_commitment_max = round($conference_commitment_max, 2);
+        $delivery_fee = round($delivery_fee, 2);
 
         return [
             'item_count' => $item_count,
             'total_min' => round($estimated_total_min, 2),
             'total_max' => round($estimated_total_max, 2),
-            'delivery_fee' => round($delivery_fee, 2),
-            'requestor_portion_min' => round(($estimated_total_min * 0.5) + $delivery_fee, 2),
-            'requestor_portion_max' => round(($estimated_total_max * 0.5) + $delivery_fee, 2),
+            'delivery_fee' => $delivery_fee,
+            'requestor_portion_min' => $conference_commitment_min,
+            'requestor_portion_max' => $conference_commitment_max,
+            'total_conference_commitment_min' => round($conference_commitment_min + $delivery_fee, 2),
+            'total_conference_commitment_max' => round($conference_commitment_max + $delivery_fee, 2),
         ];
     }
 
@@ -1254,12 +1276,25 @@ class SVDP_Voucher {
     private static function get_email_template($voucher, $created, $expires, $household_size, $voucher_amount, $furniture_meta = null) {
         $voucher_type = self::normalize_voucher_type($voucher->voucher_type);
         $is_furniture = $voucher_type === 'furniture';
-        $requestor_portion_display = $is_furniture && $furniture_meta
-            ? self::format_money_range(
-                $furniture_meta->estimated_requestor_portion_min !== null ? (float) $furniture_meta->estimated_requestor_portion_min : null,
-                $furniture_meta->estimated_requestor_portion_max !== null ? (float) $furniture_meta->estimated_requestor_portion_max : null
-            )
+        $pricing_copy = SVDP_Voucher_Rules::get_pricing_copy();
+        $commitment_min = $is_furniture && $furniture_meta && $furniture_meta->estimated_requestor_portion_min !== null
+            ? (float) $furniture_meta->estimated_requestor_portion_min
+            : null;
+        $commitment_max = $is_furniture && $furniture_meta && $furniture_meta->estimated_requestor_portion_max !== null
+            ? (float) $furniture_meta->estimated_requestor_portion_max
+            : null;
+        $delivery_fee_amount = $is_furniture && $furniture_meta && !empty($furniture_meta->delivery_required)
+            ? (float) $furniture_meta->delivery_fee
+            : 0.0;
+        $maximum_commitment_display = $is_furniture && $furniture_meta
+            ? self::format_money_range($commitment_min, $commitment_max)
             : '$' . number_format($voucher_amount, 2);
+        $total_commitment_display = $is_furniture && $furniture_meta
+            ? self::format_money_range(
+                $commitment_min !== null ? $commitment_min + $delivery_fee_amount : null,
+                $commitment_max !== null ? $commitment_max + $delivery_fee_amount : null
+            )
+            : '';
         $delivery_address = $is_furniture && $furniture_meta
             ? self::format_delivery_address([
                 $furniture_meta->delivery_address_line_1 ?? '',
@@ -1303,9 +1338,13 @@ class SVDP_Voucher {
                         <p><span class="label">Voucher Type:</span> <?php echo esc_html(ucfirst($voucher_type)); ?></p>
                         <?php if ($is_furniture): ?>
                             <p><span class="label">Requested Items:</span> <?php echo esc_html(intval($voucher->voucher_items_count)); ?></p>
-                            <p><span class="label">Estimated Requestor Portion:</span> <?php echo esc_html($requestor_portion_display); ?></p>
+                            <p><span class="label"><?php echo esc_html($pricing_copy['maximumCommitmentLabel']); ?>:</span> <?php echo esc_html($maximum_commitment_display); ?></p>
+                            <?php if (!empty($furniture_meta->delivery_required)): ?>
+                                <p><span class="label"><?php echo esc_html($pricing_copy['deliveryFeeLabel']); ?>:</span> <?php echo esc_html('$' . number_format($delivery_fee_amount, 2)); ?></p>
+                                <p><span class="label"><?php echo esc_html($pricing_copy['totalMaximumCommitmentLabel']); ?>:</span> <?php echo esc_html($total_commitment_display); ?></p>
+                            <?php endif; ?>
                         <?php else: ?>
-                            <p><span class="label">Voucher Amount:</span> <?php echo esc_html($requestor_portion_display); ?></p>
+                            <p><span class="label">Voucher Amount:</span> <?php echo esc_html($maximum_commitment_display); ?></p>
                         <?php endif; ?>
                     </div>
                     
@@ -1324,7 +1363,7 @@ class SVDP_Voucher {
                     <?php endif; ?>
                     
                     <div class="highlight">
-                        <p style="margin: 0;"><strong>⏱️ Reminder:</strong> This voucher is valid for 30 days and must be used before the expiration date.</p>
+                        <p style="margin: 0;"><strong>⏱️ Reminder:</strong> <?php echo esc_html(SVDP_Voucher_Rules::get_redemption_rule_text()); ?></p>
                     </div>
                     
                     <div class="info-box">
@@ -1336,14 +1375,15 @@ class SVDP_Voucher {
                     <?php if ($is_furniture): ?>
                         <ul>
                             <li>The requested items are saved and visible to the cashier team.</li>
-                            <li>Final fulfilled pricing may vary from the estimate range.</li>
+                            <li><?php echo esc_html($pricing_copy['pricingExplanation']); ?></li>
+                            <li><?php echo esc_html($pricing_copy['pricingRule']); ?></li>
                             <li>Delivery details are included when requested.</li>
                         </ul>
                     <?php else: ?>
                         <ul>
                             <li>Thrift Store hours: 9:30 AM – 4:00 PM</li>
                             <li>Stop by Customer Service before shopping</li>
-                            <li>Voucher expires in 30 days</li>
+                            <li><?php echo esc_html(SVDP_Voucher_Rules::get_redemption_rule_text()); ?></li>
                         </ul>
                     <?php endif; ?>
                 </div>

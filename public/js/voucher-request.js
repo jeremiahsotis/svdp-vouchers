@@ -48,11 +48,7 @@
             addressSearchQuery: '',
             addressSuggestions: []
         };
-        const PRICING_COPY = {
-            maximumCommitmentLabel: 'Maximum Conference commitment',
-            explanation: 'The amount shown is the maximum Conference cost for this voucher. Final fulfilled pricing may be lower based on the items chosen.',
-            pricingRule: 'Most items are calculated at 50% of the retail prices shown. Mattress/Frame Bundles use the exact price shown.'
-        };
+        const PRICING_COPY = (svdpVouchers.copy && svdpVouchers.copy.pricing) || {};
 
         initializeDateInput();
         initializeVoucherTypeControls();
@@ -790,7 +786,7 @@
                         '<strong>' + escapeHtml(item.priceDisplay) + '</strong>' +
                     '</div>' +
                     '<div class="svdp-catalog-price svdp-catalog-price-conference">' +
-                        '<span class="svdp-catalog-price-label">Conference cost ' +
+                        '<span class="svdp-catalog-price-label">' + escapeHtml(getPricingCopy('conferenceCostLabel')) + ' ' +
                             '<span class="svdp-catalog-price-note">' + escapedCoverageLabel + '</span>' +
                         '</span>' +
                         '<strong>' + escapeHtml(conferenceDisplay) + '</strong>' +
@@ -1230,13 +1226,13 @@
             message += 'The requested furniture items have been saved for cashier review.<br><br>';
             message += '<strong>Request Summary:</strong><br>';
             message += '• Selected items: <strong>' + escapeHtml(String(estimateSummary.itemCount || 0)) + '</strong><br>';
-            message += '• Selected item retail maximum: <strong>' + escapeHtml(formatUpToMoney(estimateSummary.estimatedTotalMax || 0)) + '</strong><br>';
-            message += '• ' + PRICING_COPY.maximumCommitmentLabel + ': <strong>' + escapeHtml(formatUpToMoney(estimateSummary.conferencePortionMax || 0)) + '</strong><br>';
-            message += '• Delivery fee: <strong>$' + escapeHtml(Number(estimateSummary.deliveryFee || 0).toFixed(2)) + '</strong><br>';
+            message += '• ' + escapeHtml(getPricingCopy('selectedItemRetailMaximumLabel')) + ': <strong>' + escapeHtml(formatUpToMoney(estimateSummary.estimatedTotalMax || 0)) + '</strong><br>';
+            message += '• ' + escapeHtml(getPricingCopy('maximumCommitmentLabel')) + ': <strong>' + escapeHtml(formatUpToMoney(estimateSummary.conferencePortionMax || 0)) + '</strong><br>';
+            message += '• ' + escapeHtml(getPricingCopy('deliveryFeeLabel')) + ': <strong>$' + escapeHtml(Number(estimateSummary.deliveryFee || 0).toFixed(2)) + '</strong><br>';
 
             message += '• This household can receive another furniture voucher after: <strong>' + escapeHtml(response.nextEligibleDate) + '</strong><br>';
-            message += '<br><em>' + PRICING_COPY.explanation + '</em>';
-            message += '<br><em>' + PRICING_COPY.pricingRule + '</em>';
+            message += '<br><em>' + escapeHtml(getPricingCopy('pricingExplanation')) + '</em>';
+            message += '<br><em>' + escapeHtml(getPricingCopy('pricingRule')) + '</em>';
 
             return message;
         }
@@ -1296,6 +1292,10 @@
             }
 
             return count === 1 ? '1 match' : count + ' matches';
+        }
+
+        function getPricingCopy(key) {
+            return PRICING_COPY[key] || key;
         }
 
         function normalizeSearchQuery(value) {

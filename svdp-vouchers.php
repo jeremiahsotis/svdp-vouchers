@@ -532,6 +532,7 @@ class SVDP_Vouchers_Plugin {
             'restUrl' => rest_url(),
             'nonce' => wp_create_nonce('wp_rest'),
             'deliveryFee' => 50,
+            'copy' => SVDP_Voucher_Rules::get_client_copy_payload(),
             'itemValues' => [
                 'adult' => floatval($item_values['adult']),
                 'child' => floatval($item_values['child'])

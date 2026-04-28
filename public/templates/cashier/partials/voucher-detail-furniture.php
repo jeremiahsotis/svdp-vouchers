@@ -10,6 +10,7 @@ $item_progress = $voucher['item_progress'] ?? [
 $can_mutate_furniture = !empty($can_mutate_furniture);
 $furniture_catalog_items = is_array($furniture_catalog_items ?? null) ? $furniture_catalog_items : [];
 $cancellation_reasons = is_array($cancellation_reasons ?? null) ? $cancellation_reasons : [];
+$pricing_copy = SVDP_Voucher_Rules::get_pricing_copy();
 $remaining_items = intval($voucher['remaining_items'] ?? $item_progress['requested']);
 $detail_refresh_trigger = $can_mutate_furniture
     ? 'svdp:detail-refresh from:body'
@@ -76,10 +77,10 @@ $detail_refresh_trigger = $can_mutate_furniture
 
     <section class="svdp-cashier-info-panel">
         <h3>Request Summary</h3>
-        <p><strong>Estimated Total:</strong> <?php echo esc_html($voucher['estimated_total_display']); ?></p>
-        <p><strong>Estimated Requestor Portion:</strong> <?php echo esc_html($voucher['estimated_requestor_portion_display']); ?></p>
+        <p><strong><?php echo esc_html($pricing_copy['selectedItemRetailMaximumLabel']); ?>:</strong> <?php echo esc_html($voucher['estimated_total_display']); ?></p>
+        <p><strong><?php echo esc_html($pricing_copy['maximumCommitmentLabel']); ?>:</strong> <?php echo esc_html($voucher['estimated_requestor_portion_display']); ?></p>
         <?php if (!empty($voucher['delivery_required'])): ?>
-            <p><strong>Delivery Fee:</strong> $<?php echo esc_html(number_format((float) $voucher['delivery_fee'], 2)); ?></p>
+            <p><strong><?php echo esc_html($pricing_copy['deliveryFeeLabel']); ?>:</strong> $<?php echo esc_html(number_format((float) $voucher['delivery_fee'], 2)); ?></p>
         <?php endif; ?>
         <p><strong>Created By:</strong> <?php echo esc_html($voucher['created_by']); ?></p>
         <?php if (!empty($voucher['vincentian_name'])): ?>
@@ -412,9 +413,9 @@ $detail_refresh_trigger = $can_mutate_furniture
             <form class="svdp-form" data-cashier-action="furniture-voucher-complete" data-voucher-id="<?php echo esc_attr($voucher['id']); ?>">
                 <div class="svdp-cashier-inline-summary">
                     <span>Items total: <?php echo esc_html(intval($item_progress['total'])); ?></span>
-                    <span>Conference invoice uses actual fulfilled prices x 50%</span>
+                    <span><?php echo esc_html($pricing_copy['invoiceActualPricingNote']); ?></span>
                     <?php if (!empty($voucher['delivery_required'])): ?>
-                        <span>Delivery fee included</span>
+                        <span><?php echo esc_html($pricing_copy['deliveryFeeIncludedText']); ?></span>
                     <?php endif; ?>
                 </div>
 
