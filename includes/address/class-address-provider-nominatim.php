@@ -92,9 +92,21 @@ class SVDP_Address_Provider_Nominatim implements SVDP_Address_Provider_Interface
                 continue;
             }
 
+            $address = (isset($row['address']) && is_array($row['address']))
+                ? $row['address']
+                : [];
+
             $display_name = isset($row['display_name'])
                 ? sanitize_text_field($row['display_name'])
                 : '';
+            $line1 = $this->build_line1($address, $row, $display_name);
+            $city = $this->get_first_address_component($address, ['city', 'town', 'village', 'municipality', 'county']);
+            $state = $this->get_first_address_component($address, ['state']);
+            $zip = $this->get_first_address_component($address, ['postcode']);
+
+            if ($display_name === '' && $line1 !== '') {
+                $display_name = $line1;
+            }
 
             if ($display_name === '') {
                 continue;
@@ -110,10 +122,59 @@ class SVDP_Address_Provider_Nominatim implements SVDP_Address_Provider_Interface
                 'longitude' => $longitude,
                 'source' => self::SOURCE,
                 'confidence' => $this->normalize_confidence($row['importance'] ?? null),
+                'line1' => $line1,
+                'city' => $city,
+                'state' => $state,
+                'zip' => $zip,
             ];
         }
 
         return $results;
+    }
+
+    /**
+     * Build a street address line from Nominatim structured address details.
+     *
+     * @param array  $address      Nominatim address details.
+     * @param array  $row          Raw Nominatim row.
+     * @param string $display_name Sanitized display name.
+     * @return string
+     */
+    private function build_line1($address, $row, $display_name) {
+        $house_number = $this->get_first_address_component($address, ['house_number']);
+        $road = $this->get_first_address_component($address, ['road']);
+        $line1 = trim($house_number . ' ' . $road);
+
+        if ($line1 !== '') {
+            return $line1;
+        }
+
+        if (!empty($address['name'])) {
+            return sanitize_text_field($address['name']);
+        }
+
+        if (!empty($row['name'])) {
+            return sanitize_text_field($row['name']);
+        }
+
+        return $display_name;
+    }
+
+    /**
+     * Get the first available structured address component.
+     *
+     * @param array $address Nominatim address details.
+     * @param array $keys    Ordered component names.
+     * @return string
+     */
+    private function get_first_address_component($address, $keys) {
+        foreach ($keys as $key) {
+            if (!empty($address[$key])) {
+                return sanitize_text_field($address[$key]);
+            }
+        }
+
+        return '';
     }
 
     /**

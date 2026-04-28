@@ -488,6 +488,13 @@
                 return;
             }
 
+            const existingLine2 = form.find('[name="deliveryLine2"]').val();
+
+            form.find('[name="deliveryLine1"]').val(suggestion.line1 || suggestion.address_line_1 || suggestion.label || '');
+            form.find('[name="deliveryCity"]').val(suggestion.city || '');
+            form.find('[name="deliveryState"]').val(suggestion.state || '');
+            form.find('[name="deliveryZip"]').val(suggestion.zip || suggestion.postcode || '');
+            form.find('[name="deliveryLine2"]').val(existingLine2);
             form.find('[name="deliveryLat"]').val(suggestion.latitude ?? '');
             form.find('[name="deliveryLng"]').val(suggestion.longitude ?? '');
             form.find('[name="deliveryVerified"]').val('1');
