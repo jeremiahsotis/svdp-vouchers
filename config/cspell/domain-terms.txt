@@ -1,0 +1,12 @@
+Shyft
+Ollama
+Tailscale
+Proxmox
+micro_task
+llm_run
+planning_state
+MoneyShyft
+RouteShyft
+ResourceShyft
+FriendShyft
+ConnectShyft

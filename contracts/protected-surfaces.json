@@ -1,0 +1,59 @@
+{
+  "protected_surfaces": [
+    {
+      "path": "includes/class-voucher.php",
+      "type": "php",
+      "reason": "Core voucher creation, duplicate detection, eligibility, expiration, notification, furniture request persistence, and cashier voucher formatting."
+    },
+    {
+      "path": "includes/class-database.php",
+      "type": "php",
+      "reason": "Database schema, schema upgrades, protected data evolution, and migration-sensitive table definitions."
+    },
+    {
+      "path": "includes/class-manager.php",
+      "type": "php",
+      "reason": "Manager override authority and override-code validation surface."
+    },
+    {
+      "path": "includes/class-furniture-catalog.php",
+      "type": "php",
+      "reason": "Furniture catalog create/update/archive behavior and future multi-user catalog editing surface."
+    },
+    {
+      "path": "includes/class-furniture-voucher.php",
+      "type": "php",
+      "reason": "Furniture fulfillment workflow, item completion/cancellation/substitution, document generation, and cashier mutation paths."
+    },
+    {
+      "path": "includes/class-invoice.php",
+      "type": "php",
+      "reason": "Conference invoice generation and financial document integrity."
+    },
+    {
+      "path": "public/js/voucher-request.js",
+      "type": "javascript",
+      "reason": "Public voucher request state model, catalog selection state, pricing summary, delivery address verification, and submission payload."
+    },
+    {
+      "path": "public/js/cashier-shell.js",
+      "type": "javascript",
+      "reason": "Cashier mutation flow, override modal behavior, furniture item actions, session keepalive, and REST submission handling."
+    },
+    {
+      "path": "public/templates/voucher-request-form.php",
+      "type": "php-template",
+      "reason": "Public request-form contract for neighbor, voucher type, furniture catalog, pricing, delivery, and redemption-rule display."
+    },
+    {
+      "path": "public/templates/cashier/partials/voucher-detail-furniture.php",
+      "type": "php-template",
+      "reason": "Cashier furniture detail contract, delivery verification display, item resolution, and voucher completion UI."
+    },
+    {
+      "path": "public/templates/documents/furniture-receipt.php",
+      "type": "php-template",
+      "reason": "Neighbor-facing furniture receipt contract and redemption-rule display."
+    }
+  ]
+}

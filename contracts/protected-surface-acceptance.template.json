@@ -1,0 +1,10 @@
+{
+  "acceptedFindings": [
+    {
+      "path": "apps/web/src/reducers/view-filter.ts",
+      "surfaceType": "state_machine",
+      "decision": "not_protected",
+      "reason": "local UI-only reducer, no cross-boundary risk"
+    }
+  ]
+}

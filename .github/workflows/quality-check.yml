@@ -1,0 +1,52 @@
+name: Quality
+
+on: [pull_request]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Python tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff codespell
+
+      - name: Install Node tools
+        run: |
+          npm install -g prettier markdownlint-cli cspell tsx ts-morph eslint
+
+      - name: Format check
+        run: |
+          ruff format --check .
+          prettier --check .
+
+      - name: Lint check
+        run: |
+          ruff check .
+
+      - name: Spellcheck
+        run: |
+          codespell .
+          cspell .
+
+      - name: Markdown
+        run: markdownlint .
+
+      - name: Placeholder check
+        run: python scripts/check_no_placeholders.py
+
+      - name: Required doc sections
+        run: python scripts/check_required_doc_sections.py

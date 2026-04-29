@@ -1,0 +1,16 @@
+{
+  "acceptance_required_for_protected_surface_changes": [
+    "implementation_brief_exists",
+    "checkpoint_exists",
+    "bootstrap_exists",
+    "protected_surface_named",
+    "change_reason_documented",
+    "before_after_impact_described",
+    "migration_impact_assessed_if_schema_affected",
+    "audit_impact_assessed_if_mutation_behavior_affected",
+    "concurrency_impact_assessed_if_async_or_multi_user_behavior_affected",
+    "rollback_path_documented",
+    "validation_commands_listed",
+    "checkpoint_updated"
+  ]
+}

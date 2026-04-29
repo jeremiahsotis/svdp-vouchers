@@ -1,0 +1,16 @@
+{
+  "protectedSurfaces": [
+    {
+      "path": "apps/auth/**",
+      "surfaceType": "auth_boundary",
+      "protectionLevel": "strict",
+      "rules": [
+        "patch-only",
+        "auth-boundary-protected",
+        "session-lifecycle-protected"
+      ],
+      "owner": "auth-owner",
+      "reason": "critical auth boundary"
+    }
+  ]
+}

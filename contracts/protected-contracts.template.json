@@ -1,0 +1,20 @@
+{
+  "protectedContracts": [
+    {
+      "file": "libs/contracts/ui/example.types.ts",
+      "exports": [
+        {
+          "name": "ExampleResponse",
+          "kind": "interface",
+          "requiredFields": [
+            "items"
+          ],
+          "optionalFields": [
+            "next_cursor"
+          ],
+          "nested": {}
+        }
+      ]
+    }
+  ]
+}

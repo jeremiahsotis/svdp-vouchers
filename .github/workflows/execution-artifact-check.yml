@@ -1,0 +1,30 @@
+name: Execution Artifact Check
+
+on: [pull_request]
+
+jobs:
+  execution:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate roadmap state sync
+        run: python scripts/check_roadmap_state_sync.py
+
+      - name: Validate dependency graph
+        run: python scripts/check_dependency_graph.py
+
+      - name: Validate feature freeze
+        run: python scripts/check_feature_freeze.py
+
+      - name: Validate slice completion integrity
+        run: python scripts/check_slice_completion_integrity.py
+
+      - name: Validate slice size
+        run: python scripts/check_slice_size.py
+
+      - name: Validate unmapped changes
+        run: python scripts/check_unmapped_changes.py
+
+      - name: Validate replayability
+        run: python scripts/check_execution_replayability.py
