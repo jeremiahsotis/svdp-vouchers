@@ -11,6 +11,8 @@ $can_mutate_furniture = !empty($can_mutate_furniture);
 $furniture_catalog_items = is_array($furniture_catalog_items ?? null) ? $furniture_catalog_items : [];
 $cancellation_reasons = is_array($cancellation_reasons ?? null) ? $cancellation_reasons : [];
 $pricing_copy = SVDP_Voucher_Rules::get_pricing_copy();
+$delivery_copy = SVDP_Voucher_Copy::get_delivery_copy();
+$document_copy = SVDP_Voucher_Copy::get_document_copy();
 $remaining_items = intval($voucher['remaining_items'] ?? $item_progress['requested']);
 $detail_refresh_trigger = $can_mutate_furniture
     ? 'svdp:detail-refresh from:body'
@@ -35,7 +37,7 @@ $detail_refresh_trigger = $can_mutate_furniture
                     <?php echo esc_html($voucher['workflow_status_label'] ?? 'Submitted'); ?>
                 </span>
                 <span class="svdp-type-badge <?php echo !empty($voucher['delivery_required']) ? 'svdp-type-delivery' : 'svdp-type-pickup'; ?>">
-                    <?php echo esc_html(!empty($voucher['delivery_required']) ? 'Delivery' : 'Pickup'); ?>
+                    <?php echo esc_html(!empty($voucher['delivery_required']) ? $delivery_copy['deliveryLabel'] : $delivery_copy['pickupLabel']); ?>
                 </span>
             </div>
             <h2><?php echo esc_html($voucher['first_name'] . ' ' . $voucher['last_name']); ?></h2>
@@ -58,7 +60,7 @@ $detail_refresh_trigger = $can_mutate_furniture
         </div>
         <div class="svdp-detail-item">
             <span class="svdp-detail-label">Delivery</span>
-            <span class="svdp-detail-value"><?php echo esc_html(!empty($voucher['delivery_required']) ? 'Yes' : 'No'); ?></span>
+            <span class="svdp-detail-value"><?php echo esc_html(!empty($voucher['delivery_required']) ? $delivery_copy['yesLabel'] : $delivery_copy['noLabel']); ?></span>
         </div>
     </div>
 
@@ -89,16 +91,16 @@ $detail_refresh_trigger = $can_mutate_furniture
     </section>
 
     <section class="svdp-cashier-info-panel">
-        <h3>Delivery Details</h3>
+        <h3><?php echo esc_html($delivery_copy['deliveryDetailsHeading']); ?></h3>
         <?php if (!empty($voucher['delivery_required']) && !empty($voucher['delivery_address_display'])): ?>
             <p>
                 <?php echo esc_html($voucher['delivery_address_display']); ?>
                 <?php if (empty($voucher['delivery_address_verified'])): ?>
-                    <br><small style="color:#b45309;">Address not verified</small>
+                    <br><small style="color:#b45309;"><?php echo esc_html($delivery_copy['addressNotVerified']); ?></small>
                 <?php endif; ?>
             </p>
         <?php else: ?>
-            <p>Pickup requested. No delivery address was provided.</p>
+            <p><?php echo esc_html($delivery_copy['pickupRequested']); ?></p>
         <?php endif; ?>
     </section>
 
@@ -387,7 +389,7 @@ $detail_refresh_trigger = $can_mutate_furniture
 
     <?php if ($voucher['status'] === 'Redeemed'): ?>
         <section class="svdp-cashier-info-panel">
-            <h3>Completion Documents</h3>
+            <h3><?php echo esc_html($document_copy['completionDocumentsHeading']); ?></h3>
             <?php if (!empty($voucher['furniture_completed_at'])): ?>
                 <p><strong>Completed:</strong> <?php echo esc_html(date('m/d/Y g:i A', strtotime($voucher['furniture_completed_at']))); ?></p>
             <?php endif; ?>
@@ -399,17 +401,17 @@ $detail_refresh_trigger = $can_mutate_furniture
             <?php endif; ?>
             <div class="svdp-document-links">
                 <?php if (!empty($voucher['receipt_file_url'])): ?>
-                    <a class="svdp-document-link" href="<?php echo esc_url($voucher['receipt_file_url']); ?>" target="_blank" rel="noopener noreferrer">Open Neighbor Receipt</a>
+                    <a class="svdp-document-link" href="<?php echo esc_url($voucher['receipt_file_url']); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html($document_copy['openNeighborReceiptLabel']); ?></a>
                 <?php endif; ?>
                 <?php if (!empty($voucher['invoice_file_url'])): ?>
-                    <a class="svdp-document-link" href="<?php echo esc_url($voucher['invoice_file_url']); ?>" target="_blank" rel="noopener noreferrer">Open Conference Invoice</a>
+                    <a class="svdp-document-link" href="<?php echo esc_url($voucher['invoice_file_url']); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html($document_copy['openConferenceInvoiceLabel']); ?></a>
                 <?php endif; ?>
             </div>
         </section>
     <?php elseif ($remaining_items === 0 && $can_mutate_furniture): ?>
         <section class="svdp-cashier-info-panel">
-            <h3>Complete Voucher</h3>
-            <p>All requested items are resolved. Completing this voucher will generate the neighbor receipt and stored conference invoice.</p>
+            <h3><?php echo esc_html($document_copy['completeVoucherHeading']); ?></h3>
+            <p><?php echo esc_html($document_copy['completeVoucherDescription']); ?></p>
             <form class="svdp-form" data-cashier-action="furniture-voucher-complete" data-voucher-id="<?php echo esc_attr($voucher['id']); ?>">
                 <div class="svdp-cashier-inline-summary">
                     <span>Items total: <?php echo esc_html(intval($item_progress['total'])); ?></span>
@@ -420,7 +422,7 @@ $detail_refresh_trigger = $can_mutate_furniture
                 </div>
 
                 <div class="svdp-inline-error" data-inline-error style="display: none;"></div>
-                <button type="submit" class="svdp-btn svdp-btn-primary">Complete Voucher & Generate Documents</button>
+                <button type="submit" class="svdp-btn svdp-btn-primary"><?php echo esc_html($document_copy['completeVoucherButton']); ?></button>
             </form>
         </section>
     <?php elseif ($remaining_items === 0): ?>

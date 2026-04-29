@@ -3,6 +3,9 @@
 
     const config = window.svdpCashierShell || {};
     const itemValues = window.svdpVouchers?.itemValues || { adult: 5.00, child: 3.00 };
+    const cashierCopy = (config.copy && config.copy.cashier) || {};
+    const coatCopy = (config.copy && config.copy.coat) || {};
+    const defaultVisibleCount = Number(config.defaultVisibleCount || 5);
 
     let keepaliveTimer = null;
     let pendingEmergencyAction = null;
@@ -33,7 +36,7 @@
         window.Alpine.store('cashier', {
             sessionLost: false,
             keepaliveState: 'idle',
-            keepaliveLabel: 'Connecting',
+            keepaliveLabel: cashierText('connecting'),
             emergencyOpen: false,
             activePanel: null,
             overrideOpen: false,
@@ -50,13 +53,21 @@
     function bindShellEvents() {
         document.body.addEventListener('click', handleClick);
         document.body.addEventListener('submit', handleSubmit);
-        document.body.addEventListener('input', handleInput);
+        document.body.addEventListener('input', handleInput, true);
+        document.body.addEventListener('change', handleChange, true);
         document.body.addEventListener('htmx:configRequest', handleHtmxConfig);
         document.body.addEventListener('htmx:afterSwap', handleHtmxAfterSwap);
         document.body.addEventListener('htmx:responseError', handleHtmxError);
     }
 
     function handleClick(event) {
+        const showMoreButton = event.target.closest('[data-cashier-show-more]');
+        if (showMoreButton) {
+            event.preventDefault();
+            showMoreVouchers(showMoreButton);
+            return;
+        }
+
         const voucherCard = event.target.closest('[data-voucher-card]');
         if (voucherCard) {
             shouldScrollDetailOnSwap = true;
@@ -137,6 +148,10 @@
     }
 
     function handleInput(event) {
+        if (event.target && event.target.id === 'svdpCashierSearch') {
+            resetVisibleCount();
+        }
+
         const form = event.target.closest('form[data-cashier-action]');
         if (!form) {
             return;
@@ -155,6 +170,16 @@
 
         if (action === 'furniture-complete') {
             validateFurnitureCompleteForm(form);
+        }
+    }
+
+    function handleChange(event) {
+        if (!event.target) {
+            return;
+        }
+
+        if (event.target.id === 'svdpCashierFilter' || event.target.id === 'svdpCashierSort') {
+            resetVisibleCount();
         }
     }
 
@@ -230,7 +255,7 @@
         const store = cashierStore();
         if (store) {
             store.keepaliveState = 'working';
-            store.keepaliveLabel = 'Keeping Session Live';
+            store.keepaliveLabel = cashierText('keepingSessionLive');
         }
 
         try {
@@ -244,7 +269,7 @@
 
             if (store) {
                 store.keepaliveState = 'ready';
-                store.keepaliveLabel = 'Shell Live';
+                store.keepaliveLabel = cashierText('shellLive');
             }
         } catch (error) {
             if (error.status === 401 || error.status === 403) {
@@ -254,7 +279,7 @@
 
             if (store) {
                 store.keepaliveState = 'warning';
-                store.keepaliveLabel = 'Connection Retrying';
+                store.keepaliveLabel = cashierText('connectionRetrying');
             }
         }
     }
@@ -264,7 +289,7 @@
         if (store) {
             store.sessionLost = true;
             store.keepaliveState = 'expired';
-            store.keepaliveLabel = 'Re-auth Required';
+            store.keepaliveLabel = cashierText('reauthRequired');
         }
 
         if (keepaliveTimer) {
@@ -281,7 +306,7 @@
                 return;
             }
 
-            select.innerHTML = '<option value="">Select a reason...</option>';
+            select.innerHTML = '<option value="">' + escapeHtml(cashierText('overrideReasonPlaceholder')) + '</option>';
             reasons.forEach(function(reason) {
                 const option = document.createElement('option');
                 option.value = String(reason.id);
@@ -289,7 +314,7 @@
                 select.appendChild(option);
             });
         } catch (error) {
-            showFlash('error', 'Override reasons could not be loaded.');
+            showFlash('error', cashierText('overrideReasonsLoadFailed'));
         }
     }
 
@@ -302,7 +327,7 @@
         const submitButton = form.querySelector('button[type="submit"]');
         const originalLabel = submitButton.textContent;
 
-        setButtonState(submitButton, true, 'Saving...');
+        setButtonState(submitButton, true, cashierText('saving'));
 
         try {
             const payload = {
@@ -317,10 +342,10 @@
             });
 
             collapsePanels();
-            showFlash('success', 'Voucher redeemed successfully. Estimated value: $' + response.redemption_value);
+            showFlash('success', formatText(cashierText('voucherRedeemedSuccessTemplate'), [response.redemption_value]));
             refreshShell(voucherId);
         } catch (error) {
-            showInlineError(form, extractErrorMessage(error, 'Failed to redeem voucher.'));
+            showInlineError(form, extractErrorMessage(error, cashierText('voucherRedeemFailed')));
         } finally {
             setButtonState(submitButton, false, originalLabel);
         }
@@ -335,7 +360,7 @@
         const submitButton = form.querySelector('button[type="submit"]');
         const originalLabel = submitButton.textContent;
 
-        setButtonState(submitButton, true, 'Saving...');
+        setButtonState(submitButton, true, cashierText('saving'));
 
         try {
             const payload = {
@@ -349,10 +374,10 @@
             });
 
             collapsePanels();
-            showFlash('success', 'Coats issued successfully. Total coats: ' + response.total + '.');
+            showFlash('success', formatText(cashierText('coatIssueSuccessTemplate'), [response.total]));
             refreshShell(voucherId);
         } catch (error) {
-            showInlineError(form, extractErrorMessage(error, 'Failed to issue coats.'));
+            showInlineError(form, extractErrorMessage(error, cashierText('coatIssueFailed')));
         } finally {
             setButtonState(submitButton, false, originalLabel);
         }
@@ -365,7 +390,7 @@
         const formData = collectEmergencyFormData(form);
 
         clearSectionMessage(messageBox);
-        setButtonState(submitButton, true, 'Checking...');
+        setButtonState(submitButton, true, cashierText('checking'));
 
         try {
             const duplicateResponse = await requestJSON(config.restUrl + 'svdp/v1/vouchers/check-duplicate', {
@@ -399,7 +424,7 @@
 
             await createEmergencyVoucher(form, formData);
         } catch (error) {
-            showSectionMessage(messageBox, extractErrorMessage(error, 'Unable to create the emergency voucher.'), 'error');
+            showSectionMessage(messageBox, extractErrorMessage(error, cashierText('emergencyCreateFailed')), 'error');
         } finally {
             setButtonState(submitButton, false, originalLabel);
         }
@@ -421,7 +446,7 @@
             store.emergencyOpen = false;
         }
 
-        showFlash('success', 'Emergency clothing voucher created successfully.');
+        showFlash('success', cashierText('emergencyCreateSuccess'));
         if (response.voucher_id) {
             refreshShell(response.voucher_id);
         } else {
@@ -479,12 +504,12 @@
         }
 
         if (!managerCode.value.trim() || managerCode.value.trim().length !== 6) {
-            showFlash('error', 'Enter a valid 6-digit manager code.');
+            showFlash('error', cashierText('managerCodeInvalid'));
             return;
         }
 
         if (!reasonSelect.value) {
-            showFlash('error', 'Select an override reason.');
+            showFlash('error', cashierText('overrideReasonRequired'));
             return;
         }
 
@@ -497,7 +522,7 @@
             });
 
             if (!validation.valid) {
-                showFlash('error', 'Manager code validation failed.');
+                showFlash('error', cashierText('managerCodeValidationFailed'));
                 return;
             }
 
@@ -512,7 +537,7 @@
 
             await createEmergencyVoucher(emergencyForm, formData);
         } catch (error) {
-            showFlash('error', extractErrorMessage(error, 'Unable to validate the override.'));
+            showFlash('error', extractErrorMessage(error, cashierText('overrideValidationFailed')));
         } finally {
             managerCode.value = '';
             reasonSelect.value = '';
@@ -529,11 +554,11 @@
                 '</div>';
         }).join('');
 
-        const html = '<strong>Similar Clothing Voucher Found</strong><br><br>' +
+        const html = '<strong>' + escapeHtml(cashierText('similarVoucherHeading')) + '</strong><br><br>' +
             matches +
             '<div class="svdp-similar-actions">' +
-            '<button type="button" class="svdp-btn svdp-btn-warning" data-similar-action="proceed">Create New Voucher</button>' +
-            '<button type="button" class="svdp-btn svdp-btn-secondary" data-similar-action="cancel">Cancel</button>' +
+            '<button type="button" class="svdp-btn svdp-btn-warning" data-similar-action="proceed">' + escapeHtml(cashierText('similarCreateButton')) + '</button>' +
+            '<button type="button" class="svdp-btn svdp-btn-secondary" data-similar-action="cancel">' + escapeHtml(cashierText('similarCancelButton')) + '</button>' +
             '</div>';
 
         showSectionMessage(messageBox, html, 'error');
@@ -558,7 +583,7 @@
             try {
                 await createEmergencyVoucher(emergencyForm, pendingEmergencyAction.formData);
             } catch (error) {
-                showSectionMessage(messageBox, extractErrorMessage(error, 'Unable to create the emergency voucher.'), 'error');
+                showSectionMessage(messageBox, extractErrorMessage(error, cashierText('emergencyCreateFailed')), 'error');
             }
         }
     }
@@ -578,10 +603,13 @@
                     adults: formData.adults,
                     children: formData.children,
                     conference: 'emergency',
-                    denialReason: 'Duplicate found: ' + duplicateData.firstName + ' ' + duplicateData.lastName +
-                        ' received a voucher from ' + duplicateData.conference +
-                        ' on ' + duplicateData.voucherCreatedDate +
-                        '. Next eligible: ' + duplicateData.nextEligibleDate,
+                    denialReason: formatText(cashierText('denialReasonTemplate'), [
+                        duplicateData.firstName,
+                        duplicateData.lastName,
+                        duplicateData.conference,
+                        duplicateData.voucherCreatedDate,
+                        duplicateData.nextEligibleDate
+                    ]),
                     createdBy: 'Cashier'
                 }
             });
@@ -598,7 +626,7 @@
         const originalLabel = submitButton ? submitButton.textContent : 'Upload Photo';
 
         if (!fileInput || !fileInput.files || !fileInput.files.length) {
-            showInlineError(form, 'Choose one photo to upload before continuing.');
+            showInlineError(form, cashierText('photoRequired'));
             return;
         }
 
@@ -606,7 +634,7 @@
         formData.append('photo', fileInput.files[0]);
 
         showInlineError(form, '');
-        setButtonState(submitButton, true, 'Uploading...');
+        setButtonState(submitButton, true, cashierText('uploading'));
 
         try {
             await requestJSON(config.restUrl + 'svdp/v1/cashier/vouchers/' + voucherId + '/items/' + itemId + '/photo', {
@@ -614,10 +642,10 @@
                 formData: formData
             });
 
-            showFlash('success', 'Photo uploaded successfully.');
+            showFlash('success', cashierText('photoUploadSuccess'));
             refreshShell(voucherId);
         } catch (error) {
-            showInlineError(form, extractErrorMessage(error, 'Failed to upload the photo.'));
+            showInlineError(form, extractErrorMessage(error, cashierText('photoUploadFailed')));
         } finally {
             if (fileInput) {
                 fileInput.value = '';
@@ -637,7 +665,7 @@
         const submitButton = form.querySelector('button[type="submit"]');
         const originalLabel = submitButton ? submitButton.textContent : 'Mark Completed';
 
-        setButtonState(submitButton, true, 'Saving...');
+        setButtonState(submitButton, true, cashierText('saving'));
 
         try {
             await requestJSON(config.restUrl + 'svdp/v1/cashier/vouchers/' + voucherId + '/items/' + itemId + '/complete', {
@@ -648,10 +676,10 @@
                 }
             });
 
-            showFlash('success', 'Furniture item marked completed.');
+            showFlash('success', cashierText('furnitureItemCompleted'));
             refreshShell(voucherId);
         } catch (error) {
-            showInlineError(form, extractErrorMessage(error, 'Failed to complete the furniture item.'));
+            showInlineError(form, extractErrorMessage(error, cashierText('furnitureItemCompleteFailed')));
         } finally {
             setButtonState(submitButton, false, originalLabel);
         }
@@ -677,7 +705,7 @@
             payload.substituteItemName = form.elements.substituteItemName.value.trim();
         }
 
-        setButtonState(submitButton, true, 'Saving...');
+        setButtonState(submitButton, true, cashierText('saving'));
 
         try {
             await requestJSON(config.restUrl + 'svdp/v1/cashier/vouchers/' + voucherId + '/items/' + itemId + '/substitute', {
@@ -685,10 +713,10 @@
                 data: payload
             });
 
-            showFlash('success', 'Substitute item saved.');
+            showFlash('success', cashierText('substituteSaved'));
             refreshShell(voucherId);
         } catch (error) {
-            showInlineError(form, extractErrorMessage(error, 'Failed to save the substitute item.'));
+            showInlineError(form, extractErrorMessage(error, cashierText('substituteSaveFailed')));
         } finally {
             setButtonState(submitButton, false, originalLabel);
         }
@@ -704,7 +732,7 @@
         const submitButton = form.querySelector('button[type="submit"]');
         const originalLabel = submitButton ? submitButton.textContent : 'Confirm Cancellation';
 
-        setButtonState(submitButton, true, 'Saving...');
+        setButtonState(submitButton, true, cashierText('saving'));
 
         try {
             await requestJSON(config.restUrl + 'svdp/v1/cashier/vouchers/' + voucherId + '/items/' + itemId + '/cancel', {
@@ -715,10 +743,10 @@
                 }
             });
 
-            showFlash('success', 'Furniture item cancelled.');
+            showFlash('success', cashierText('furnitureItemCancelled'));
             refreshShell(voucherId);
         } catch (error) {
-            showInlineError(form, extractErrorMessage(error, 'Failed to cancel the furniture item.'));
+            showInlineError(form, extractErrorMessage(error, cashierText('furnitureItemCancelFailed')));
         } finally {
             setButtonState(submitButton, false, originalLabel);
         }
@@ -727,10 +755,10 @@
     async function submitFurnitureVoucherComplete(form) {
         const voucherId = form.getAttribute('data-voucher-id');
         const submitButton = form.querySelector('button[type="submit"]');
-        const originalLabel = submitButton ? submitButton.textContent : 'Complete Voucher';
+        const originalLabel = submitButton ? submitButton.textContent : cashierText('furnitureVoucherCompleteFallback');
 
         showInlineError(form, '');
-        setButtonState(submitButton, true, 'Generating...');
+        setButtonState(submitButton, true, cashierText('generating'));
 
         try {
             const response = await requestJSON(config.restUrl + 'svdp/v1/cashier/vouchers/' + voucherId + '/complete', {
@@ -738,11 +766,13 @@
                 data: {}
             });
 
-            const invoiceLabel = response.invoiceNumber ? ' ' + response.invoiceNumber : '';
-            showFlash('success', 'Furniture voucher completed.' + (invoiceLabel ? ' Invoice ' + invoiceLabel + ' generated.' : ''));
+            const invoiceMessage = response.invoiceNumber
+                ? formatText(cashierText('furnitureVoucherInvoiceGeneratedTemplate'), [response.invoiceNumber])
+                : '';
+            showFlash('success', formatText(cashierText('furnitureVoucherCompletedTemplate'), [invoiceMessage]));
             refreshShell(voucherId);
         } catch (error) {
-            showInlineError(form, extractErrorMessage(error, 'Failed to complete the furniture voucher.'));
+            showInlineError(form, extractErrorMessage(error, cashierText('furnitureVoucherCompleteFailed')));
         } finally {
             setButtonState(submitButton, false, originalLabel);
         }
@@ -771,12 +801,29 @@
         });
     }
 
+    function showMoreVouchers(button) {
+        const visibleInput = document.getElementById('svdpCashierVisibleCount');
+        if (!visibleInput) {
+            return;
+        }
+
+        visibleInput.value = String(parseNumber(button.getAttribute('data-next-visible-count')) || defaultVisibleCount);
+        window.htmx.trigger(document.body, 'svdp:list-refresh');
+    }
+
+    function resetVisibleCount() {
+        const visibleInput = document.getElementById('svdpCashierVisibleCount');
+        if (visibleInput) {
+            visibleInput.value = String(defaultVisibleCount);
+        }
+    }
+
     function validateFurnitureCompleteForm(form) {
         const actualPrice = parseDecimal(form.elements.actualPrice.value);
         const errors = [];
 
         if (!Number.isFinite(actualPrice) || actualPrice <= 0) {
-            errors.push('Enter an actual price greater than zero.');
+            errors.push(cashierText('actualPriceRequired'));
         }
 
         showInlineError(form, errors.join(' '));
@@ -788,11 +835,11 @@
         const errors = [];
 
         if (substitutionType === 'catalog' && !parseNumber(form.elements.substituteCatalogItemId.value)) {
-            errors.push('Choose a catalog item for the substitute.');
+            errors.push(cashierText('substituteCatalogRequired'));
         }
 
         if (substitutionType === 'free_text' && !form.elements.substituteItemName.value.trim()) {
-            errors.push('Enter a substitute item name.');
+            errors.push(cashierText('substituteNameRequired'));
         }
 
         showInlineError(form, errors.join(' '));
@@ -803,7 +850,7 @@
         const errors = [];
 
         if (!parseNumber(form.elements.cancellationReasonId.value)) {
-            errors.push('Choose a cancellation reason.');
+            errors.push(cashierText('cancellationReasonRequired'));
         }
 
         showInlineError(form, errors.join(' '));
@@ -821,26 +868,26 @@
 
         const totalLabel = form.querySelector('[data-redemption-total]');
         if (totalLabel) {
-            totalLabel.textContent = 'Current total: ' + totalItems + ' of ' + maxTotalItems;
+            totalLabel.textContent = formatText(cashierText('currentRedemptionTotalTemplate'), [totalItems, maxTotalItems]);
         }
 
         const valueLabel = form.querySelector('[data-redemption-value]');
         if (valueLabel) {
-            valueLabel.textContent = 'Estimated value: $' + estimatedValue.toFixed(2);
+            valueLabel.textContent = formatText(cashierText('estimatedValueTemplate'), [estimatedValue.toFixed(2)]);
         }
 
         const errors = [];
         if (adultItems > maxAdultItems) {
-            errors.push('Adult items exceed the allowed maximum.');
+            errors.push(cashierText('adultItemsMaxExceeded'));
         }
         if (childItems > maxChildItems) {
-            errors.push('Child items exceed the allowed maximum.');
+            errors.push(cashierText('childItemsMaxExceeded'));
         }
         if (totalItems > maxTotalItems) {
-            errors.push('Total items exceed the voucher limit.');
+            errors.push(cashierText('totalItemsMaxExceeded'));
         }
         if (totalItems === 0) {
-            errors.push('Enter at least one redeemed item.');
+            errors.push(cashierText('redeemedItemRequired'));
         }
 
         showInlineError(form, errors.join(' '));
@@ -878,20 +925,20 @@
 
         const totalLabel = form.querySelector('[data-coat-total]');
         if (totalLabel) {
-            totalLabel.textContent = 'Total coats: ' + totalCoats;
+            totalLabel.textContent = formatText(coatText('totalCoatsTemplate'), [totalCoats]);
         }
 
         const errors = [];
         if (adultCoats === 0 && childCoats === 0) {
-            errors.push('Issue at least one coat.');
+            errors.push(coatText('issueAtLeastOne'));
         }
 
         if (adultCoats > parseNumber(form.elements.adults.getAttribute('max'))) {
-            errors.push('Adult coats exceed the household count.');
+            errors.push(coatText('adultCoatsExceedHousehold'));
         }
 
         if (childCoats > parseNumber(form.elements.children.getAttribute('max'))) {
-            errors.push('Children\'s coats exceed the household count.');
+            errors.push(coatText('childCoatsExceedHousehold'));
         }
 
         showInlineError(form, errors.join(' '));
@@ -1038,6 +1085,26 @@
     function parseDecimal(value) {
         const parsed = parseFloat(value);
         return Number.isNaN(parsed) ? NaN : parsed;
+    }
+
+    function cashierText(key, fallback) {
+        return cashierCopy[key] || fallback || key;
+    }
+
+    function coatText(key, fallback) {
+        return coatCopy[key] || fallback || key;
+    }
+
+    function formatText(template, values) {
+        const replacements = Array.isArray(values) ? values : [values];
+        let index = 0;
+
+        return String(template).replace(/%s/g, function() {
+            const value = replacements[index] == null ? '' : replacements[index];
+            index++;
+
+            return String(value);
+        });
     }
 
     function escapeHtml(value) {

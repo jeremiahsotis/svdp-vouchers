@@ -1131,7 +1131,7 @@ class SVDP_Voucher {
         $result = $wpdb->update($table, $update_data, ['id' => $id]);
 
         if ($result === false) {
-            return new WP_Error('update_failed', 'Failed to update status', ['status' => 500]);
+            return new WP_Error('update_failed', SVDP_Voucher_Copy::get_cashier_message('statusUpdateFailed'), ['status' => 500]);
         }
 
         return rest_ensure_response([
@@ -1152,14 +1152,15 @@ class SVDP_Voucher {
         $params = self::get_request_data($request);
         $adults = intval($params['adults']);
         $children = intval($params['children']);
+        $coat_copy = SVDP_Voucher_Copy::get_coat_copy();
     
         // Validate that at least one coat is being issued
         if ($adults < 0 || $children < 0) {
-            return new WP_Error('invalid_input', 'Invalid coat counts', ['status' => 400]);
+            return new WP_Error('invalid_input', $coat_copy['invalidCounts'], ['status' => 400]);
         }
     
         if ($adults === 0 && $children === 0) {
-            return new WP_Error('invalid_input', 'Must issue at least one coat', ['status' => 400]);
+            return new WP_Error('invalid_input', $coat_copy['mustIssueAtLeastOne'], ['status' => 400]);
         }
 
         // Check coat eligibility before allowing issuance
@@ -1183,7 +1184,7 @@ class SVDP_Voucher {
 
                 return new WP_Error(
                     'coat_not_eligible',
-                    'This household already received a coat this season. Next eligible date: ' . $next_august->format('F j, Y'),
+                    SVDP_Voucher_Copy::format($coat_copy['alreadyReceivedTemplate'], [$next_august->format('F j, Y')]),
                     ['status' => 403]
                 );
             }
@@ -1199,7 +1200,7 @@ class SVDP_Voucher {
         $result = $wpdb->update($table, $update_data, ['id' => $id]);
     
         if ($result === false) {
-            return new WP_Error('update_failed', 'Failed to update coat status', ['status' => 500]);
+            return new WP_Error('update_failed', $coat_copy['updateFailed'], ['status' => 500]);
         }
 
         return rest_ensure_response([
@@ -1253,7 +1254,11 @@ class SVDP_Voucher {
         // Build email
         $to = $voucher->notification_email;
         $voucher_type_label = ucfirst(self::normalize_voucher_type($voucher->voucher_type));
-        $subject = 'New ' . $voucher_type_label . ' Voucher Created - ' . $voucher->first_name . ' ' . $voucher->last_name;
+        $email_copy = SVDP_Voucher_Copy::get_email_copy();
+        $subject = SVDP_Voucher_Copy::format($email_copy['subjectTemplate'], [
+            $voucher_type_label,
+            $voucher->first_name . ' ' . $voucher->last_name,
+        ]);
         
         $household_size = intval($voucher->adults) + intval($voucher->children);
         $voucher_amount = floatval($voucher->voucher_value);
@@ -1277,6 +1282,8 @@ class SVDP_Voucher {
         $voucher_type = self::normalize_voucher_type($voucher->voucher_type);
         $is_furniture = $voucher_type === 'furniture';
         $pricing_copy = SVDP_Voucher_Rules::get_pricing_copy();
+        $email_copy = SVDP_Voucher_Copy::get_email_copy();
+        $delivery_copy = SVDP_Voucher_Copy::get_delivery_copy();
         $commitment_min = $is_furniture && $furniture_meta && $furniture_meta->estimated_requestor_portion_min !== null
             ? (float) $furniture_meta->estimated_requestor_portion_min
             : null;
@@ -1324,73 +1331,73 @@ class SVDP_Voucher {
         <body>
             <div class="container">
                 <div class="header">
-                    <h2 style="margin: 0;">New Voucher Created</h2>
+                    <h2 style="margin: 0;"><?php echo esc_html($email_copy['headerTitle']); ?></h2>
                     <p style="margin: 5px 0 0 0;"><?php echo esc_html($voucher->conference_name); ?></p>
                 </div>
                 
                 <div class="content">
-                    <p>A new virtual <?php echo esc_html($voucher_type); ?> voucher has been created for your conference.</p>
+                    <p><?php echo esc_html(SVDP_Voucher_Copy::format($email_copy['createdIntroTemplate'], [$voucher_type])); ?></p>
                     
                     <div class="info-box">
-                        <p><span class="label">Neighbor:</span> <?php echo esc_html($voucher->first_name . ' ' . $voucher->last_name); ?></p>
-                        <p><span class="label">Date of Birth:</span> <?php echo esc_html($voucher->dob); ?></p>
-                        <p><span class="label">Household Size:</span> <?php echo esc_html($household_size); ?> (<?php echo esc_html($voucher->adults); ?> adults, <?php echo esc_html($voucher->children); ?> children)</p>
-                        <p><span class="label">Voucher Type:</span> <?php echo esc_html(ucfirst($voucher_type)); ?></p>
+                        <p><span class="label"><?php echo esc_html($email_copy['neighborLabel']); ?>:</span> <?php echo esc_html($voucher->first_name . ' ' . $voucher->last_name); ?></p>
+                        <p><span class="label"><?php echo esc_html($email_copy['dateOfBirthLabel']); ?>:</span> <?php echo esc_html($voucher->dob); ?></p>
+                        <p><span class="label"><?php echo esc_html($email_copy['householdSizeLabel']); ?>:</span> <?php echo esc_html($household_size); ?> (<?php echo esc_html($voucher->adults); ?> adults, <?php echo esc_html($voucher->children); ?> children)</p>
+                        <p><span class="label"><?php echo esc_html($email_copy['voucherTypeLabel']); ?>:</span> <?php echo esc_html(ucfirst($voucher_type)); ?></p>
                         <?php if ($is_furniture): ?>
-                            <p><span class="label">Requested Items:</span> <?php echo esc_html(intval($voucher->voucher_items_count)); ?></p>
+                            <p><span class="label"><?php echo esc_html($email_copy['requestedItemsLabel']); ?>:</span> <?php echo esc_html(intval($voucher->voucher_items_count)); ?></p>
                             <p><span class="label"><?php echo esc_html($pricing_copy['maximumCommitmentLabel']); ?>:</span> <?php echo esc_html($maximum_commitment_display); ?></p>
                             <?php if (!empty($furniture_meta->delivery_required)): ?>
                                 <p><span class="label"><?php echo esc_html($pricing_copy['deliveryFeeLabel']); ?>:</span> <?php echo esc_html('$' . number_format($delivery_fee_amount, 2)); ?></p>
                                 <p><span class="label"><?php echo esc_html($pricing_copy['totalMaximumCommitmentLabel']); ?>:</span> <?php echo esc_html($total_commitment_display); ?></p>
                             <?php endif; ?>
                         <?php else: ?>
-                            <p><span class="label">Voucher Amount:</span> <?php echo esc_html($maximum_commitment_display); ?></p>
+                            <p><span class="label"><?php echo esc_html($email_copy['voucherAmountLabel']); ?>:</span> <?php echo esc_html($maximum_commitment_display); ?></p>
                         <?php endif; ?>
                     </div>
                     
                     <div class="info-box">
-                        <p><span class="label">Created:</span> <?php echo $created->format('l, F j, Y \a\t g:i A'); ?></p>
-                        <p><span class="label">Expires:</span> <?php echo $expires->format('l, F j, Y'); ?></p>
+                        <p><span class="label"><?php echo esc_html($email_copy['createdLabel']); ?>:</span> <?php echo $created->format('l, F j, Y \a\t g:i A'); ?></p>
+                        <p><span class="label"><?php echo esc_html($email_copy['expiresLabel']); ?>:</span> <?php echo $expires->format('l, F j, Y'); ?></p>
                     </div>
 
                     <?php if ($is_furniture && $furniture_meta): ?>
                         <div class="info-box">
-                            <p><span class="label">Delivery:</span> <?php echo !empty($furniture_meta->delivery_required) ? 'Yes' : 'No'; ?></p>
+                            <p><span class="label"><?php echo esc_html($email_copy['deliveryLabel']); ?>:</span> <?php echo esc_html(!empty($furniture_meta->delivery_required) ? $delivery_copy['yesLabel'] : $delivery_copy['noLabel']); ?></p>
                             <?php if (!empty($furniture_meta->delivery_required) && $delivery_address !== ''): ?>
-                                <p><span class="label">Delivery Address:</span> <?php echo esc_html($delivery_address); ?></p>
+                                <p><span class="label"><?php echo esc_html($email_copy['deliveryAddressLabel']); ?>:</span> <?php echo esc_html($delivery_address); ?></p>
                             <?php endif; ?>
                         </div>
                     <?php endif; ?>
                     
                     <div class="highlight">
-                        <p style="margin: 0;"><strong>⏱️ Reminder:</strong> <?php echo esc_html(SVDP_Voucher_Rules::get_redemption_rule_text()); ?></p>
+                        <p style="margin: 0;"><strong><?php echo esc_html($email_copy['reminderLabel']); ?>:</strong> <?php echo esc_html(SVDP_Voucher_Rules::get_redemption_rule_text()); ?></p>
                     </div>
                     
                     <div class="info-box">
-                        <p><span class="label">Created By:</span> <?php echo esc_html($voucher->vincentian_name); ?></p>
-                        <p><span class="label">Vincentian Email:</span> <a href="mailto:<?php echo esc_attr($voucher->vincentian_email); ?>"><?php echo esc_html($voucher->vincentian_email); ?></a></p>
+                        <p><span class="label"><?php echo esc_html($email_copy['createdByLabel']); ?>:</span> <?php echo esc_html($voucher->vincentian_name); ?></p>
+                        <p><span class="label"><?php echo esc_html($email_copy['vincentianEmailLabel']); ?>:</span> <a href="mailto:<?php echo esc_attr($voucher->vincentian_email); ?>"><?php echo esc_html($voucher->vincentian_email); ?></a></p>
                     </div>
                     
-                    <p><strong>What the Neighbor needs to know:</strong></p>
+                    <p><strong><?php echo esc_html($email_copy['neighborNeedsHeading']); ?></strong></p>
                     <?php if ($is_furniture): ?>
                         <ul>
-                            <li>The requested items are saved and visible to the cashier team.</li>
+                            <li><?php echo esc_html($email_copy['furnitureItemsSaved']); ?></li>
                             <li><?php echo esc_html($pricing_copy['pricingExplanation']); ?></li>
                             <li><?php echo esc_html($pricing_copy['pricingRule']); ?></li>
-                            <li>Delivery details are included when requested.</li>
+                            <li><?php echo esc_html($email_copy['deliveryDetailsIncluded']); ?></li>
                         </ul>
                     <?php else: ?>
                         <ul>
-                            <li>Thrift Store hours: 9:30 AM – 4:00 PM</li>
-                            <li>Stop by Customer Service before shopping</li>
+                            <li><?php echo esc_html($email_copy['clothingStoreHours']); ?></li>
+                            <li><?php echo esc_html($email_copy['clothingCustomerService']); ?></li>
                             <li><?php echo esc_html(SVDP_Voucher_Rules::get_redemption_rule_text()); ?></li>
                         </ul>
                     <?php endif; ?>
                 </div>
                 
                 <div class="footer">
-                    <p>This is an automated notification from the SVdP Virtual Voucher System.</p>
-                    <p>For questions, please contact the Vincentian listed above.</p>
+                    <p><?php echo esc_html($email_copy['automatedFooter']); ?></p>
+                    <p><?php echo esc_html($email_copy['questionsFooter']); ?></p>
                 </div>
             </div>
         </body>
@@ -1530,10 +1537,11 @@ class SVDP_Voucher {
         $delivery_address_normalized = $voucher->delivery_normalized_address ?? '';
         $delivery_address_verified = !empty($voucher->delivery_verified);
         $delivery_address_display = $raw_delivery_display;
+        $delivery_copy = SVDP_Voucher_Copy::get_delivery_copy();
 
         if ($delivery_address_verified && !empty($delivery_address_normalized)) {
             if (strcasecmp(trim($delivery_address_normalized), trim($raw_delivery_display)) !== 0) {
-                $delivery_address_display = $raw_delivery_display . ' (verified)';
+                $delivery_address_display = $raw_delivery_display . ' ' . $delivery_copy['verifiedSuffix'];
             }
         }
 

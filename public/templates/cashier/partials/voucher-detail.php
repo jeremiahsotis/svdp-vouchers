@@ -16,6 +16,7 @@ $show_redeem_panel = $voucher['status'] === 'Active';
 $show_coat_panel = in_array($voucher['status'], ['Active', 'Redeemed'], true)
     && $voucher['coat_eligible']
     && $voucher['coat_status'] !== 'Issued';
+$coat_copy = SVDP_Voucher_Copy::get_coat_copy();
 ?>
 <div
     class="svdp-cashier-detail"
@@ -76,14 +77,14 @@ $show_coat_panel = in_array($voucher['status'], ['Active', 'Redeemed'], true)
 
     <?php if ($voucher['coat_status'] === 'Issued' && !empty($voucher['coat_issued_date'])): ?>
         <div class="svdp-coat-info issued">
-            Coats Issued: <?php echo esc_html($voucher['coat_adults_issued']); ?> adults, <?php echo esc_html($voucher['coat_children_issued']); ?> children on <?php echo esc_html($voucher['coat_issued_date']); ?>
+            <?php echo esc_html(SVDP_Voucher_Copy::format($coat_copy['coatsIssuedTemplate'], [$voucher['coat_adults_issued'], $voucher['coat_children_issued'], $voucher['coat_issued_date']])); ?>
         </div>
     <?php elseif (!$voucher['coat_eligible']): ?>
         <div class="svdp-coat-info not-eligible">
-            Coat not eligible until <?php echo esc_html($voucher['coat_eligible_after']); ?>
+            <?php echo esc_html(SVDP_Voucher_Copy::format($coat_copy['notEligibleUntilTemplate'], [$voucher['coat_eligible_after']])); ?>
         </div>
     <?php else: ?>
-        <div class="svdp-coat-info eligible">Coat Available</div>
+        <div class="svdp-coat-info eligible"><?php echo esc_html($coat_copy['availableMessage']); ?></div>
     <?php endif; ?>
 
     <?php if ($show_redeem_panel || $show_coat_panel): ?>
@@ -138,11 +139,11 @@ $show_coat_panel = in_array($voucher['status'], ['Active', 'Redeemed'], true)
                 <section class="svdp-cashier-info-panel">
                     <div class="svdp-cashier-panel-header">
                         <div>
-                            <h3>Issue Winter Coats</h3>
-                            <p>Record coat issuance without leaving the selected voucher.</p>
+                            <h3><?php echo esc_html($coat_copy['issueWinterCoatsHeading']); ?></h3>
+                            <p><?php echo esc_html($coat_copy['issueWinterCoatsDescription']); ?></p>
                         </div>
                         <button type="button" class="svdp-btn svdp-btn-secondary" @click="$store.cashier.activePanel = $store.cashier.activePanel === 'coat-<?php echo esc_attr($toggle_prefix); ?>' ? null : 'coat-<?php echo esc_attr($toggle_prefix); ?>'">
-                            Issue Coat
+                            <?php echo esc_html($coat_copy['issueCoatButton']); ?>
                         </button>
                     </div>
 
@@ -155,24 +156,24 @@ $show_coat_panel = in_array($voucher['status'], ['Active', 'Redeemed'], true)
                     >
                         <div class="svdp-form-row">
                             <div class="svdp-form-group">
-                                <label>Adult Coats *</label>
+                                <label><?php echo esc_html($coat_copy['adultCoatsLabel']); ?></label>
                                 <input type="number" name="adults" min="0" max="<?php echo esc_attr($voucher['adults']); ?>" value="<?php echo esc_attr($voucher['adults']); ?>" required>
-                                <small class="svdp-help-text">Maximum: <?php echo esc_html($voucher['adults']); ?> adult coats</small>
+                                <small class="svdp-help-text"><?php echo esc_html(SVDP_Voucher_Copy::format($coat_copy['adultCoatsMaximumTemplate'], [$voucher['adults']])); ?></small>
                             </div>
                             <div class="svdp-form-group">
-                                <label>Children's Coats *</label>
+                                <label><?php echo esc_html($coat_copy['childCoatsLabel']); ?></label>
                                 <input type="number" name="children" min="0" max="<?php echo esc_attr($voucher['children']); ?>" value="<?php echo esc_attr($voucher['children']); ?>" required>
-                                <small class="svdp-help-text">Maximum: <?php echo esc_html($voucher['children']); ?> children's coats</small>
+                                <small class="svdp-help-text"><?php echo esc_html(SVDP_Voucher_Copy::format($coat_copy['childCoatsMaximumTemplate'], [$voucher['children']])); ?></small>
                             </div>
                         </div>
 
                         <div class="svdp-cashier-inline-summary">
-                            <span data-coat-total>Total coats: <?php echo esc_html($household_total); ?></span>
+                            <span data-coat-total><?php echo esc_html(SVDP_Voucher_Copy::format($coat_copy['totalCoatsTemplate'], [$household_total])); ?></span>
                         </div>
 
                         <div class="svdp-inline-error" data-inline-error style="display: none;"></div>
 
-                        <button type="submit" class="svdp-btn svdp-btn-primary">Issue Coats</button>
+                        <button type="submit" class="svdp-btn svdp-btn-primary"><?php echo esc_html($coat_copy['issueCoatsButton']); ?></button>
                     </form>
                 </section>
             <?php endif; ?>

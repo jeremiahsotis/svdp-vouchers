@@ -49,6 +49,7 @@
             addressSuggestions: []
         };
         const PRICING_COPY = (svdpVouchers.copy && svdpVouchers.copy.pricing) || {};
+        const REQUEST_COPY = (svdpVouchers.copy && svdpVouchers.copy.request) || {};
 
         initializeDateInput();
         initializeVoucherTypeControls();
@@ -1198,15 +1199,15 @@
         }
 
         function buildClothingSuccessMessage(response) {
-            let message = '<strong>✅ Voucher Created Successfully!</strong><br><br>';
-            message += 'The voucher has been created and is ready to use immediately.<br><br>';
-            message += '<strong>Important Reminders:</strong><br>';
-            message += '• Thrift Store hours: 9:30 AM – 4:00 PM<br>';
-            message += '• Ask your Neighbor to check in at Customer Service before shopping<br>';
-            message += '• This household can receive another voucher after: <strong>' + escapeHtml(response.nextEligibleDate) + '</strong><br>';
+            let message = '<strong>✅ ' + escapeHtml(getRequestCopy('clothingSuccessTitle')) + '</strong><br><br>';
+            message += escapeHtml(getRequestCopy('clothingReadyText')) + '<br><br>';
+            message += '<strong>' + escapeHtml(getRequestCopy('importantRemindersHeading')) + '</strong><br>';
+            message += '• ' + escapeHtml(getRequestCopy('thriftStoreHoursText')) + '<br>';
+            message += '• ' + escapeHtml(getRequestCopy('customerServiceReminder')) + '<br>';
+            message += '• ' + formatRequestCopy('nextEligibleTemplate', '<strong>' + escapeHtml(response.nextEligibleDate) + '</strong>') + '<br>';
 
             if (response.coatEligibleAfter) {
-                message += '• Winter coat eligible after: <strong>' + escapeHtml(response.coatEligibleAfter) + '</strong>';
+                message += '• ' + formatRequestCopy('coatEligibleAfterTemplate', '<strong>' + escapeHtml(response.coatEligibleAfter) + '</strong>');
             }
 
             return message;
@@ -1296,6 +1297,14 @@
 
         function getPricingCopy(key) {
             return PRICING_COPY[key] || key;
+        }
+
+        function getRequestCopy(key) {
+            return REQUEST_COPY[key] || key;
+        }
+
+        function formatRequestCopy(key, value) {
+            return escapeHtml(getRequestCopy(key)).replace('%s', value);
         }
 
         function normalizeSearchQuery(value) {

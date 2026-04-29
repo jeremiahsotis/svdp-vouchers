@@ -6,7 +6,7 @@ if (!defined('ABSPATH')) {
 class SVDP_Voucher_Rules {
 
     public static function get_redemption_rule_text() {
-        return 'This voucher expires 30 days after issuance. It must be redeemed in one visit; remaining items cannot be saved for a later visit.';
+        return SVDP_Voucher_Copy::get_redemption_rule_text();
     }
 
     public static function get_selected_item_retail_maximum_label() {
@@ -80,12 +80,13 @@ class SVDP_Voucher_Rules {
     }
 
     public static function get_client_copy_payload() {
-        return [
-            'pricing' => self::get_pricing_copy(),
-            'rules' => [
-                'redemptionRuleText' => self::get_redemption_rule_text(),
-            ],
+        $copy = SVDP_Voucher_Copy::get_client_copy_payload();
+        $copy['pricing'] = self::get_pricing_copy();
+        $copy['rules'] = [
+            'redemptionRuleText' => self::get_redemption_rule_text(),
         ];
+
+        return $copy;
     }
 
 }

@@ -1,5 +1,7 @@
 <?php
 $login_url = wp_login_url(is_singular() ? get_permalink() : home_url('/'));
+$cashier_copy = SVDP_Voucher_Copy::get_cashier_copy();
+$cashier_connecting_json = esc_attr(wp_json_encode($cashier_copy['connecting']));
 ?>
 <div class="svdp-cashier-shell" data-svdp-cashier-shell x-data x-cloak>
     <div class="svdp-cashier-session-overlay" x-show="$store.cashier && $store.cashier.sessionLost">
@@ -18,7 +20,7 @@ $login_url = wp_login_url(is_singular() ? get_permalink() : home_url('/'));
 
         <div class="svdp-cashier-shell-utility">
             <div class="svdp-shell-status" :class="'is-' + ($store.cashier ? $store.cashier.keepaliveState : 'idle')">
-                <span x-text="$store.cashier ? $store.cashier.keepaliveLabel : 'Connecting'">Connecting</span>
+                <span x-text="$store.cashier ? $store.cashier.keepaliveLabel : <?php echo $cashier_connecting_json; ?>"><?php echo esc_html($cashier_copy['connecting']); ?></span>
             </div>
             <button type="button" class="svdp-btn svdp-btn-secondary" @click="$store.cashier.emergencyOpen = !$store.cashier.emergencyOpen">
                 Emergency Voucher
@@ -30,6 +32,7 @@ $login_url = wp_login_url(is_singular() ? get_permalink() : home_url('/'));
 
     <form id="svdpCashierFilters" class="svdp-cashier-toolbar" onsubmit="return false;">
         <input type="hidden" id="svdpSelectedVoucherId" name="selected_id" value="">
+        <input type="hidden" id="svdpCashierVisibleCount" name="visible_count" value="<?php echo esc_attr(SVDP_Cashier_Shell::DEFAULT_VISIBLE_COUNT); ?>">
 
         <div class="svdp-search-box">
             <label class="screen-reader-text" for="svdpCashierSearch">Search vouchers</label>
@@ -83,7 +86,7 @@ $login_url = wp_login_url(is_singular() ? get_permalink() : home_url('/'));
 
             <section id="svdpCashierDetailPanel" class="svdp-cashier-side-card svdp-cashier-detail-panel">
                 <?php
-                $message = 'Select a voucher from the list to review its details.';
+                $message = SVDP_Voucher_Copy::get_cashier_message('emptyDetailMessage');
                 include SVDP_VOUCHERS_PLUGIN_DIR . 'public/templates/cashier/partials/detail-empty.php';
                 ?>
             </section>

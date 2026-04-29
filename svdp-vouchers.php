@@ -24,6 +24,7 @@ require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-database.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-settings.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-permissions.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-conference.php';
+require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-voucher-copy.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-voucher-rules.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-voucher.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-furniture-catalog.php';
@@ -548,7 +549,8 @@ class SVDP_Vouchers_Plugin {
             wp_enqueue_script('svdp-htmx', SVDP_VOUCHERS_PLUGIN_URL . 'public/vendor/htmx.min.js', [], '1.9.12', true);
             wp_enqueue_script('svdp-alpine', SVDP_VOUCHERS_PLUGIN_URL . 'public/vendor/alpine.min.js', [], '3.14.9', true);
             wp_script_add_data('svdp-alpine', 'defer', true);
-            wp_add_inline_script('svdp-alpine', <<<'JS'
+            $cashier_shell_connecting = wp_json_encode(SVDP_Voucher_Copy::get_cashier_message('connecting'));
+            wp_add_inline_script('svdp-alpine', <<<JS
 document.addEventListener('alpine:init', function() {
     if (!window.Alpine || window.Alpine.store('cashier')) {
         return;
@@ -557,7 +559,7 @@ document.addEventListener('alpine:init', function() {
     window.Alpine.store('cashier', {
         sessionLost: false,
         keepaliveState: 'idle',
-        keepaliveLabel: 'Connecting',
+        keepaliveLabel: {$cashier_shell_connecting},
         emergencyOpen: false,
         activePanel: null,
         overrideOpen: false,
@@ -571,6 +573,9 @@ JS, 'before');
                 'nonce' => wp_create_nonce('wp_rest'),
                 'loginUrl' => wp_login_url($this->current_frontend_url()),
                 'pingInterval' => 60000,
+                'defaultVisibleCount' => 5,
+                'visibleIncrement' => 5,
+                'copy' => SVDP_Voucher_Rules::get_client_copy_payload(),
             ]);
         }
     }

@@ -1,12 +1,14 @@
 <?php
 $delivery_required = !empty($voucher['delivery_required']);
 $completed_date = !empty($voucher['furniture_completed_at']) ? $voucher['furniture_completed_at'] : current_time('mysql');
+$delivery_copy = SVDP_Voucher_Copy::get_delivery_copy();
+$document_copy = SVDP_Voucher_Copy::get_document_copy();
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Furniture Receipt</title>
+    <title><?php echo esc_html($document_copy['neighborReceiptTitle']); ?></title>
     <style>
         body { font-family: Arial, sans-serif; color: #1f3442; margin: 0; padding: 32px; background: #f5f8fa; }
         .sheet { max-width: 860px; margin: 0 auto; background: #fff; border: 1px solid #d8e4eb; border-radius: 18px; overflow: hidden; }
@@ -34,8 +36,8 @@ $completed_date = !empty($voucher['furniture_completed_at']) ? $voucher['furnitu
 <body>
     <div class="sheet">
         <header class="header">
-            <h1>Furniture Voucher Receipt</h1>
-            <p>Neighbor copy. No prices are shown on this receipt.</p>
+            <h1><?php echo esc_html($document_copy['neighborReceiptTitle']); ?></h1>
+            <p><?php echo esc_html($document_copy['neighborReceiptSubtitle']); ?></p>
         </header>
 
         <section class="section">
@@ -68,12 +70,12 @@ $completed_date = !empty($voucher['furniture_completed_at']) ? $voucher['furnitu
         <section class="section">
             <h2 style="margin: 0 0 12px; color: #12344d;">Delivery</h2>
             <?php if ($delivery_required && !empty($voucher['delivery_address_display'])): ?>
-                <p style="margin: 0; line-height: 1.6;">Delivery requested to <?php echo esc_html($voucher['delivery_address_display']); ?>.</p>
+                <p style="margin: 0; line-height: 1.6;"><?php echo esc_html(SVDP_Voucher_Copy::delivery_requested_to($voucher['delivery_address_display'])); ?></p>
                 <?php if (empty($voucher['delivery_address_verified'])): ?>
-                    <p style="margin:0;color:#b45309;">Address not verified</p>
+                    <p style="margin:0;color:#b45309;"><?php echo esc_html($delivery_copy['addressNotVerified']); ?></p>
                 <?php endif; ?>
             <?php else: ?>
-                <p style="margin: 0; line-height: 1.6;">Pickup requested. No delivery address was provided.</p>
+                <p style="margin: 0; line-height: 1.6;"><?php echo esc_html($delivery_copy['pickupRequested']); ?></p>
             <?php endif; ?>
         </section>
 

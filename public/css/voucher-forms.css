@@ -1329,6 +1329,11 @@
     gap: 14px;
 }
 
+.svdp-cashier-show-more {
+    width: 100%;
+    margin-top: 16px;
+}
+
 .svdp-cashier-list-card {
     width: 100%;
     padding: 18px;
@@ -1786,6 +1791,38 @@
     line-height: 1.6;
 }
 
+@media (min-width: 1101px) {
+    .svdp-cashier-shell-body {
+        align-items: start;
+    }
+
+    .svdp-cashier-list-pane,
+    .svdp-cashier-side-pane {
+        max-height: calc(100vh - 220px);
+        min-height: 0;
+    }
+
+    .svdp-cashier-list-pane {
+        overflow: hidden;
+    }
+
+    .svdp-cashier-list-region {
+        max-height: inherit;
+        overflow-y: auto;
+    }
+
+    .svdp-cashier-side-pane {
+        align-self: start;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding-right: 4px;
+    }
+
+    .svdp-cashier-side-card {
+        flex: 0 0 auto;
+    }
+}
+
 @media (max-width: 1100px) {
     .svdp-cashier-shell-body {
         grid-template-columns: 1fr;
@@ -1793,6 +1830,8 @@
 
     .svdp-cashier-side-pane {
         position: static;
+        max-height: none;
+        overflow: visible;
     }
 }
 

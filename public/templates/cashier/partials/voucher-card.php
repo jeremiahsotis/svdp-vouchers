@@ -7,6 +7,8 @@ $is_furniture = $voucher_type === 'furniture';
 $detail_url = rest_url('svdp/v1/cashier/vouchers/' . intval($voucher['id']));
 $item_progress = $voucher['item_progress'] ?? null;
 $remaining_items = intval($voucher['remaining_items'] ?? ($item_progress['requested'] ?? 0));
+$delivery_copy = SVDP_Voucher_Copy::get_delivery_copy();
+$coat_copy = SVDP_Voucher_Copy::get_coat_copy();
 ?>
 <button
     type="button"
@@ -49,7 +51,7 @@ $remaining_items = intval($voucher['remaining_items'] ?? ($item_progress['reques
             </div>
             <div class="svdp-detail-item">
                 <span class="svdp-detail-label">Delivery</span>
-                <span class="svdp-detail-value"><?php echo esc_html(!empty($voucher['delivery_required']) ? 'Yes' : 'No'); ?></span>
+                <span class="svdp-detail-value"><?php echo esc_html(!empty($voucher['delivery_required']) ? $delivery_copy['yesLabel'] : $delivery_copy['noLabel']); ?></span>
             </div>
             <div class="svdp-detail-item">
                 <span class="svdp-detail-label">Items</span>
@@ -86,15 +88,15 @@ $remaining_items = intval($voucher['remaining_items'] ?? ($item_progress['reques
                 <span class="svdp-detail-value"><?php echo esc_html($voucher['voucher_created_date']); ?></span>
             </div>
             <div class="svdp-detail-item">
-                <span class="svdp-detail-label">Coat</span>
+                <span class="svdp-detail-label"><?php echo esc_html($coat_copy['label']); ?></span>
                 <span class="svdp-detail-value">
                     <?php
                     if ($voucher['coat_status'] === 'Issued') {
-                        echo esc_html('Issued');
+                        echo esc_html($coat_copy['issued']);
                     } elseif ($voucher['coat_eligible']) {
-                        echo esc_html('Available');
+                        echo esc_html($coat_copy['available']);
                     } else {
-                        echo esc_html('Not Eligible');
+                        echo esc_html($coat_copy['notEligible']);
                     }
                     ?>
                 </span>

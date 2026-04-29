@@ -1,12 +1,13 @@
 <?php
 $invoice_date_display = date('m/d/Y', strtotime($invoice_date));
 $pricing_copy = SVDP_Voucher_Rules::get_pricing_copy();
+$document_copy = SVDP_Voucher_Copy::get_document_copy();
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title><?php echo esc_html($invoice_number); ?></title>
+    <title><?php echo esc_html($document_copy['conferenceInvoiceTitle'] . ' ' . $invoice_number); ?></title>
     <style>
         body { font-family: Arial, sans-serif; color: #1f3442; margin: 0; padding: 32px; background: #f5f8fa; }
         .sheet { max-width: 900px; margin: 0 auto; background: #fff; border: 1px solid #d8e4eb; border-radius: 18px; overflow: hidden; }
@@ -33,7 +34,7 @@ $pricing_copy = SVDP_Voucher_Rules::get_pricing_copy();
 <body>
     <div class="sheet">
         <header class="header">
-            <h1>Conference Invoice</h1>
+            <h1><?php echo esc_html($document_copy['conferenceInvoiceTitle']); ?></h1>
             <p><?php echo esc_html($invoice_number); ?></p>
         </header>
 

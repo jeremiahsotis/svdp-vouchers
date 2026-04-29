@@ -3,6 +3,8 @@
  * Cashier shell fragments and keepalive handling.
  */
 class SVDP_Cashier_Shell {
+    const DEFAULT_VISIBLE_COUNT = 5;
+    const VISIBLE_INCREMENT = 5;
 
     /**
      * Keep cashier sessions warm while the shell stays open.
@@ -27,14 +29,22 @@ class SVDP_Cashier_Shell {
     public static function get_vouchers_fragment($request) {
         $filters = self::get_filters($request);
         $all_vouchers = SVDP_Voucher::get_cashier_vouchers();
-        $vouchers = self::filter_vouchers($all_vouchers, $filters);
-        $stats = self::build_stats($all_vouchers, $vouchers);
+        $filtered_vouchers = self::filter_vouchers($all_vouchers, $filters);
+        $filtered_total = count($filtered_vouchers);
+        $visible_count = min($filters['visible_count'], $filtered_total);
+        $vouchers = array_slice($filtered_vouchers, 0, $filters['visible_count']);
+        $stats = self::build_stats($all_vouchers, $filtered_vouchers, $visible_count);
+        $has_more = $filtered_total > $filters['visible_count'];
 
         $html = self::render_template('public/templates/cashier/partials/voucher-list.php', [
             'filters' => $filters,
             'selected_id' => $filters['selected_id'],
             'stats' => $stats,
             'vouchers' => $vouchers,
+            'filtered_total' => $filtered_total,
+            'visible_count' => $visible_count,
+            'has_more' => $has_more,
+            'next_visible_count' => min($filtered_total, $filters['visible_count'] + self::VISIBLE_INCREMENT),
         ]);
 
         return self::html_response($html);
@@ -52,7 +62,7 @@ class SVDP_Cashier_Shell {
 
         if (!$voucher) {
             $html = self::render_template('public/templates/cashier/partials/detail-empty.php', [
-                'message' => 'Select a voucher from the list to view its details.',
+                'message' => SVDP_Voucher_Copy::get_cashier_message('emptyDetailMessage'),
             ]);
 
             return self::html_response($html);
@@ -139,7 +149,7 @@ class SVDP_Cashier_Shell {
     /**
      * Build cashier dashboard metrics.
      */
-    private static function build_stats($all_vouchers, $filtered_vouchers) {
+    private static function build_stats($all_vouchers, $filtered_vouchers, $visible_count) {
         $today = current_time('Y-m-d');
 
         return [
@@ -152,7 +162,8 @@ class SVDP_Cashier_Shell {
             'coat_available' => count(array_filter($all_vouchers, function($voucher) {
                 return $voucher['coat_eligible'] && $voucher['coat_status'] !== 'Issued';
             })),
-            'showing' => count($filtered_vouchers),
+            'showing' => $visible_count,
+            'matching' => count($filtered_vouchers),
         ];
     }
 
@@ -165,7 +176,21 @@ class SVDP_Cashier_Shell {
             'filter' => sanitize_text_field($request->get_param('filter') ?: 'all'),
             'sort' => sanitize_text_field($request->get_param('sort') ?: 'date-desc'),
             'selected_id' => intval($request->get_param('selected_id')),
+            'visible_count' => self::sanitize_visible_count($request->get_param('visible_count')),
         ];
+    }
+
+    /**
+     * Keep the list display count bounded while preserving Show More state.
+     */
+    private static function sanitize_visible_count($visible_count) {
+        $visible_count = intval($visible_count);
+
+        if ($visible_count < self::DEFAULT_VISIBLE_COUNT) {
+            return self::DEFAULT_VISIBLE_COUNT;
+        }
+
+        return min($visible_count, 500);
     }
 
     /**
