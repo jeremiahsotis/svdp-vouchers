@@ -38,7 +38,7 @@ A change is not done unless:
 2. Lint passes
 3. Spellcheck passes
 4. Markdown validation passes
-5. No placeholder text remains
+5. No place holder text remains
 6. User-facing text is reviewed for clarity if changed
 
 ## Feature Freeze Rule
