@@ -42,7 +42,8 @@
       "rules": [
         "Override code authority is separate from the logged-in operator identity.",
         "Override codes must be hashed when redesigned.",
-        "Override use must capture both logged-in user and manager authority."
+        "Override use must capture both logged-in user and manager authority.",
+        "Override validation must create audit entry for both success and failure."
       ]
     },
     {

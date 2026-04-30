@@ -4,7 +4,7 @@
  */
 class SVDP_Database {
 
-    const SCHEMA_VERSION = '6';
+    const SCHEMA_VERSION = '7';
 
     /**
      * Run idempotent schema upgrades for the plugin.
@@ -45,8 +45,10 @@ class SVDP_Database {
         $vouchers_table = $wpdb->prefix . 'svdp_vouchers';
         $catalog_items_table = $wpdb->prefix . 'svdp_catalog_items';
         $voucher_items_table = $wpdb->prefix . 'svdp_voucher_items';
+        $managers_table = $wpdb->prefix . 'svdp_managers';
+        $override_audit_table = $wpdb->prefix . 'svdp_override_audit';
 
-        if (!self::table_exists($vouchers_table) || !self::table_exists($catalog_items_table) || !self::table_exists($voucher_items_table)) {
+        if (!self::table_exists($vouchers_table) || !self::table_exists($catalog_items_table) || !self::table_exists($voucher_items_table) || !self::table_exists($managers_table) || !self::table_exists($override_audit_table)) {
             return false;
         }
 
@@ -62,7 +64,10 @@ class SVDP_Database {
             && self::column_exists($voucher_items_table, 'discount_type_snapshot')
             && self::column_exists($voucher_items_table, 'discount_value_snapshot')
             && self::column_exists($voucher_items_table, 'conference_share_amount')
-            && self::column_exists($voucher_items_table, 'store_share_amount');
+            && self::column_exists($voucher_items_table, 'store_share_amount')
+            && self::column_exists($managers_table, 'failed_attempts')
+            && self::column_exists($managers_table, 'locked_until')
+            && self::column_exists($managers_table, 'last_used_at');
     }
 
     /**
@@ -166,6 +171,7 @@ class SVDP_Database {
         self::create_furniture_tables();
         self::create_managers_table();
         self::create_override_reasons_table();
+        self::create_override_audit_table();
         self::add_override_columns();
         self::add_address_verification_columns();
 
@@ -583,9 +589,41 @@ class SVDP_Database {
             name varchar(200) NOT NULL,
             code_hash varchar(255) NOT NULL,
             active tinyint(1) NOT NULL DEFAULT 1,
+            failed_attempts int(11) NOT NULL DEFAULT 0,
+            locked_until datetime DEFAULT NULL,
+            last_used_at datetime DEFAULT NULL,
             created_date datetime NOT NULL,
             PRIMARY KEY (id),
-            KEY active (active)
+            KEY active (active),
+            KEY locked_until (locked_until)
+        ) $charset_collate;";
+
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+        dbDelta($sql);
+    }
+
+    /**
+     * Create override audit table.
+     */
+    public static function create_override_audit_table() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'svdp_override_audit';
+        $charset_collate = $wpdb->get_charset_collate();
+
+        $sql = "CREATE TABLE $table (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            voucher_id bigint(20) DEFAULT NULL,
+            manager_id bigint(20) DEFAULT NULL,
+            manager_name_snapshot varchar(200) DEFAULT NULL,
+            actor_user_id bigint(20) DEFAULT NULL,
+            success tinyint(1) NOT NULL DEFAULT 0,
+            reason_id bigint(20) DEFAULT NULL,
+            reason_text_snapshot varchar(255) DEFAULT NULL,
+            context varchar(100) DEFAULT NULL,
+            created_at datetime NOT NULL,
+            PRIMARY KEY (id),
+            KEY manager_id (manager_id),
+            KEY created_at (created_at)
         ) $charset_collate;";
 
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');

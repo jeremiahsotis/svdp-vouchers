@@ -72,7 +72,7 @@ class SVDP_Voucher_Copy {
             'coatIssueFailed' => 'Failed to issue coats.',
             'emergencyCreateFailed' => 'Unable to create the emergency voucher.',
             'emergencyCreateSuccess' => 'Emergency clothing voucher created successfully.',
-            'managerCodeInvalid' => 'Enter a valid 6-digit manager code.',
+            'managerCodeInvalid' => 'Enter a valid 4-character manager code.',
             'overrideReasonRequired' => 'Select an override reason.',
             'managerCodeValidationFailed' => 'Manager code validation failed.',
             'overrideValidationFailed' => 'Unable to validate the override.',

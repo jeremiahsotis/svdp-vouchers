@@ -5,7 +5,12 @@
 
         <div class="svdp-form-group">
             <label for="svdpManagerCode">Manager Code *</label>
-            <input type="password" id="svdpManagerCode" placeholder="Enter 6-digit code" maxlength="6" pattern="[0-9]{6}">
+            <input type="password" id="svdpManagerCode" placeholder="Enter 4-character code" maxlength="4" pattern="[A-Z2-9]{4}" style="text-transform: uppercase;">
+        </div>
+
+        <div class="svdp-form-group">
+            <label for="svdpManagerName">Manager Name *</label>
+            <input type="text" id="svdpManagerName" placeholder="Enter manager name">
         </div>
 
         <div class="svdp-form-group">

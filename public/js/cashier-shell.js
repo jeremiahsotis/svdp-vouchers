@@ -458,6 +458,7 @@
         const store = cashierStore();
         const message = document.getElementById('svdpOverrideMessage');
         const managerCode = document.getElementById('svdpManagerCode');
+        const managerName = document.getElementById('svdpManagerName');
         const reasonSelect = document.getElementById('svdpOverrideReason');
 
         if (message) {
@@ -469,6 +470,10 @@
 
         if (managerCode) {
             managerCode.value = '';
+        }
+
+        if (managerName) {
+            managerName.value = '';
         }
 
         if (reasonSelect) {
@@ -496,19 +501,29 @@
     async function confirmOverride() {
         const store = cashierStore();
         const managerCode = document.getElementById('svdpManagerCode');
+        const managerName = document.getElementById('svdpManagerName');
         const reasonSelect = document.getElementById('svdpOverrideReason');
         const emergencyForm = document.getElementById('svdpEmergencyForm');
 
-        if (!pendingEmergencyAction || !managerCode || !reasonSelect || !emergencyForm) {
+        if (!pendingEmergencyAction || !managerCode || !managerName || !reasonSelect || !emergencyForm) {
             return;
         }
 
-        if (!managerCode.value.trim() || managerCode.value.trim().length !== 6) {
+        const enteredCode = managerCode.value.trim().toUpperCase();
+        const enteredName = managerName.value.trim();
+        const selectedReason = reasonSelect.value;
+
+        if (!/^[A-Z2-9]{4}$/.test(enteredCode)) {
             showFlash('error', cashierText('managerCodeInvalid'));
             return;
         }
 
-        if (!reasonSelect.value) {
+        if (!enteredName) {
+            showFlash('error', cashierText('overrideValidationFailed'));
+            return;
+        }
+
+        if (!selectedReason) {
             showFlash('error', cashierText('overrideReasonRequired'));
             return;
         }
@@ -517,7 +532,10 @@
             const validation = await requestJSON(config.restUrl + 'svdp/v1/managers/validate', {
                 method: 'POST',
                 data: {
-                    code: managerCode.value.trim()
+                    code: enteredCode,
+                    managerName: enteredName,
+                    reasonId: selectedReason,
+                    context: 'override_validation'
                 }
             });
 
@@ -528,7 +546,7 @@
 
             const formData = Object.assign({}, pendingEmergencyAction.formData, {
                 manager_id: validation.id,
-                reason_id: parseNumber(reasonSelect.value)
+                reason_id: parseNumber(selectedReason)
             });
 
             if (store) {
@@ -540,6 +558,7 @@
             showFlash('error', extractErrorMessage(error, cashierText('overrideValidationFailed')));
         } finally {
             managerCode.value = '';
+            managerName.value = '';
             reasonSelect.value = '';
         }
     }

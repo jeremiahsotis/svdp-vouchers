@@ -11,9 +11,15 @@
         // Add manager
         $('#svdp-add-manager').on('click', function() {
             const name = $('#svdp-new-manager-name').val().trim();
+            const code = $('#svdp-new-manager-code').val().trim().toUpperCase();
 
             if (!name) {
                 alert('Please enter a manager name');
+                return;
+            }
+
+            if (code && !/^[A-Z2-9]{4}$/.test(code)) {
+                alert('Code must be 4 characters A-Z, 2-9');
                 return;
             }
 
@@ -23,7 +29,8 @@
                 data: {
                     action: 'svdp_add_manager',
                     nonce: svdpAdmin.nonce,
-                    name: name
+                    name: name,
+                    code: code
                 },
                 success: function(response) {
                     if (response.success) {
@@ -33,6 +40,7 @@
                         $('#svdp-manager-code-modal').show();
 
                         $('#svdp-new-manager-name').val('');
+                        $('#svdp-new-manager-code').val('');
                         loadManagers();
                     } else {
                         alert('Error: ' + response.data);

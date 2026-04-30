@@ -709,12 +709,13 @@ class SVDP_Admin {
             wp_send_json_error('Manager name is required');
         }
 
-        $result = SVDP_Manager::create($name);
+        $manual_code = isset($_POST['code']) ? sanitize_text_field($_POST['code']) : null;
+        $result = SVDP_Manager::create($name, $manual_code);
 
         if ($result['success']) {
             wp_send_json_success($result);
         } else {
-            wp_send_json_error('Failed to create manager');
+            wp_send_json_error(isset($result['error']) ? $result['error'] : 'Failed to create manager');
         }
     }
 
