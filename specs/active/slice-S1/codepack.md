@@ -18,18 +18,18 @@ ADD COLUMN last_used_at DATETIME NULL;
 ### Create audit table
 
 CREATE TABLE wp_svdp_override_audit (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
-  voucher_id BIGINT NULL,
-  manager_id BIGINT NULL,
-  manager_name_snapshot VARCHAR(200),
-  actor_user_id BIGINT,
-  success TINYINT(1),
-  reason_id BIGINT NULL,
-  reason_text_snapshot VARCHAR(255),
-  context VARCHAR(100),
-  created_at DATETIME NOT NULL,
-  KEY manager_id (manager_id),
-  KEY created_at (created_at)
+id BIGINT AUTO_INCREMENT PRIMARY KEY,
+voucher_id BIGINT NULL,
+manager_id BIGINT NULL,
+manager_name_snapshot VARCHAR(200),
+actor_user_id BIGINT,
+success TINYINT(1),
+reason_id BIGINT NULL,
+reason_text_snapshot VARCHAR(255),
+context VARCHAR(100),
+created_at DATETIME NOT NULL,
+KEY manager_id (manager_id),
+KEY created_at (created_at)
 );
 
 ---
@@ -122,6 +122,7 @@ if ($manager->locked_until && strtotime($manager->locked_until) > time()) {
 ```
 
 On failure increment:
+
 ```php
 $wpdb->update($table, [
     'failed_attempts' => $manager->failed_attempts + 1
@@ -129,6 +130,7 @@ $wpdb->update($table, [
 ```
 
 If threshold exceeded:
+
 ```php
 $wpdb->update($table, [
     'locked_until' => date('Y-m-d H:i:s', time() + 900)
@@ -169,14 +171,14 @@ File: public/js/cashier-shell.js
 Modify request payload:
 
 ```javascript
-await requestJSON(config.restUrl + 'svdp/v1/managers/validate', {
-    method: 'POST',
-    body: JSON.stringify({
-        code: enteredCode,
-        managerName: enteredName,
-        reasonId: selectedReason,
-        context: 'override_validation'
-    })
+await requestJSON(config.restUrl + "svdp/v1/managers/validate", {
+  method: "POST",
+  body: JSON.stringify({
+    code: enteredCode,
+    managerName: enteredName,
+    reasonId: selectedReason,
+    context: "override_validation",
+  }),
 });
 ```
 
@@ -191,3 +193,9 @@ contracts/protected-contracts.json
 Add rule:
 
 "Override validation must create audit entry for both success and failure"
+
+---
+
+## 14. Slice Size Justification
+
+Slice S1 touches multiple protected surfaces because override authority spans schema, manager validation, REST payloads, cashier UI, and governance contracts. The file count is expected for this slice and remains bounded to the override authority foundation described in the implementation brief.

@@ -19,18 +19,35 @@ function fail(msg: string): never {
   process.exit(1);
 }
 
-const registryPath = path.join(process.cwd(), "contracts", "protected-contracts.json");
+const registryPath = path.join(
+  process.cwd(),
+  "contracts",
+  "protected-contracts.json",
+);
 if (!fs.existsSync(registryPath)) {
   console.log("No protected-contracts.json found; skipping");
   process.exit(0);
 }
 
 const registry = JSON.parse(fs.readFileSync(registryPath, "utf8")) as Registry;
+const protectedContracts =
+  (registry as any).protectedContracts ||
+  (registry as any).protected_contracts ||
+  [];
+
+if (!Array.isArray(protectedContracts) || protectedContracts.length === 0) {
+  console.log("No AST protected contracts registered; skipping");
+  process.exit(0);
+}
+
 const project = new Project({ skipAddingFilesFromTsConfig: true });
 
-for (const rule of registry.protectedContracts) {
+for (const rule of protectedContracts) {
+  if (!rule.file || !Array.isArray(rule.exports)) continue;
+
   const filePath = path.join(process.cwd(), rule.file);
-  if (!fs.existsSync(filePath)) fail(`Missing protected contract file: ${rule.file}`);
+  if (!fs.existsSync(filePath))
+    fail(`Missing protected contract file: ${rule.file}`);
   const source = project.addSourceFileAtPath(filePath);
 
   for (const exp of rule.exports) {
@@ -38,16 +55,18 @@ for (const rule of registry.protectedContracts) {
       const iface = source.getInterface(exp.name);
       if (!iface) fail(`Missing interface export: ${exp.name} in ${rule.file}`);
       const props = iface.getProperties();
-      const names = new Map(props.map(p => [p.getName(), p]));
+      const names = new Map(props.map((p) => [p.getName(), p]));
       for (const field of exp.requiredFields) {
         const prop = names.get(field);
         if (!prop) fail(`Missing required field ${field} in ${exp.name}`);
-        if (prop.hasQuestionToken()) fail(`Required field became optional: ${field} in ${exp.name}`);
+        if (prop.hasQuestionToken())
+          fail(`Required field became optional: ${field} in ${exp.name}`);
       }
       for (const field of exp.optionalFields) {
         const prop = names.get(field);
         if (!prop) fail(`Missing optional field ${field} in ${exp.name}`);
-        if (!prop.hasQuestionToken()) fail(`Optional field became required: ${field} in ${exp.name}`);
+        if (!prop.hasQuestionToken())
+          fail(`Optional field became required: ${field} in ${exp.name}`);
       }
     } else {
       const alias = source.getTypeAlias(exp.name);

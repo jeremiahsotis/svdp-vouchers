@@ -63,4 +63,3 @@ python3 scripts/check_required_doc_sections.py
 
 git add .
 git commit -m "S1: Override authority foundation implemented"
-```

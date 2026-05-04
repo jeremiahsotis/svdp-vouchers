@@ -7,6 +7,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -14,10 +16,10 @@ jobs:
           node-version: "20"
 
       - name: Install tools
-        run: npm install -g tsx ts-morph
+        run: npm install --no-save tsx ts-morph
 
       - name: AST contract validation
-        run: tsx scripts/enforce_contract_shape_ast.ts
+        run: npx tsx scripts/enforce_contract_shape_ast.ts
 
       - name: Guardrail auto-detection
-        run: tsx scripts/detect_unregistered_protected_surfaces.ts
+        run: npx tsx scripts/detect_unregistered_protected_surfaces.ts

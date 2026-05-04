@@ -12,5 +12,15 @@
     "rollback_path_documented",
     "validation_commands_listed",
     "checkpoint_updated"
+  ],
+  "accepted_findings": [
+    {
+      "path": "includes/class-admin.php",
+      "reason": "Slice S1 support change only passes optional manual manager code from existing admin AJAX into the protected manager model."
+    },
+    {
+      "path": "includes/class-voucher-copy.php",
+      "reason": "Slice S1 copy-only update changes the manager-code validation message from 6-digit to 4-character."
+    }
   ]
 }
