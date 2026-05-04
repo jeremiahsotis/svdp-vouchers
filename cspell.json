@@ -1,0 +1,18 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "ignorePaths": [
+    "node_modules",
+    ".git",
+    "specs/archive"
+  ],
+  "dictionaryDefinitions": [
+    {
+      "name": "domain",
+      "path": "./config/cspell/domain-terms.txt"
+    }
+  ],
+  "dictionaries": [
+    "domain"
+  ]
+}

@@ -1,0 +1,95 @@
+{
+  "protected_contracts": [
+    {
+      "name": "voucher_identity",
+      "surfaces": ["includes/class-voucher.php"],
+      "rules": [
+        "Neighbor identity fields must remain traceable.",
+        "DOB changes must be audited in future correction workflows.",
+        "Original values must not be silently overwritten by privileged corrections."
+      ]
+    },
+    {
+      "name": "voucher_eligibility",
+      "surfaces": ["includes/class-voucher.php", "includes/class-database.php"],
+      "rules": [
+        "90-day eligibility behavior is protected.",
+        "Eligibility override behavior must be explicit and audited.",
+        "Eligibility changes must not erase original voucher history."
+      ]
+    },
+    {
+      "name": "voucher_expiration",
+      "surfaces": ["includes/class-voucher.php"],
+      "rules": [
+        "30-day redemption expiration behavior is protected.",
+        "Expiration correction must be explicit and audited.",
+        "Expired-to-active transitions must require override authority."
+      ]
+    },
+    {
+      "name": "voucher_correction_authority",
+      "surfaces": ["includes/class-voucher.php", "includes/class-manager.php", "public/js/cashier-shell.js"],
+      "rules": [
+        "Voucher corrections must require explicit authority.",
+        "Future correction workflows must preserve original values.",
+        "Correction authority must be auditable and separate from ordinary cashier mutation."
+      ]
+    },
+    {
+      "name": "manager_override_authority",
+      "surfaces": ["includes/class-manager.php", "public/js/cashier-shell.js"],
+      "rules": [
+        "Override code authority is separate from the logged-in operator identity.",
+        "Override codes must be hashed when redesigned.",
+        "Override use must capture both logged-in user and manager authority.",
+        "Override validation must create audit entry for both success and failure."
+      ]
+    },
+    {
+      "name": "audit_logging",
+      "surfaces": ["includes/class-voucher.php", "includes/class-furniture-catalog.php", "includes/class-database.php"],
+      "rules": [
+        "Protected mutation must create a human-readable audit event.",
+        "Audit events must include before, after, actor, override authority when applicable, reason, and timestamp.",
+        "Audit logs must be understandable without reading raw JSON."
+      ]
+    },
+    {
+      "name": "furniture_catalog_data",
+      "surfaces": ["includes/class-furniture-catalog.php", "public/js/voucher-request.js"],
+      "rules": [
+        "Catalog item changes must preserve request-form stability.",
+        "Future catalog multi-user editing must include conflict handling.",
+        "Catalog edits must be audited."
+      ]
+    },
+    {
+      "name": "pricing_calculation_display",
+      "surfaces": ["includes/class-voucher.php", "public/js/voucher-request.js", "includes/class-invoice.php"],
+      "rules": [
+        "Maximum Conference commitment language is protected.",
+        "User-facing pricing must not reintroduce 'may vary' language.",
+        "Invoice generation must use actual fulfilled prices where applicable."
+      ]
+    },
+    {
+      "name": "receipt_invoice_generation",
+      "surfaces": ["public/templates/documents/furniture-receipt.php", "includes/class-invoice.php", "includes/class-furniture-voucher.php"],
+      "rules": [
+        "Neighbor receipt must not show prices.",
+        "Conference invoice must preserve financial integrity.",
+        "Generated document links must remain tied to completed vouchers."
+      ]
+    },
+    {
+      "name": "delivery_address_verification",
+      "surfaces": ["public/js/voucher-request.js", "includes/class-voucher.php", "public/templates/cashier/partials/voucher-detail-furniture.php"],
+      "rules": [
+        "Unverified delivery address must warn but not block.",
+        "Delivery verification must not introduce dispatch or routing logic.",
+        "Delivery attempts and RouteShyft behavior remain out of scope."
+      ]
+    }
+  ]
+}

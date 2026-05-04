@@ -1,0 +1,3 @@
+[codespell]
+ignore-words = config/codespell/ignore-words.txt
+skip = *.lock,node_modules,.git

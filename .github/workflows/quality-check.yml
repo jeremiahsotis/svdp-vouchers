@@ -1,0 +1,78 @@
+name: Quality
+
+on: [pull_request]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Python tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff codespell
+
+      - name: Install Node tools
+        run: |
+          npm install -g prettier markdownlint-cli cspell tsx ts-morph eslint
+
+      - name: Format check
+        run: |
+          changed="$(git diff --name-only --diff-filter=ACMR HEAD~1..HEAD)"
+          python_files="$(printf '%s\n' "$changed" | grep -E '\.py$' || true)"
+          prettier_files="$(printf '%s\n' "$changed" | grep -E '\.(css|js|json|md|ts|ya?ml)$' || true)"
+          if [ -n "$python_files" ]; then
+            printf '%s\n' "$python_files" | xargs ruff format --check
+          fi
+          if [ -n "$prettier_files" ]; then
+            printf '%s\n' "$prettier_files" | xargs prettier --check
+          fi
+
+      - name: Lint check
+        run: |
+          changed="$(git diff --name-only --diff-filter=ACMR HEAD~1..HEAD)"
+          python_files="$(printf '%s\n' "$changed" | grep -E '\.py$' || true)"
+          if [ -n "$python_files" ]; then
+            printf '%s\n' "$python_files" | xargs ruff check
+          fi
+
+      - name: Spellcheck
+        run: |
+          changed="$(git diff --name-only --diff-filter=ACMR HEAD~1..HEAD)"
+          if [ -n "$changed" ]; then
+            printf '%s\n' "$changed" | xargs codespell
+            printf '%s\n' "$changed" | xargs cspell
+          fi
+
+      - name: Markdown
+        run: |
+          changed="$(git diff --name-only --diff-filter=ACMR HEAD~1..HEAD)"
+          markdown_files="$(printf '%s\n' "$changed" | grep -E '\.md$' || true)"
+          if [ -n "$markdown_files" ]; then
+            printf '%s\n' "$markdown_files" | xargs markdownlint
+          fi
+
+      - name: Placeholder check
+        run: |
+          changed="$(git diff --name-only --diff-filter=ACMR HEAD~1..HEAD)"
+          if [ -n "$changed" ]; then
+            printf '%s\n' "$changed" | xargs python scripts/check_no_placeholders.py
+          fi
+
+      - name: Required doc sections
+        run: python scripts/check_required_doc_sections.py

@@ -1,0 +1,29 @@
+name: CI
+
+on: [pull_request]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Quality-first order
+        run: |
+          echo "1. format"
+          echo "2. lint"
+          echo "3. spellcheck"
+          echo "4. markdown/docs"
+          echo "5. placeholders"
+          echo "6. docs structure"
+          echo "7. AST contracts"
+          echo "8. guardrails"
+          echo "9. dependency graph"
+          echo "10. feature freeze"
+          echo "11. roadmap state sync"
+          echo "12. slice completion integrity"
+          echo "13. slice size guard"
+          echo "14. unmapped changes"
+          echo "15. execution replayability"
+          echo "16. tests"
+          echo "17. build"

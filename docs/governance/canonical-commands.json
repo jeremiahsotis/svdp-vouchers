@@ -1,0 +1,17 @@
+{
+  "commands": {
+    "repo_status": "git status --short",
+    "recent_commits": "git log --oneline -n 10",
+    "php_syntax_check": "find includes public admin -name '*.php' -print0 | xargs -0 -n1 php -l",
+    "python_scripts_compile": "python3 -m py_compile scripts/*.py",
+    "governance_placeholder_check": "python3 scripts/check_no_placeholders.py",
+    "ds_store_check": "find . -name '.DS_Store' -print",
+    "protected_surface_search": "grep -RIn -e 'class SVDP_Voucher' -e 'class SVDP_Database' -e 'class SVDP_Manager' includes public admin",
+    "schema_mutation_search": "grep -RIn -e 'CREATE TABLE' -e 'ALTER TABLE' -e 'dbDelta' includes",
+    "voucher_mutation_search": "grep -RIn -e '$wpdb->update' -e 'UPDATE .*svdp_vouchers' -e 'status.*Redeemed' includes",
+    "forbidden_delivery_scope_search": "grep -RIn -e 'delivery attempt' -e 'dispatch' -e 'driver' -e 'RouteShyft' includes public admin docs || true"
+  },
+  "notes": {
+    "package_tooling": "This WordPress plugin repo does not currently use package.json, npm, or pnpm. Node-based governance validators are installed from the governance pack but are not required in Slice G0 validation."
+  }
+}

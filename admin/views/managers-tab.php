@@ -1,11 +1,12 @@
 <div class="svdp-managers-section">
     <h2>Override Managers</h2>
-    <p>Managers can approve emergency vouchers when duplicates are detected. Each manager has a unique 6-digit code.</p>
+    <p>Managers can approve emergency vouchers when duplicates are detected. Each manager has a unique 4-character code.</p>
 
     <div class="svdp-admin-section">
         <h3>Add New Manager</h3>
         <div class="svdp-form-inline">
             <input type="text" id="svdp-new-manager-name" placeholder="Manager Name" style="width: 300px;">
+            <input type="text" id="svdp-new-manager-code" placeholder="Optional 4-character code" maxlength="4" pattern="[A-Z2-9]{4}" style="width: 180px; text-transform: uppercase;">
             <button type="button" id="svdp-add-manager" class="button button-primary">Add Manager</button>
         </div>
     </div>

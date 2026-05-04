@@ -197,3 +197,32 @@ If the plugin isn't working:
 4. **Conference soft delete**: Use `active = 0` flag, never hard delete (preserves historical data)
 5. **Monday sync is optional**: All sync calls check `SVDP_Monday_Sync::is_enabled()` first
 6. **Emergency conference special handling**: Different voucher value, different creator type, different duplicate rules
+
+## Governance Pack Authority
+
+This repository uses the governance pack installed at repo root. For future implementation work, governance files are authoritative unless a repo-specific instruction in this file is more specific.
+
+Authoritative governance sources include:
+
+- `MASTER-STANDARD.md`
+- `PROJECT-PROFILE.md`
+- `contracts/protected-surfaces.json`
+- `contracts/protected-contracts.json`
+- `contracts/protected-surface-acceptance.json`
+- `docs/governance/canonical-commands.json`
+- `docs/data-governance/migration-policy.md`
+- `docs/architecture/concurrency-model.md`
+- `docs/security/access-audit-model.md`
+- `standards/execution/implementation-brief-contract.md`
+- `standards/execution/checkpoint-verification-contract.md`
+- `standards/execution/bootstrap-execution-contract.md`
+
+Rules:
+
+1. Do not modify protected surfaces without an implementation brief, checkpoint, and bootstrap.
+2. Do not make schema changes without following `docs/data-governance/migration-policy.md`.
+3. Do not introduce protected mutation without audit planning.
+4. Do not introduce asynchronous or multi-user behavior without checking `docs/architecture/concurrency-model.md`.
+5. Do not implement business logic during governance installation slices.
+6. Preserve WordPress plugin runtime compatibility.
+7. This repo does not currently require package.json, npm, or pnpm.
