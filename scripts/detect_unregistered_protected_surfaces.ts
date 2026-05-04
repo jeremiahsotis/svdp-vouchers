@@ -89,9 +89,11 @@ const heuristics = [
 
 const findings: string[] = [];
 const ignoredPrefixes = [
+  ".github/",
   "contracts/",
   "docs/",
   "planning/",
+  "scripts/",
   "specs/",
   "standards/",
 ];

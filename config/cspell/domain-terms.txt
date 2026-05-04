@@ -19,6 +19,7 @@ SVDP
 VARCHAR
 TINYINT
 codepack
+codespellrc
 codespell
 htmx
 intval

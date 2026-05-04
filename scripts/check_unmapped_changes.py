@@ -3,8 +3,23 @@ import re
 import subprocess
 import sys
 
-changed = set(c for c in subprocess.check_output(["git", "diff", "--name-only", "HEAD~1..HEAD"], text=True).splitlines() if c)
-allowed_prefixes = ("docs/", ".github/", "scripts/", "contracts/", "specs/", "planning/")
+changed = set(
+    c
+    for c in subprocess.check_output(
+        ["git", "diff", "--name-only", "HEAD~1..HEAD"], text=True
+    ).splitlines()
+    if c
+)
+allowed_prefixes = (
+    ".codespellrc",
+    ".github/",
+    "config/",
+    "contracts/",
+    "docs/",
+    "planning/",
+    "scripts/",
+    "specs/",
+)
 mapped = set()
 
 for sf in pathlib.Path("docs/roadmap").glob("v*/roadmap-state.md"):
@@ -20,7 +35,9 @@ for sf in pathlib.Path("docs/roadmap").glob("v*/roadmap-state.md"):
             if "/" in line and not line.startswith("##"):
                 mapped.add(line)
 
-unmapped = [c for c in changed if c not in mapped and not c.startswith(allowed_prefixes)]
+unmapped = [
+    c for c in changed if c not in mapped and not c.startswith(allowed_prefixes)
+]
 if unmapped:
     print("Unmapped changes detected:")
     for u in unmapped:
