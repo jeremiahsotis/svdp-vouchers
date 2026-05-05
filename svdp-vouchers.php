@@ -181,6 +181,15 @@ class SVDP_Vouchers_Plugin {
             'permission_callback' => '__return_true'
         ]);
 
+        // Apply controlled voucher corrections
+        register_rest_route('svdp/v1', '/vouchers/(?P<id>\d+)/correct', [
+            'methods' => 'POST',
+            'callback' => ['SVDP_Voucher', 'apply_corrections_endpoint'],
+            'permission_callback' => function() {
+                return current_user_can('manage_options');
+            }
+        ]);
+
         // Nonce refresh endpoint (fallback if heartbeat fails)
         register_rest_route('svdp/v1', '/auth/refresh-nonce', [
             'methods' => 'POST',

@@ -11,9 +11,14 @@ ResourceShyft
 FriendShyft
 ConnectShyft
 ABCDEFGHJKLMNPQRSTUVWXYZ
+ABSPATH
 ACMR
+Besancon
+bloginfo
+Borromeo
 Codepack
 Htmx
+Nominatim
 Replayability
 SVDP
 VARCHAR
@@ -23,6 +28,7 @@ codespellrc
 codespell
 htmx
 intval
+nominatim
 preg
 providerish
 replayability
@@ -31,4 +37,6 @@ strtoupper
 strtotime
 svdp
 telnyx
+unslash
+vincentian
 wpdb
