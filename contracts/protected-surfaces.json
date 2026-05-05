@@ -51,6 +51,11 @@
       "reason": "Public request-form contract for neighbor, voucher type, furniture catalog, pricing, delivery, and redemption-rule display."
     },
     {
+      "path": "public/templates/cashier/partials/voucher-detail.php",
+      "type": "php-template",
+      "reason": "Cashier clothing detail contract, voucher correction display, redemption, coat issuance, and audit-summary UI."
+    },
+    {
       "path": "public/templates/cashier/partials/voucher-detail-furniture.php",
       "type": "php-template",
       "reason": "Cashier furniture detail contract, delivery verification display, item resolution, and voucher completion UI."

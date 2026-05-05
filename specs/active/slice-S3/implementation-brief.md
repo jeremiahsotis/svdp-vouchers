@@ -86,4 +86,4 @@ S3 is complete when:
 - Voucher detail shows newest 2 correction summaries.
 - No delivery routing/dispatch scope is introduced.
 - PHP syntax passes.
-- Governance checks pass or known recon-file placeholder noise is documented.
+- Governance checks pass or known recon-file scanner noise is documented.

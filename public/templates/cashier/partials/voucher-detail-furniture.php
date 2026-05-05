@@ -419,7 +419,7 @@ $detail_refresh_trigger = $can_mutate_furniture
 
                                         <div class="svdp-form-group">
                                             <label>Completion Notes</label>
-                                            <textarea name="completionNotes" rows="3" placeholder="Optional notes about condition, matching set pieces, or handoff details."></textarea>
+                                            <textarea name="completionNotes" rows="3"></textarea>
                                         </div>
 
                                         <div class="svdp-cashier-inline-summary">
@@ -467,7 +467,7 @@ $detail_refresh_trigger = $can_mutate_furniture
 
                                         <div class="svdp-form-group" x-show="substitutionType === 'free_text'">
                                             <label>Substitute Item Name *</label>
-                                            <input type="text" name="substituteItemName" value="<?php echo esc_attr($current_substitution_type === 'free_text' ? ($item['substitute_item_name'] ?? '') : ''); ?>" placeholder="Example: End table with drawer">
+                                            <input type="text" name="substituteItemName" value="<?php echo esc_attr($current_substitution_type === 'free_text' ? ($item['substitute_item_name'] ?? '') : ''); ?>">
                                         </div>
 
                                         <div class="svdp-inline-error" data-inline-error style="display: none;"></div>
@@ -496,7 +496,7 @@ $detail_refresh_trigger = $can_mutate_furniture
 
                                         <div class="svdp-form-group">
                                             <label>Cancellation Notes</label>
-                                            <textarea name="cancellationNotes" rows="3" placeholder="Optional context for why this item could not be fulfilled."></textarea>
+                                            <textarea name="cancellationNotes" rows="3"></textarea>
                                         </div>
 
                                         <div class="svdp-inline-error" data-inline-error style="display: none;"></div>

@@ -12,7 +12,8 @@ Likely:
 - public/templates/cashier/partials/voucher-detail.php
 - public/templates/cashier/partials/voucher-detail-furniture.php
 - public/js/cashier-shell.js
-- specs/active/slice-S3/*
+- svdp-vouchers.php
+- specs/active/slice-S3/\*
 
 Do not modify `public/js/cashier-station.js` unless evidence proves it is active.
 
@@ -37,7 +38,7 @@ Add the result to formatted cashier voucher payload as:
 
 ```php
 'recent_corrections' => self::get_recent_corrections((int) $voucher->id, 2),
-````
+```
 
 Do not expose raw code hashes or manager codes.
 
@@ -47,51 +48,51 @@ Do not expose raw code hashes or manager codes.
 
 File:
 
-* `public/templates/cashier/partials/voucher-detail.php`
+- `public/templates/cashier/partials/voucher-detail.php`
 
 Add a "Correct Voucher" panel/action near the top-level voucher information.
 
 The form must include:
 
-* current adults
-* current children
-* current DOB
-* current status
-* current voucher_created_date
-* manager name
-* manager code
-* reason dropdown
-* inline error area
-* submit button
+- current adults
+- current children
+- current DOB
+- current status
+- current voucher_created_date
+- manager name
+- manager code
+- reason dropdown
+- inline error area
+- submit button
 
 Use:
 
-```html
+```text
 data-cashier-action="voucher-correct"
 data-voucher-id="<voucher id>"
 ```
 
 Use field names matching the S2 endpoint payload:
 
-* adults
-* children
-* dob
-* status
-* voucher_created_date
+- adults
+- children
+- dob
+- status
+- voucher_created_date
 
 ### 3. Add correction entry point to furniture voucher detail
 
 File:
 
-* `public/templates/cashier/partials/voucher-detail-furniture.php`
+- `public/templates/cashier/partials/voucher-detail-furniture.php`
 
 Add the same correction action plus delivery fields if delivery exists:
 
-* delivery_address_line_1
-* delivery_address_line_2
-* delivery_city
-* delivery_state
-* delivery_zip
+- delivery_address_line_1
+- delivery_address_line_2
+- delivery_city
+- delivery_state
+- delivery_zip
 
 Do not add dispatch, driver, route, delivery attempts, or RouteShyft language.
 
@@ -105,8 +106,8 @@ Heading: `Recent Corrections`
 
 Each item should show:
 
-* human_summary
-* created_at
+- human_summary
+- created_at
 
 Do not require users to interpret raw before/after fields.
 
@@ -116,14 +117,14 @@ Do not require users to interpret raw before/after fields.
 
 File:
 
-* `public/js/cashier-shell.js`
+- `public/js/cashier-shell.js`
 
 Add handler in `handleSubmit()`:
 
 ```js
-if (action === 'voucher-correct') {
-    submitVoucherCorrection(form);
-    return;
+if (action === "voucher-correct") {
+  submitVoucherCorrection(form);
+  return;
 }
 ```
 
@@ -135,31 +136,30 @@ Flow:
 2. Collect correction fields.
 3. Drop blank fields only if they are optional and not intended to change.
 4. Validate manager code format:
+   - 4 characters
+   - uppercase
+   - `A-Z` and `2-9`
 
-   * 4 characters
-   * uppercase
-   * `A-Z` and `2-9`
 5. Require manager name.
 6. Require reason.
 7. Call `/svdp/v1/managers/validate`.
 8. If invalid, show inline error.
 9. If valid, call `/svdp/v1/vouchers/{id}/correct`.
 10. On success:
+    - show success flash
+    - refresh voucher detail
 
-    * show success flash
-    * refresh voucher detail
 11. On error:
-
-    * show inline error
+    - show inline error
 
 Use existing helpers where possible:
 
-* requestJSON
-* showInlineError
-* showFlash
-* refreshShell
-* extractErrorMessage
-* setButtonState
+- requestJSON
+- showInlineError
+- showFlash
+- refreshShell
+- extractErrorMessage
+- setButtonState
 
 ### 7. Payload shape
 
