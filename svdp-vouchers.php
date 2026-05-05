@@ -186,7 +186,7 @@ class SVDP_Vouchers_Plugin {
             'methods' => 'POST',
             'callback' => ['SVDP_Voucher', 'apply_corrections_endpoint'],
             'permission_callback' => function() {
-                return current_user_can('manage_options');
+                return SVDP_Permissions::user_can_access_cashier();
             }
         ]);
 

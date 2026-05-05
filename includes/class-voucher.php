@@ -1024,6 +1024,41 @@ class SVDP_Voucher {
     }
 
     /**
+     * Fetch newest cashier-facing voucher correction summaries.
+     */
+    private static function get_recent_corrections($voucher_id, $limit = 2) {
+        global $wpdb;
+        $audit_table = $wpdb->prefix . 'svdp_voucher_corrections';
+        $voucher_id = intval($voucher_id);
+        $limit = max(1, intval($limit));
+
+        $rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT id, field_name, human_summary, manager_name_snapshot, reason_text_snapshot, created_at
+             FROM $audit_table
+             WHERE voucher_id = %d
+             ORDER BY created_at DESC, id DESC
+             LIMIT %d",
+            $voucher_id,
+            $limit
+        ));
+
+        if (!$rows) {
+            return [];
+        }
+
+        return array_map(function($row) {
+            return [
+                'id' => (int) $row->id,
+                'field_name' => $row->field_name,
+                'human_summary' => $row->human_summary,
+                'manager_name_snapshot' => $row->manager_name_snapshot,
+                'reason_text_snapshot' => $row->reason_text_snapshot,
+                'created_at' => $row->created_at,
+            ];
+        }, $rows);
+    }
+
+    /**
      * Create a denied voucher record for tracking
      */
     public static function create_denied_voucher($request) {
@@ -1797,6 +1832,7 @@ class SVDP_Voucher {
             'created_by' => $voucher->created_by,
             'voucher_created_date' => $voucher->voucher_created_date,
             'status' => $is_expired ? 'Expired' : $voucher->status,
+            'stored_status' => $voucher->status,
             'workflow_status' => $workflow_status,
             'workflow_status_label' => self::format_workflow_status_label($workflow_status),
             'redeemed_date' => $voucher->redeemed_date,
@@ -1844,6 +1880,7 @@ class SVDP_Voucher {
             'item_progress' => $is_furniture ? $item_progress : null,
             'remaining_items' => $is_furniture ? intval($item_progress['requested'] ?? 0) : null,
             'items' => $is_furniture ? $furniture_items : [],
+            'recent_corrections' => self::get_recent_corrections((int) $voucher->id, 2),
         ];
     }
 

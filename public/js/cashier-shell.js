@@ -144,6 +144,11 @@
 
         if (action === 'furniture-voucher-complete') {
             submitFurnitureVoucherComplete(form);
+            return;
+        }
+
+        if (action === 'voucher-correct') {
+            submitVoucherCorrection(form);
         }
     }
 
@@ -795,6 +800,123 @@
         } finally {
             setButtonState(submitButton, false, originalLabel);
         }
+    }
+
+    async function submitVoucherCorrection(form) {
+        const voucherId = form.getAttribute('data-voucher-id');
+        const submitButton = form.querySelector('button[type="submit"]');
+        const originalLabel = submitButton ? submitButton.textContent : 'Submit Correction';
+        const managerCode = form.elements.managerCode ? form.elements.managerCode.value.trim().toUpperCase() : '';
+        const managerName = form.elements.managerName ? form.elements.managerName.value.trim() : '';
+        const reasonSelect = form.elements.reasonId;
+        const reasonId = reasonSelect ? reasonSelect.value : '';
+        const selectedReason = reasonSelect && reasonSelect.selectedIndex >= 0 ? reasonSelect.options[reasonSelect.selectedIndex] : null;
+        const reasonText = selectedReason ? selectedReason.textContent.trim() : '';
+
+        if (form.elements.managerCode) {
+            form.elements.managerCode.value = managerCode;
+        }
+
+        if (!voucherId) {
+            showInlineError(form, cashierText('voucherCorrectionFailed', 'Unable to identify the voucher.'));
+            return;
+        }
+
+        if (!managerName) {
+            showInlineError(form, cashierText('voucherCorrectionManagerNameRequired', 'Enter a manager name.'));
+            return;
+        }
+
+        if (!/^[A-Z2-9]{4}$/.test(managerCode)) {
+            showInlineError(form, cashierText('managerCodeInvalid'));
+            return;
+        }
+
+        if (!reasonId) {
+            showInlineError(form, cashierText('overrideReasonRequired'));
+            return;
+        }
+
+        showInlineError(form, '');
+        setButtonState(submitButton, true, cashierText('checking'));
+
+        try {
+            const validation = await requestJSON(config.restUrl + 'svdp/v1/managers/validate', {
+                method: 'POST',
+                data: {
+                    code: managerCode,
+                    managerName: managerName,
+                    reasonId: parseNumber(reasonId),
+                    context: 'voucher_correction',
+                    voucherId: parseNumber(voucherId)
+                }
+            });
+
+            if (!validation.valid) {
+                showInlineError(form, cashierText('managerCodeValidationFailed'));
+                return;
+            }
+
+            setButtonState(submitButton, true, cashierText('saving'));
+
+            await requestJSON(config.restUrl + 'svdp/v1/vouchers/' + voucherId + '/correct', {
+                method: 'POST',
+                data: buildVoucherCorrectionPayload(form, validation, {
+                    managerName: managerName,
+                    reasonId: reasonId,
+                    reasonText: reasonText
+                })
+            });
+
+            collapsePanels();
+            showFlash('success', cashierText('voucherCorrectionSuccess', 'Voucher correction saved.'));
+            refreshShell(voucherId);
+        } catch (error) {
+            showInlineError(form, extractErrorMessage(error, cashierText('voucherCorrectionFailed', 'Failed to save voucher correction.')));
+        } finally {
+            setButtonState(submitButton, false, originalLabel);
+        }
+    }
+
+    function buildVoucherCorrectionPayload(form, validation, authorityInput) {
+        return {
+            changes: collectVoucherCorrectionChanges(form),
+            authority: {
+                managerId: validation.id || validation.managerId || validation.manager_id,
+                managerName: validation.name || validation.managerName || authorityInput.managerName,
+                reasonId: parseNumber(authorityInput.reasonId),
+                reasonText: authorityInput.reasonText
+            }
+        };
+    }
+
+    function collectVoucherCorrectionChanges(form) {
+        const changes = {};
+        const integerFields = ['adults', 'children'];
+        const textFields = [
+            'dob',
+            'status',
+            'voucher_created_date',
+            'delivery_address_line_1',
+            'delivery_address_line_2',
+            'delivery_city',
+            'delivery_state',
+            'delivery_zip'
+        ];
+
+        integerFields.forEach(function(field) {
+            if (form.elements[field]) {
+                changes[field] = parseNumber(form.elements[field].value);
+            }
+        });
+
+        textFields.forEach(function(field) {
+            if (form.elements[field]) {
+                changes[field] = form.elements[field].value.trim();
+            }
+        });
+
+        return changes;
     }
 
     function refreshShell(voucherId) {
