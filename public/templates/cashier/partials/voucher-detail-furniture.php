@@ -7,12 +7,14 @@ $item_progress = $voucher['item_progress'] ?? [
     'completed' => 0,
     'cancelled' => 0,
 ];
+$correction_status = $voucher['stored_status'] ?? $voucher['status'];
 $can_mutate_furniture = !empty($can_mutate_furniture);
 $furniture_catalog_items = is_array($furniture_catalog_items ?? null) ? $furniture_catalog_items : [];
 $cancellation_reasons = is_array($cancellation_reasons ?? null) ? $cancellation_reasons : [];
 $pricing_copy = SVDP_Voucher_Rules::get_pricing_copy();
 $delivery_copy = SVDP_Voucher_Copy::get_delivery_copy();
 $document_copy = SVDP_Voucher_Copy::get_document_copy();
+$correction_reasons = SVDP_Override_Reason::get_active();
 $remaining_items = intval($voucher['remaining_items'] ?? $item_progress['requested']);
 $detail_refresh_trigger = $can_mutate_furniture
     ? 'svdp:detail-refresh from:body'
@@ -76,6 +78,128 @@ $detail_refresh_trigger = $can_mutate_furniture
             Override Note: <?php echo esc_html($voucher['override_note']); ?>
         </div>
     <?php endif; ?>
+
+    <section class="svdp-cashier-info-panel">
+        <div class="svdp-cashier-panel-header">
+            <div>
+                <h3>Correct Voucher</h3>
+                <p>Update voucher fields with manager authorization and an audit reason.</p>
+            </div>
+            <button type="button" class="svdp-btn svdp-btn-secondary" @click="$store.cashier.activePanel = $store.cashier.activePanel === 'correct-<?php echo esc_attr($toggle_prefix); ?>' ? null : 'correct-<?php echo esc_attr($toggle_prefix); ?>'">
+                Correct Voucher
+            </button>
+        </div>
+
+        <form
+            class="svdp-form"
+            data-cashier-action="voucher-correct"
+            data-voucher-id="<?php echo esc_attr($voucher['id']); ?>"
+            x-show="$store.cashier.activePanel === 'correct-<?php echo esc_attr($toggle_prefix); ?>'"
+            x-transition
+        >
+            <div class="svdp-form-row">
+                <div class="svdp-form-group">
+                    <label>Adults *</label>
+                    <input type="number" name="adults" min="0" value="<?php echo esc_attr($voucher['adults']); ?>" required>
+                </div>
+                <div class="svdp-form-group">
+                    <label>Children *</label>
+                    <input type="number" name="children" min="0" value="<?php echo esc_attr($voucher['children']); ?>" required>
+                </div>
+            </div>
+
+            <div class="svdp-form-row">
+                <div class="svdp-form-group">
+                    <label>Date of Birth *</label>
+                    <input type="date" name="dob" value="<?php echo esc_attr($voucher['dob']); ?>" required>
+                </div>
+                <div class="svdp-form-group">
+                    <label>Voucher Created Date *</label>
+                    <input type="date" name="voucher_created_date" value="<?php echo esc_attr($voucher['voucher_created_date']); ?>" required>
+                </div>
+            </div>
+
+            <div class="svdp-form-row">
+                <div class="svdp-form-group">
+                    <label>Status *</label>
+                    <select name="status" required>
+                        <?php foreach (['Active', 'Redeemed', 'Expired'] as $status_option): ?>
+                            <option value="<?php echo esc_attr($status_option); ?>" <?php selected($correction_status, $status_option); ?>>
+                                <?php echo esc_html($status_option); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="svdp-form-group">
+                    <label>Reason *</label>
+                    <select name="reasonId" required>
+                        <option value="">Select a reason...</option>
+                        <?php foreach ($correction_reasons as $reason): ?>
+                            <option value="<?php echo esc_attr(intval($reason->id)); ?>">
+                                <?php echo esc_html($reason->reason_text); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            </div>
+
+            <?php if (!empty($voucher['delivery_required'])): ?>
+                <div class="svdp-form-row">
+                    <div class="svdp-form-group">
+                        <label>Delivery Address Line 1</label>
+                        <input type="text" name="delivery_address_line_1" value="<?php echo esc_attr($voucher['delivery_address']['line_1'] ?? ''); ?>">
+                    </div>
+                    <div class="svdp-form-group">
+                        <label>Delivery Address Line 2</label>
+                        <input type="text" name="delivery_address_line_2" value="<?php echo esc_attr($voucher['delivery_address']['line_2'] ?? ''); ?>">
+                    </div>
+                </div>
+
+                <div class="svdp-form-row">
+                    <div class="svdp-form-group">
+                        <label>Delivery City</label>
+                        <input type="text" name="delivery_city" value="<?php echo esc_attr($voucher['delivery_address']['city'] ?? ''); ?>">
+                    </div>
+                    <div class="svdp-form-group">
+                        <label>Delivery State</label>
+                        <input type="text" name="delivery_state" value="<?php echo esc_attr($voucher['delivery_address']['state'] ?? ''); ?>">
+                    </div>
+                    <div class="svdp-form-group">
+                        <label>Delivery ZIP</label>
+                        <input type="text" name="delivery_zip" value="<?php echo esc_attr($voucher['delivery_address']['zip'] ?? ''); ?>">
+                    </div>
+                </div>
+            <?php endif; ?>
+
+            <div class="svdp-form-row">
+                <div class="svdp-form-group">
+                    <label>Manager Name *</label>
+                    <input type="text" name="managerName" autocomplete="off" required>
+                </div>
+                <div class="svdp-form-group">
+                    <label>Manager Code *</label>
+                    <input type="text" name="managerCode" maxlength="4" autocomplete="off" required>
+                </div>
+            </div>
+
+            <div class="svdp-inline-error" data-inline-error style="display: none;"></div>
+            <button type="submit" class="svdp-btn svdp-btn-primary">Submit Correction</button>
+        </form>
+    </section>
+
+    <section class="svdp-cashier-info-panel">
+        <h3>Recent Corrections</h3>
+        <?php if (!empty($voucher['recent_corrections'])): ?>
+            <?php foreach ($voucher['recent_corrections'] as $correction): ?>
+                <p>
+                    <?php echo esc_html($correction['human_summary']); ?>
+                    <br><small><?php echo esc_html(date('m/d/Y g:i A', strtotime($correction['created_at']))); ?></small>
+                </p>
+            <?php endforeach; ?>
+        <?php else: ?>
+            <p>No recent corrections.</p>
+        <?php endif; ?>
+    </section>
 
     <section class="svdp-cashier-info-panel">
         <h3>Request Summary</h3>
