@@ -11,6 +11,11 @@
       "reason": "Database schema, schema upgrades, protected data evolution, and migration-sensitive table definitions."
     },
     {
+      "path": "svdp-vouchers.php",
+      "type": "auth_boundary",
+      "reason": "Plugin bootstrap and REST route registration, including protected endpoint permission callbacks."
+    },
+    {
       "path": "includes/class-manager.php",
       "type": "php",
       "reason": "Manager override authority and override-code validation surface."

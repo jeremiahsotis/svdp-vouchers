@@ -4,7 +4,7 @@
  */
 class SVDP_Database {
 
-    const SCHEMA_VERSION = '7';
+    const SCHEMA_VERSION = '8';
 
     /**
      * Run idempotent schema upgrades for the plugin.
@@ -47,8 +47,9 @@ class SVDP_Database {
         $voucher_items_table = $wpdb->prefix . 'svdp_voucher_items';
         $managers_table = $wpdb->prefix . 'svdp_managers';
         $override_audit_table = $wpdb->prefix . 'svdp_override_audit';
+        $voucher_corrections_table = $wpdb->prefix . 'svdp_voucher_corrections';
 
-        if (!self::table_exists($vouchers_table) || !self::table_exists($catalog_items_table) || !self::table_exists($voucher_items_table) || !self::table_exists($managers_table) || !self::table_exists($override_audit_table)) {
+        if (!self::table_exists($vouchers_table) || !self::table_exists($catalog_items_table) || !self::table_exists($voucher_items_table) || !self::table_exists($managers_table) || !self::table_exists($override_audit_table) || !self::table_exists($voucher_corrections_table)) {
             return false;
         }
 
@@ -172,6 +173,7 @@ class SVDP_Database {
         self::create_managers_table();
         self::create_override_reasons_table();
         self::create_override_audit_table();
+        self::create_voucher_corrections_table();
         self::add_override_columns();
         self::add_address_verification_columns();
 
@@ -623,6 +625,35 @@ class SVDP_Database {
             created_at datetime NOT NULL,
             PRIMARY KEY (id),
             KEY manager_id (manager_id),
+            KEY created_at (created_at)
+        ) $charset_collate;";
+
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+        dbDelta($sql);
+    }
+
+    /**
+     * Create voucher correction audit table.
+     */
+    public static function create_voucher_corrections_table() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'svdp_voucher_corrections';
+        $charset_collate = $wpdb->get_charset_collate();
+
+        $sql = "CREATE TABLE $table (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            voucher_id bigint(20) NOT NULL,
+            field_name varchar(100) NOT NULL,
+            before_value text NULL,
+            after_value text NULL,
+            actor_user_id bigint(20) NULL,
+            manager_id bigint(20) NULL,
+            manager_name_snapshot varchar(200) NULL,
+            reason_id bigint(20) NULL,
+            reason_text_snapshot varchar(255) NULL,
+            created_at datetime NOT NULL,
+            PRIMARY KEY (id),
+            KEY voucher_id (voucher_id),
             KEY created_at (created_at)
         ) $charset_collate;";
 

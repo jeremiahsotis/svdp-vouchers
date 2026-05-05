@@ -1097,6 +1097,179 @@ class SVDP_Voucher {
             'message' => 'Denied voucher recorded for tracking',
         ];
     }
+
+    /**
+     * Apply controlled voucher corrections with field-level audit.
+     */
+    public static function apply_corrections($voucher_id, $changes, $authority = []) {
+        global $wpdb;
+
+        $voucher_id = intval($voucher_id);
+        $table = $wpdb->prefix . 'svdp_vouchers';
+        $furniture_meta_table = $wpdb->prefix . 'svdp_furniture_voucher_meta';
+        $audit_table = $wpdb->prefix . 'svdp_voucher_corrections';
+
+        $voucher = $wpdb->get_row(
+            $wpdb->prepare("SELECT * FROM $table WHERE id = %d", $voucher_id)
+        );
+
+        if (!$voucher) {
+            return new WP_Error('not_found', 'Voucher not found');
+        }
+
+        if (!is_array($changes)) {
+            return new WP_Error('invalid_changes', 'Changes must be an object');
+        }
+
+        if (!is_array($authority)) {
+            $authority = [];
+        }
+
+        $allowed_fields = [
+            'adults',
+            'children',
+            'dob',
+            'status',
+            'voucher_created_date',
+            'delivery_address_line_1',
+            'delivery_address_line_2',
+            'delivery_city',
+            'delivery_state',
+            'delivery_zip'
+        ];
+
+        $requires_authority = [
+            'dob',
+            'voucher_created_date',
+            'status'
+        ];
+
+        $delivery_fields = [
+            'delivery_address_line_1',
+            'delivery_address_line_2',
+            'delivery_city',
+            'delivery_state',
+            'delivery_zip'
+        ];
+
+        $furniture_meta = null;
+        $update_data = [];
+        $delivery_update_data = [];
+        $actor_user_id = get_current_user_id();
+        $corrections = [];
+
+        foreach ($changes as $field => $new_value) {
+            if (!in_array($field, $allowed_fields, true)) {
+                continue;
+            }
+
+            if (in_array($field, $delivery_fields, true)) {
+                if ($furniture_meta === null) {
+                    $furniture_meta = $wpdb->get_row(
+                        $wpdb->prepare("SELECT * FROM $furniture_meta_table WHERE voucher_id = %d", $voucher_id)
+                    );
+                }
+
+                $old_value = $furniture_meta ? $furniture_meta->$field : null;
+            } else {
+                $old_value = $voucher->$field;
+            }
+
+            if ((string) $old_value === (string) $new_value) {
+                continue;
+            }
+
+            if (in_array($field, $requires_authority, true) && empty($authority['manager_id'])) {
+                return new WP_Error('authority_required', 'Manager authorization required');
+            }
+
+            $corrections[] = [
+                'field' => $field,
+                'old_value' => $old_value,
+                'new_value' => $new_value,
+                'is_delivery_field' => in_array($field, $delivery_fields, true),
+            ];
+        }
+
+        foreach ($corrections as $correction) {
+            $audit_result = $wpdb->insert($audit_table, [
+                'voucher_id' => $voucher_id,
+                'field_name' => $correction['field'],
+                'before_value' => maybe_serialize($correction['old_value']),
+                'after_value' => maybe_serialize($correction['new_value']),
+                'actor_user_id' => $actor_user_id,
+                'manager_id' => $authority['manager_id'] ?? null,
+                'manager_name_snapshot' => $authority['manager_name'] ?? null,
+                'reason_id' => $authority['reason_id'] ?? null,
+                'reason_text_snapshot' => $authority['reason_text'] ?? null,
+                'created_at' => current_time('mysql')
+            ]);
+
+            if ($audit_result === false) {
+                return new WP_Error('audit_failed', 'Failed to audit voucher correction');
+            }
+
+            if ($correction['is_delivery_field']) {
+                $delivery_update_data[$correction['field']] = $correction['new_value'];
+            } else {
+                $update_data[$correction['field']] = $correction['new_value'];
+            }
+        }
+
+        if (empty($update_data) && empty($delivery_update_data)) {
+            return ['success' => true, 'message' => 'No changes'];
+        }
+
+        if (!empty($update_data)) {
+            $updated = $wpdb->update(
+                $table,
+                $update_data,
+                ['id' => $voucher_id]
+            );
+
+            if ($updated === false) {
+                return new WP_Error('update_failed', 'Failed to apply voucher corrections');
+            }
+        }
+
+        if (!empty($delivery_update_data)) {
+            if ($furniture_meta) {
+                $updated = $wpdb->update(
+                    $furniture_meta_table,
+                    $delivery_update_data,
+                    ['voucher_id' => $voucher_id]
+                );
+            } else {
+                $updated = $wpdb->insert(
+                    $furniture_meta_table,
+                    array_merge(['voucher_id' => $voucher_id], $delivery_update_data)
+                );
+            }
+
+            if ($updated === false) {
+                return new WP_Error('update_failed', 'Failed to apply voucher delivery corrections');
+            }
+        }
+
+        return ['success' => true];
+    }
+
+    /**
+     * REST endpoint for controlled voucher corrections.
+     */
+    public static function apply_corrections_endpoint($request) {
+        $voucher_id = intval($request['id']);
+        $params = $request->get_json_params();
+
+        if (!is_array($params)) {
+            $params = [];
+        }
+
+        $changes = $params['changes'] ?? [];
+        $authority = $params['authority'] ?? [];
+
+        return self::apply_corrections($voucher_id, $changes, $authority);
+    }
     
     /**
      * Update voucher status

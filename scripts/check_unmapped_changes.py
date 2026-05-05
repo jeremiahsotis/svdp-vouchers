@@ -32,7 +32,9 @@ for sf in pathlib.Path("docs/roadmap").glob("v*/roadmap-state.md"):
         body = cp.read_text(errors="ignore")
         for line in body.splitlines():
             line = line.strip("- ").strip()
-            if "/" in line and not line.startswith("##"):
+            if not line.startswith("##") and (
+                "/" in line or re.match(r"^[A-Za-z0-9_.-]+\.[A-Za-z0-9]+$", line)
+            ):
                 mapped.add(line)
 
 unmapped = [
