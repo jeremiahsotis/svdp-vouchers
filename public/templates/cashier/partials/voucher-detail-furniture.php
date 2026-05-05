@@ -210,7 +210,7 @@ $detail_refresh_trigger = $can_mutate_furniture
         <?php endif; ?>
         <p><strong>Created By:</strong> <?php echo esc_html($voucher['created_by']); ?></p>
         <?php if (!empty($voucher['vincentian_name'])): ?>
-            <p><strong>Requestor:</strong> <?php echo esc_html($voucher['vincentian_name']); ?><?php if (!empty($voucher['vincentian_email'])): ?> (<?php echo esc_html($voucher['vincentian_email']); ?>)<?php endif; ?></p>
+            <p><strong>Requester:</strong> <?php echo esc_html($voucher['vincentian_name']); ?><?php if (!empty($voucher['vincentian_email'])): ?> (<?php echo esc_html($voucher['vincentian_email']); ?>)<?php endif; ?></p>
         <?php endif; ?>
     </section>
 
