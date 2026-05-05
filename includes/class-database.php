@@ -4,7 +4,7 @@
  */
 class SVDP_Database {
 
-    const SCHEMA_VERSION = '8';
+    const SCHEMA_VERSION = '9';
 
     /**
      * Run idempotent schema upgrades for the plugin.
@@ -68,7 +68,8 @@ class SVDP_Database {
             && self::column_exists($voucher_items_table, 'store_share_amount')
             && self::column_exists($managers_table, 'failed_attempts')
             && self::column_exists($managers_table, 'locked_until')
-            && self::column_exists($managers_table, 'last_used_at');
+            && self::column_exists($managers_table, 'last_used_at')
+            && self::column_exists($voucher_corrections_table, 'human_summary');
     }
 
     /**
@@ -174,6 +175,7 @@ class SVDP_Database {
         self::create_override_reasons_table();
         self::create_override_audit_table();
         self::create_voucher_corrections_table();
+        self::add_voucher_correction_human_summary_column();
         self::add_override_columns();
         self::add_address_verification_columns();
 
@@ -651,6 +653,7 @@ class SVDP_Database {
             manager_name_snapshot varchar(200) NULL,
             reason_id bigint(20) NULL,
             reason_text_snapshot varchar(255) NULL,
+            human_summary text DEFAULT NULL,
             created_at datetime NOT NULL,
             PRIMARY KEY (id),
             KEY voucher_id (voucher_id),
@@ -659,6 +662,22 @@ class SVDP_Database {
 
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql);
+    }
+
+    /**
+     * Add human-readable voucher correction summaries to existing installs.
+     */
+    public static function add_voucher_correction_human_summary_column() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'svdp_voucher_corrections';
+
+        if (!self::table_exists($table)) {
+            return;
+        }
+
+        if (!self::column_exists($table, 'human_summary')) {
+            $wpdb->query("ALTER TABLE $table ADD COLUMN human_summary text DEFAULT NULL AFTER reason_text_snapshot");
+        }
     }
 
     /**

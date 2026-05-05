@@ -1125,6 +1125,17 @@ class SVDP_Voucher {
             $authority = [];
         }
 
+        $manager_id = $authority['manager_id'] ?? $authority['managerId'] ?? null;
+        $manager_name = $authority['manager_name'] ?? $authority['managerName'] ?? null;
+        $reason_id = $authority['reason_id'] ?? $authority['reasonId'] ?? null;
+        $reason_text = $authority['reason_text'] ?? $authority['reasonText'] ?? null;
+
+        $manager_id = ($manager_id !== null && $manager_id !== '') ? intval($manager_id) : null;
+        $manager_name = is_scalar($manager_name) ? sanitize_text_field((string) $manager_name) : null;
+        $reason_id = ($reason_id !== null && $reason_id !== '') ? intval($reason_id) : null;
+        $reason_text = is_scalar($reason_text) ? sanitize_text_field((string) $reason_text) : null;
+        $summary_reason_text = $reason_text !== null && $reason_text !== '' ? $reason_text : 'Reason not provided';
+
         $allowed_fields = [
             'adults',
             'children',
@@ -1179,7 +1190,7 @@ class SVDP_Voucher {
                 continue;
             }
 
-            if (in_array($field, $requires_authority, true) && empty($authority['manager_id'])) {
+            if (in_array($field, $requires_authority, true) && empty($manager_id)) {
                 return new WP_Error('authority_required', 'Manager authorization required');
             }
 
@@ -1192,16 +1203,42 @@ class SVDP_Voucher {
         }
 
         foreach ($corrections as $correction) {
+            $before_summary = self::correction_value_for_summary($correction['old_value']);
+            $after_summary = self::correction_value_for_summary($correction['new_value']);
+
+            if (!empty($manager_id)) {
+                $summary_manager_name = $manager_name !== null && $manager_name !== '' ? $manager_name : 'manager #' . $manager_id;
+                $human_summary = sprintf(
+                    'Voucher #%d: %s changed from "%s" to "%s" by %s using override authority. Reason: %s.',
+                    $voucher_id,
+                    $correction['field'],
+                    $before_summary,
+                    $after_summary,
+                    $summary_manager_name,
+                    $summary_reason_text
+                );
+            } else {
+                $human_summary = sprintf(
+                    'Voucher #%d: %s changed from "%s" to "%s". Reason: %s.',
+                    $voucher_id,
+                    $correction['field'],
+                    $before_summary,
+                    $after_summary,
+                    $summary_reason_text
+                );
+            }
+
             $audit_result = $wpdb->insert($audit_table, [
                 'voucher_id' => $voucher_id,
                 'field_name' => $correction['field'],
                 'before_value' => maybe_serialize($correction['old_value']),
                 'after_value' => maybe_serialize($correction['new_value']),
                 'actor_user_id' => $actor_user_id,
-                'manager_id' => $authority['manager_id'] ?? null,
-                'manager_name_snapshot' => $authority['manager_name'] ?? null,
-                'reason_id' => $authority['reason_id'] ?? null,
-                'reason_text_snapshot' => $authority['reason_text'] ?? null,
+                'manager_id' => $manager_id,
+                'manager_name_snapshot' => $manager_name,
+                'reason_id' => $reason_id,
+                'reason_text_snapshot' => $reason_text,
+                'human_summary' => $human_summary,
                 'created_at' => current_time('mysql')
             ]);
 
@@ -1252,6 +1289,25 @@ class SVDP_Voucher {
         }
 
         return ['success' => true];
+    }
+
+    /**
+     * Convert correction values into compact text for audit summaries.
+     */
+    private static function correction_value_for_summary($value) {
+        if ($value === null) {
+            return '';
+        }
+
+        if (is_bool($value)) {
+            return $value ? '1' : '0';
+        }
+
+        if (is_scalar($value)) {
+            return str_replace('"', '\"', (string) $value);
+        }
+
+        return str_replace('"', '\"', wp_json_encode($value));
     }
 
     /**

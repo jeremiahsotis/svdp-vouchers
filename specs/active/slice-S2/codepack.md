@@ -27,6 +27,7 @@ public static function create_voucher_corrections_table() {
         manager_name_snapshot varchar(200) NULL,
         reason_id bigint(20) NULL,
         reason_text_snapshot varchar(255) NULL,
+        human_summary text DEFAULT NULL,
         created_at datetime NOT NULL,
         PRIMARY KEY (id),
         KEY voucher_id (voucher_id),
@@ -101,10 +102,11 @@ public static function apply_corrections($voucher_id, $changes, $authority = [])
             'before_value' => maybe_serialize($old_value),
             'after_value' => maybe_serialize($new_value),
             'actor_user_id' => $actor_user_id,
-            'manager_id' => $authority['manager_id'] ?? null,
-            'manager_name_snapshot' => $authority['manager_name'] ?? null,
-            'reason_id' => $authority['reason_id'] ?? null,
-            'reason_text_snapshot' => $authority['reason_text'] ?? null,
+            'manager_id' => $manager_id,
+            'manager_name_snapshot' => $manager_name,
+            'reason_id' => $reason_id,
+            'reason_text_snapshot' => $reason_text,
+            'human_summary' => $human_summary,
             'created_at' => current_time('mysql')
         ]);
 
@@ -190,8 +192,10 @@ Run after deploy:
 ```bash
 wp db query "SHOW TABLES LIKE 'wp_svdp_voucher_corrections';"
 
+wp db query "SHOW COLUMNS FROM wp_svdp_voucher_corrections;"
+
 wp db query "
-SELECT field_name, before_value, after_value
+SELECT field_name, before_value, after_value, human_summary
 FROM wp_svdp_voucher_corrections
 ORDER BY id DESC
 LIMIT 10;

@@ -3,6 +3,7 @@
 ## Database
 
 - [ ] svdp_voucher_corrections table exists
+- [ ] human_summary column exists
 - [ ] indexes present (voucher_id, created_at)
 
 ## Behavior
@@ -20,6 +21,7 @@
 ## Integrity
 
 - [ ] original voucher data preserved in audit
+- [ ] human-readable audit summary stored for each correction
 - [ ] no overwrite without audit
 
 ## API
@@ -30,4 +32,5 @@
 ## Validation Commands
 
 - `wp db query "SHOW TABLES LIKE 'wp_svdp_voucher_corrections';"`
+- `wp db query "SHOW COLUMNS FROM wp_svdp_voucher_corrections;"`
 - `wp db query "SELECT * FROM wp_svdp_voucher_corrections ORDER BY id DESC LIMIT 10;"`
