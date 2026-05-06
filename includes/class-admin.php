@@ -103,7 +103,7 @@ class SVDP_Admin {
      * Render admin page
      */
     public function render_admin_page() {
-        $active_tab = isset($_GET['tab']) ? $_GET['tab'] : 'conferences';
+        $active_tab = isset($_GET['tab']) ? sanitize_key(wp_unslash($_GET['tab'])) : 'conferences';
         include SVDP_VOUCHERS_PLUGIN_DIR . 'admin/views/admin-page.php';
     }
     

@@ -26,6 +26,11 @@
         <a href="?page=svdp-vouchers&tab=override-reasons" class="nav-tab <?php echo $active_tab === 'override-reasons' ? 'nav-tab-active' : ''; ?>">
             Override Reasons
         </a>
+        <?php if (SVDP_Permissions::user_can_view_audit_log()) : ?>
+            <a href="?page=svdp-vouchers&tab=voucher-correction-audit" class="nav-tab <?php echo $active_tab === 'voucher-correction-audit' ? 'nav-tab-active' : ''; ?>">
+                Voucher Correction Audit
+            </a>
+        <?php endif; ?>
         <a href="?page=svdp-vouchers&tab=settings" class="nav-tab <?php echo $active_tab === 'settings' ? 'nav-tab-active' : ''; ?>">
             Settings
         </a>
@@ -57,6 +62,12 @@
                 break;
             case 'override-reasons':
                 include 'override-reasons-tab.php';
+                break;
+            case 'voucher-correction-audit':
+                if (!SVDP_Permissions::user_can_view_audit_log()) {
+                    wp_die(esc_html__('You do not have permission to view voucher correction audit logs.', 'svdp-vouchers'));
+                }
+                include 'tab-voucher-correction-audit.php';
                 break;
             case 'settings':
                 include 'tab-settings.php';
