@@ -22,6 +22,7 @@ class SVDP_Permissions {
             'access_cashier_station',
             'svdp_redeem_furniture_vouchers',
             'svdp_manage_furniture_catalog',
+            'svdp_view_audit_log',
         ]);
     }
 
@@ -53,6 +54,16 @@ class SVDP_Permissions {
      */
     public static function user_can_manage_furniture_catalog($user = null) {
         return self::user_has_capability($user, 'svdp_manage_furniture_catalog') || self::user_has_capability($user, 'manage_options');
+    }
+
+    /**
+     * Check whether a user can view read-only voucher correction audit logs.
+     *
+     * @param WP_User|int|null $user User object, user ID, or current user.
+     * @return bool
+     */
+    public static function user_can_view_audit_log($user = null) {
+        return self::user_has_capability($user, 'svdp_view_audit_log') || self::user_has_capability($user, 'manage_options');
     }
 
     /**

@@ -27,6 +27,7 @@ require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-conference.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-voucher-copy.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-voucher-rules.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-voucher.php';
+require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-voucher-correction-audit.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-furniture-catalog.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-furniture-cancellation-reason.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-furniture-photo-storage.php';
