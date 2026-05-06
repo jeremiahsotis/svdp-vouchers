@@ -64,6 +64,31 @@
       "path": "public/templates/documents/furniture-receipt.php",
       "type": "php-template",
       "reason": "Neighbor-facing furniture receipt contract and redemption-rule display."
+    },
+    {
+      "path": "includes/class-permissions.php",
+      "type": "policy_engine",
+      "reason": "Central role and capability assignment for cashier, furniture, and admin audit visibility."
+    },
+    {
+      "path": "includes/class-admin.php",
+      "type": "policy_engine",
+      "reason": "Admin page entrypoint and tab routing for protected SVdP Vouchers admin surfaces."
+    },
+    {
+      "path": "admin/views/admin-page.php",
+      "type": "policy_engine",
+      "reason": "Admin tab navigation and capability-gated inclusion of protected admin views."
+    },
+    {
+      "path": "admin/views/tab-voucher-correction-audit.php",
+      "type": "policy_engine",
+      "reason": "Read-only admin audit visibility surface gated by svdp_view_audit_log."
+    },
+    {
+      "path": "includes/class-voucher-correction-audit.php",
+      "type": "php",
+      "reason": "Read-only voucher correction audit query service, filter handling, and audit row formatting."
     }
   ]
 }

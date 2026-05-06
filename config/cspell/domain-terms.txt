@@ -4,6 +4,7 @@ Tailscale
 Proxmox
 micro_task
 llm_run
+oneline
 planning_state
 MoneyShyft
 RouteShyft
@@ -36,7 +37,9 @@ sinch
 strtoupper
 strtotime
 svdp
+tablenav
 telnyx
 unslash
 vincentian
+widefat
 wpdb

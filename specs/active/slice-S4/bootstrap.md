@@ -111,9 +111,9 @@ find . -name ".DS_Store" -print
 
 ## Manual Validation Required
 
-* Confirm administrator can view Voucher Correction Audit tab.
-* Confirm user without `svdp_view_audit_log` cannot view audit content.
-* Confirm audit rows show primary human summary.
-* Confirm filters work.
-* Confirm pagination works.
-* Confirm no manager code or code hash is visible.
+- Confirm administrator can view Voucher Correction Audit tab.
+- Confirm user without `svdp_view_audit_log` cannot view audit content.
+- Confirm audit rows show primary human summary.
+- Confirm filters work.
+- Confirm pagination works.
+- Confirm no manager code or code hash is visible.

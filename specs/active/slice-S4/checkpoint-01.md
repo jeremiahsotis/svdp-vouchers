@@ -100,23 +100,23 @@ find includes public admin -name "*.php" -print0 | xargs -0 -n1 php -l
 
 python3 scripts/check_required_doc_sections.py
 find . -name ".DS_Store" -print
-````
+```
 
 ## Manual Validation
 
-* [ ] Admin can open Voucher Correction Audit tab
-* [ ] Non-authorized user cannot see audit tab
-* [ ] Rows display in newest-first order
-* [ ] Human summaries are readable
-* [ ] Voucher ID filter works
-* [ ] Neighbor filter works
-* [ ] Field filter works
-* [ ] Manager filter works
-* [ ] Actor filter works
-* [ ] Reason filter works
-* [ ] Date filters work
-* [ ] Pagination works
-* [ ] No manager code or code hash appears anywhere
+- [ ] Admin can open Voucher Correction Audit tab
+- [ ] Non-authorized user cannot see audit tab
+- [ ] Rows display in newest-first order
+- [ ] Human summaries are readable
+- [ ] Voucher ID filter works
+- [ ] Neighbor filter works
+- [ ] Field filter works
+- [ ] Manager filter works
+- [ ] Actor filter works
+- [ ] Reason filter works
+- [ ] Date filters work
+- [ ] Pagination works
+- [ ] No manager code or code hash appears anywhere
 
 ## Done Decision
 

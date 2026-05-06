@@ -33,7 +33,7 @@ Do not modify:
 
 - public/js/cashier-station.js
 - public/js/cashier-shell.js unless a stable cashier link already requires it
-- public/templates/cashier/* unless correcting a broken link from S3
+- public/templates/cashier/\* unless correcting a broken link from S3
 - delivery or RouteShyft surfaces
 
 ## Capability Work
@@ -48,12 +48,12 @@ Add new capability:
 
 ```php
 svdp_view_audit_log
-````
+```
 
 Grant it to:
 
-* administrator
-* any existing system/admin role used for full SVdP Vouchers administration
+- administrator
+- any existing system/admin role used for full SVdP Vouchers administration
 
 Do not grant it to basic cashier users by default.
 
@@ -67,9 +67,9 @@ public static function user_can_view_audit_log($user = null)
 
 Expected behavior:
 
-* returns true if user has `svdp_view_audit_log`
-* administrator/manage_options fallback is acceptable only as compatibility fallback
-* should not depend on manager override code
+- returns true if user has `svdp_view_audit_log`
+- administrator/manage_options fallback is acceptable only as compatibility fallback
+- should not depend on manager override code
 
 ## Class Loading
 
@@ -77,7 +77,7 @@ Expected behavior:
 
 File:
 
-* svdp-vouchers.php
+- svdp-vouchers.php
 
 Add:
 
@@ -93,7 +93,7 @@ Place it near the other required class files.
 
 Create:
 
-* includes/class-voucher-correction-audit.php
+- includes/class-voucher-correction-audit.php
 
 Class:
 
@@ -121,75 +121,75 @@ private static function format_row($row)
 
 Read from:
 
-* `{$wpdb->prefix}svdp_voucher_corrections vc`
+- `{$wpdb->prefix}svdp_voucher_corrections vc`
 
 Join:
 
-* `{$wpdb->prefix}svdp_vouchers v ON v.id = vc.voucher_id`
-* `{$wpdb->prefix}svdp_conferences c ON c.id = v.conference_id`
-* `{$wpdb->users} u ON u.ID = vc.actor_user_id`
+- `{$wpdb->prefix}svdp_vouchers v ON v.id = vc.voucher_id`
+- `{$wpdb->prefix}svdp_conferences c ON c.id = v.conference_id`
+- `{$wpdb->users} u ON u.ID = vc.actor_user_id`
 
 Return these fields:
 
-* correction id
-* voucher id
-* field_name
-* before_value
-* after_value
-* manager_id
-* manager_name_snapshot
-* actor_user_id
-* actor display name or user login
-* reason_id
-* reason_text_snapshot
-* human_summary
-* created_at
-* voucher first_name
-* voucher last_name
-* voucher dob
-* voucher status
-* voucher_type
-* conference_name
+- correction id
+- voucher id
+- field_name
+- before_value
+- after_value
+- manager_id
+- manager_name_snapshot
+- actor_user_id
+- actor display name or user login
+- reason_id
+- reason_text_snapshot
+- human_summary
+- created_at
+- voucher first_name
+- voucher last_name
+- voucher dob
+- voucher status
+- voucher_type
+- conference_name
 
 ### Filters
 
 Support sanitized filters:
 
-* `voucher_id`
-* `neighbor`
-* `field_name`
-* `manager`
-* `actor`
-* `reason`
-* `date_from`
-* `date_to`
+- `voucher_id`
+- `neighbor`
+- `field_name`
+- `manager`
+- `actor`
+- `reason`
+- `date_from`
+- `date_to`
 
 Filtering behavior:
 
-* `voucher_id`: exact integer match
-* `neighbor`: partial match against first name, last name, and full name
-* `field_name`: exact match against allowed field list
-* `manager`: partial match against manager_name_snapshot
-* `actor`: partial match against user display name or user login
-* `reason`: partial match against reason_text_snapshot
-* `date_from`: inclusive date start
-* `date_to`: inclusive date end
+- `voucher_id`: exact integer match
+- `neighbor`: partial match against first name, last name, and full name
+- `field_name`: exact match against allowed field list
+- `manager`: partial match against manager_name_snapshot
+- `actor`: partial match against user display name or user login
+- `reason`: partial match against reason_text_snapshot
+- `date_from`: inclusive date start
+- `date_to`: inclusive date end
 
 ### Pagination
 
 Support:
 
-* `page`
-* `per_page`
+- `page`
+- `per_page`
 
 Default:
 
-* `page = 1`
-* `per_page = 25`
+- `page = 1`
+- `per_page = 25`
 
 Maximum:
 
-* `per_page = 100`
+- `per_page = 100`
 
 Order:
 
@@ -201,15 +201,15 @@ ORDER BY vc.created_at DESC, vc.id DESC
 
 Do not query:
 
-* manager code
-* code_hash
-* password fields
+- manager code
+- code_hash
+- password fields
 
 Do not expose:
 
-* manager codes
-* manager hashes
-* raw serialized auth state
+- manager codes
+- manager hashes
+- raw serialized auth state
 
 Use `$wpdb->prepare()` for all dynamic values.
 
@@ -219,7 +219,7 @@ Use `$wpdb->prepare()` for all dynamic values.
 
 File:
 
-* admin/views/admin-page.php
+- admin/views/admin-page.php
 
 Add nav tab:
 
@@ -251,7 +251,7 @@ If user lacks capability and directly accesses the tab, show a WordPress admin n
 
 Create:
 
-* admin/views/tab-voucher-correction-audit.php
+- admin/views/tab-voucher-correction-audit.php
 
 The view should:
 
@@ -268,25 +268,25 @@ The view should:
 Use method GET and preserve:
 
 ```html
-<input type="hidden" name="page" value="svdp-vouchers">
-<input type="hidden" name="tab" value="voucher-correction-audit">
+<input type="hidden" name="page" value="svdp-vouchers" />
+<input type="hidden" name="tab" value="voucher-correction-audit" />
 ```
 
 Fields:
 
-* Voucher ID
-* Neighbor
-* Field
-* Manager
-* Actor
-* Reason
-* Date From
-* Date To
+- Voucher ID
+- Neighbor
+- Field
+- Manager
+- Actor
+- Reason
+- Date From
+- Date To
 
 Buttons:
 
-* Filter
-* Clear Filters
+- Filter
+- Clear Filters
 
 Clear Filters should link to:
 
@@ -310,7 +310,7 @@ Columns:
 
 Primary line:
 
-* `human_summary`
+- `human_summary`
 
 If `human_summary` is empty for legacy rows, display fallback:
 
@@ -320,12 +320,12 @@ Voucher #X: field_name changed from "before_value" to "after_value".
 
 Secondary metadata:
 
-* Voucher #ID
-* Neighbor name + DOB
-* Manager name or "No override authority recorded"
-* Actor display name or "Unknown actor"
-* Reason text or "No reason recorded"
-* Timestamp
+- Voucher #ID
+- Neighbor name + DOB
+- Manager name or "No override authority recorded"
+- Actor display name or "Unknown actor"
+- Reason text or "No reason recorded"
+- Timestamp
 
 ### Voucher link behavior
 
@@ -343,13 +343,12 @@ Do not invent a new route.
 
 Optional:
 
-* Use existing WordPress classes:
-
-  * `widefat`
-  * `striped`
-  * `tablenav`
-  * `button`
-  * `regular-text`
+- Use existing WordPress classes:
+  - `widefat`
+  - `striped`
+  - `tablenav`
+  - `button`
+  - `regular-text`
 
 Avoid custom JS unless necessary.
 
