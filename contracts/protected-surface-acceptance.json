@@ -21,6 +21,18 @@
     {
       "path": "includes/class-voucher-copy.php",
       "reason": "Slice S1 copy-only update changes the manager-code validation message from 6-digit to 4-character."
+    },
+    {
+      "path": "docs/product/release-c-product-contract.md",
+      "reason": "Slice C0 adds the authoritative Release C product contract as documentation-only planning input."
+    },
+    {
+      "path": "docs/decisions/release-c-s5-rebaseline.md",
+      "reason": "Slice C0 records that S5 visual and interaction decisions remain binding while the single-voucher backend assumption is superseded."
+    },
+    {
+      "path": "planning/release-c-slice-map.md",
+      "reason": "Slice C0 documents the C1-C5 dependency order and Release C cross-slice hard stops."
     }
   ]
 }

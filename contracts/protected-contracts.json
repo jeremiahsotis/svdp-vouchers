@@ -90,6 +90,76 @@
         "Delivery verification must not introduce dispatch or routing logic.",
         "Delivery attempts and RouteShyft behavior remain out of scope."
       ]
+    },
+    {
+      "name": "release_c_request_group_creation",
+      "surfaces": ["docs/product/release-c-product-contract.md", "planning/release-c-slice-map.md", "includes/class-voucher.php", "includes/class-database.php", "svdp-vouchers.php", "public/js/voucher-request.js"],
+      "rules": [
+        "Release C builder submissions must create one request group and one to three child vouchers atomically.",
+        "A request group may include no more than one child voucher of each root voucher type.",
+        "Historical vouchers may remain without a request group and must remain viewable.",
+        "Legacy `household` voucher values must not be reinterpreted as `household_goods`."
+      ]
+    },
+    {
+      "name": "release_c_household_goods_catalog",
+      "surfaces": ["docs/product/release-c-product-contract.md", "planning/release-c-slice-map.md", "includes/class-database.php", "includes/class-voucher.php", "public/js/voucher-request.js", "admin/views/admin-page.php", "includes/class-admin.php"],
+      "rules": [
+        "Household Goods is a distinct root voucher type, not Furniture and not a Furniture catalog category.",
+        "Household Goods browse groups and catalog categories must be administratively editable by authorized users.",
+        "Issued Household Goods request lines must snapshot catalog values needed for historical display, reporting, receipts, invoices, and audit.",
+        "Household Goods catalog behavior must not add unrestricted request Notes or item-level fulfillment Notes."
+      ]
+    },
+    {
+      "name": "release_c_delivery_snapshots",
+      "surfaces": ["docs/product/release-c-product-contract.md", "planning/release-c-slice-map.md", "includes/class-database.php", "includes/class-voucher.php", "public/js/voucher-request.js", "public/templates/cashier/partials/voucher-detail-furniture.php"],
+      "rules": [
+        "Delivery availability is configured by voucher type and affects future requests only.",
+        "Delivery is recorded once per request group when selected.",
+        "Issued request groups must snapshot delivery eligibility, selection, address, verification data, and fee.",
+        "Delivery changes must not add dispatch, routing, driver scheduling, delivery calendar, multiple delivery attempts, or RouteShyft behavior."
+      ]
+    },
+    {
+      "name": "release_c_fulfillment_entries",
+      "surfaces": ["docs/product/release-c-product-contract.md", "planning/release-c-slice-map.md", "includes/class-furniture-voucher.php", "includes/class-voucher.php", "includes/class-database.php", "public/js/cashier-shell.js", "public/templates/cashier/partials/voucher-detail-furniture.php"],
+      "rules": [
+        "New Release C Furniture and Household Goods vouchers use requested lines and fulfillment entries for one-screen cashier fulfillment.",
+        "Finalization must require every requested line to resolve requested quantity through fulfilled quantities plus unavailable quantity.",
+        "Fulfillment rows must preserve actor, timestamp, actual unit price, fulfilled quantity, and calculated line total.",
+        "Historical Furniture fulfillment data must remain valid and must not be destructively rewritten."
+      ]
+    },
+    {
+      "name": "release_c_finalization_notes",
+      "surfaces": ["docs/product/release-c-product-contract.md", "planning/release-c-slice-map.md", "includes/class-furniture-voucher.php", "includes/class-voucher.php", "public/js/cashier-shell.js", "public/templates/cashier/partials/voucher-detail-furniture.php"],
+      "rules": [
+        "Release C permits only one optional internal voucher-level finalization note for Furniture and Household Goods.",
+        "The finalization note is cashier or manager entered, internal-only, and stored with author and timestamp.",
+        "The finalization note must not print on neighbor receipts or Conference or Partner invoices.",
+        "No unrestricted Vincentian Notes or item-level fulfillment Notes may be introduced."
+      ]
+    },
+    {
+      "name": "release_c_receipt_invoice_behavior",
+      "surfaces": ["docs/product/release-c-product-contract.md", "planning/release-c-slice-map.md", "public/templates/documents/furniture-receipt.php", "includes/class-invoice.php", "includes/class-furniture-receipt.php", "includes/class-furniture-voucher.php"],
+      "rules": [
+        "Neighbor-facing receipts must not show prices, reimbursement values, internal guidance, unavailable internal details, or finalization notes.",
+        "Conference or Partner billing records use actual fulfilled values and include the group-level delivery fee once when applicable.",
+        "Receipt and invoice behavior must preserve legacy Clothing and Furniture records.",
+        "Household Goods estimates are request-time projections; final financial documents use actual fulfillment entries."
+      ]
+    },
+    {
+      "name": "release_c_cashier_card_status",
+      "surfaces": ["docs/product/release-c-product-contract.md", "planning/release-c-slice-map.md", "public/js/cashier-shell.js", "public/js/cashier-station.js", "public/templates/cashier/partials/voucher-card.php", "public/templates/cashier/partials/voucher-detail-furniture.php"],
+      "rules": [
+        "Cashier-facing primary card labels are READY TO REDEEM, REDEEMED, and EXPIRED.",
+        "Furniture and Household Goods fulfillment progress may appear inside the voucher detail screen without replacing the primary card labels.",
+        "Cashier card status precedence must keep redeemed status above expired status.",
+        "Cashier status display changes must preserve existing card architecture and must not convert the cashier station into a table."
+      ]
     }
   ]
 }

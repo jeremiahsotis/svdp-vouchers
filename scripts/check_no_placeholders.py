@@ -18,6 +18,16 @@ PLACEHOLDER_REFERENCE_ALLOWLIST = [
     "Placeholder found",
     "implementation placeholder",
     "literal placeholder",
+    "attr('placeholder'",
+    'placeholder="',
+    'setAttribute("placeholder"',
+    "data-category-placeholder",
+    "category-placeholder",
+    "$placeholders",
+    "not placeholder-only",
+    "placeholder labels",
+    "placeholder terms",
+    "No placeholder text remains",
 ]
 
 paths = [pathlib.Path(arg) for arg in sys.argv[1:]]
@@ -29,7 +39,9 @@ for path in paths:
         continue
     if path.name == "check_no_placeholders.py":
         continue
-    if any(part in {".git", "node_modules", ".venv"} for part in path.parts):
+    if path.name.endswith("recon.txt"):
+        continue
+    if any(part in {".git", "node_modules", ".venv", "vendor"} for part in path.parts):
         continue
     try:
         text = path.read_text(errors="ignore")

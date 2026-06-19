@@ -89,6 +89,21 @@
       "path": "includes/class-voucher-correction-audit.php",
       "type": "php",
       "reason": "Read-only voucher correction audit query service, filter handling, and audit row formatting."
+    },
+    {
+      "path": "docs/product/release-c-product-contract.md",
+      "type": "product_contract",
+      "reason": "Authoritative Release C product contract for request groups, Household Goods, delivery snapshots, fulfillment, notes, receipt/invoice behavior, cashier status, migration safety, and non-goals."
+    },
+    {
+      "path": "docs/decisions/release-c-s5-rebaseline.md",
+      "type": "decision_record",
+      "reason": "Release C decision record preserving S5 visual authority while superseding the single-voucher backend assumption."
+    },
+    {
+      "path": "planning/release-c-slice-map.md",
+      "type": "planning_contract",
+      "reason": "Release C slice dependency map and cross-slice hard-stop planning surface."
     }
   ]
 }
