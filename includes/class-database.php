@@ -4,7 +4,7 @@
  */
 class SVDP_Database {
 
-    const SCHEMA_VERSION = '11';
+    const SCHEMA_VERSION = '12';
 
     /**
      * Run idempotent schema upgrades for the plugin.
@@ -54,13 +54,23 @@ class SVDP_Database {
         $household_goods_browse_groups_table = $wpdb->prefix . 'svdp_household_goods_browse_groups';
         $household_goods_catalog_table = $wpdb->prefix . 'svdp_household_goods_catalog';
         $configuration_audit_table = $wpdb->prefix . 'svdp_configuration_audit';
+        $requested_lines_table = $wpdb->prefix . 'svdp_voucher_requested_lines';
+        $fulfillment_entries_table = $wpdb->prefix . 'svdp_voucher_fulfillment_entries';
+        $unavailable_reasons_table = $wpdb->prefix . 'svdp_unavailable_reasons';
+        $fulfillment_audit_table = $wpdb->prefix . 'svdp_voucher_fulfillment_audit';
 
-        if (!self::table_exists($vouchers_table) || !self::table_exists($catalog_items_table) || !self::table_exists($voucher_items_table) || !self::table_exists($managers_table) || !self::table_exists($override_audit_table) || !self::table_exists($voucher_corrections_table) || !self::table_exists($request_groups_table) || !self::table_exists($request_group_delivery_table) || !self::table_exists($voucher_type_capabilities_table) || !self::table_exists($household_goods_browse_groups_table) || !self::table_exists($household_goods_catalog_table) || !self::table_exists($configuration_audit_table)) {
+        if (!self::table_exists($vouchers_table) || !self::table_exists($catalog_items_table) || !self::table_exists($voucher_items_table) || !self::table_exists($managers_table) || !self::table_exists($override_audit_table) || !self::table_exists($voucher_corrections_table) || !self::table_exists($request_groups_table) || !self::table_exists($request_group_delivery_table) || !self::table_exists($voucher_type_capabilities_table) || !self::table_exists($household_goods_browse_groups_table) || !self::table_exists($household_goods_catalog_table) || !self::table_exists($configuration_audit_table) || !self::table_exists($requested_lines_table) || !self::table_exists($fulfillment_entries_table) || !self::table_exists($unavailable_reasons_table) || !self::table_exists($fulfillment_audit_table)) {
             return false;
         }
 
         return self::column_exists($vouchers_table, 'delivery_lat')
             && self::column_exists($vouchers_table, 'request_group_id')
+            && self::column_exists($vouchers_table, 'finalized_at')
+            && self::column_exists($vouchers_table, 'finalized_by_user_id')
+            && self::column_exists($vouchers_table, 'finalization_note')
+            && self::column_exists($vouchers_table, 'finalization_note_by_user_id')
+            && self::column_exists($vouchers_table, 'finalization_note_at')
+            && self::column_exists($vouchers_table, 'receipt_file_path')
             && self::column_exists($vouchers_table, 'delivery_lng')
             && self::column_exists($vouchers_table, 'delivery_verified')
             && self::column_exists($vouchers_table, 'delivery_verification_source')
@@ -116,6 +126,12 @@ class SVDP_Database {
             items_adult_redeemed int(11) DEFAULT 0,
             items_children_redeemed int(11) DEFAULT 0,
             redemption_total_value decimal(10,2) DEFAULT NULL,
+            finalized_at datetime DEFAULT NULL,
+            finalized_by_user_id bigint(20) DEFAULT NULL,
+            finalization_note text DEFAULT NULL,
+            finalization_note_by_user_id bigint(20) DEFAULT NULL,
+            finalization_note_at datetime DEFAULT NULL,
+            receipt_file_path varchar(500) DEFAULT NULL,
             denial_reason text DEFAULT NULL,
             delivery_lat decimal(10,7) DEFAULT NULL,
             delivery_lng decimal(10,7) DEFAULT NULL,
@@ -187,6 +203,7 @@ class SVDP_Database {
         self::create_furniture_tables();
         self::create_release_c_foundation_tables();
         self::create_household_goods_tables();
+        self::create_release_c_fulfillment_tables();
         self::create_managers_table();
         self::create_override_reasons_table();
         self::create_override_audit_table();
@@ -195,11 +212,13 @@ class SVDP_Database {
         self::add_override_columns();
         self::add_address_verification_columns();
         self::add_request_group_columns();
+        self::add_release_c_finalization_columns();
 
         self::insert_default_conferences();
         self::insert_default_settings();
         self::seed_voucher_type_capabilities();
         self::seed_household_goods_catalog();
+        self::seed_unavailable_reasons();
     }
 
     /**
@@ -679,6 +698,87 @@ class SVDP_Database {
     }
 
     /**
+     * Create shared Release C fulfillment tables for Furniture and Household Goods.
+     */
+    private static function create_release_c_fulfillment_tables() {
+        global $wpdb;
+        $charset_collate = $wpdb->get_charset_collate();
+
+        $requested_lines_table = $wpdb->prefix . 'svdp_voucher_requested_lines';
+        $requested_lines_sql = "CREATE TABLE $requested_lines_table (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            voucher_id bigint(20) NOT NULL,
+            line_type varchar(32) NOT NULL,
+            source_catalog_id bigint(20) DEFAULT NULL,
+            requested_name_snapshot varchar(255) NOT NULL,
+            requested_group_snapshot varchar(255) DEFAULT NULL,
+            requested_quantity int(11) NOT NULL DEFAULT 1,
+            estimated_conference_partner_cost_per_unit_snapshot decimal(10,2) DEFAULT NULL,
+            cashier_guidance_snapshot text DEFAULT NULL,
+            sort_order_snapshot int(11) NOT NULL DEFAULT 0,
+            unavailable_quantity int(11) NOT NULL DEFAULT 0,
+            unavailable_reason_id bigint(20) DEFAULT NULL,
+            unavailable_reason_snapshot varchar(255) DEFAULT NULL,
+            resolution_status varchar(32) NOT NULL DEFAULT 'requested',
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY idx_svdp_requested_lines_voucher (voucher_id),
+            KEY idx_svdp_requested_lines_type (line_type),
+            KEY idx_svdp_requested_lines_sort (voucher_id, sort_order_snapshot)
+        ) $charset_collate;";
+
+        $fulfillment_entries_table = $wpdb->prefix . 'svdp_voucher_fulfillment_entries';
+        $fulfillment_entries_sql = "CREATE TABLE $fulfillment_entries_table (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            requested_line_id bigint(20) NOT NULL,
+            unit_price decimal(10,2) NOT NULL DEFAULT 0.00,
+            fulfilled_quantity int(11) NOT NULL DEFAULT 0,
+            line_total decimal(10,2) NOT NULL DEFAULT 0.00,
+            entered_by_user_id bigint(20) DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY idx_svdp_fulfillment_entries_line (requested_line_id),
+            KEY idx_svdp_fulfillment_entries_actor (entered_by_user_id)
+        ) $charset_collate;";
+
+        $unavailable_reasons_table = $wpdb->prefix . 'svdp_unavailable_reasons';
+        $unavailable_reasons_sql = "CREATE TABLE $unavailable_reasons_table (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            reason_text varchar(255) NOT NULL,
+            display_order int(11) NOT NULL DEFAULT 0,
+            active tinyint(1) NOT NULL DEFAULT 1,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY idx_svdp_unavailable_reasons_active (active),
+            KEY idx_svdp_unavailable_reasons_order (display_order)
+        ) $charset_collate;";
+
+        $fulfillment_audit_table = $wpdb->prefix . 'svdp_voucher_fulfillment_audit';
+        $fulfillment_audit_sql = "CREATE TABLE $fulfillment_audit_table (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            voucher_id bigint(20) NOT NULL,
+            event_type varchar(100) NOT NULL,
+            before_value longtext DEFAULT NULL,
+            after_value longtext DEFAULT NULL,
+            actor_user_id bigint(20) DEFAULT NULL,
+            human_summary text NOT NULL,
+            created_at datetime NOT NULL,
+            PRIMARY KEY (id),
+            KEY idx_svdp_fulfillment_audit_voucher (voucher_id),
+            KEY idx_svdp_fulfillment_audit_event (event_type),
+            KEY idx_svdp_fulfillment_audit_created (created_at)
+        ) $charset_collate;";
+
+        dbDelta($requested_lines_sql);
+        dbDelta($fulfillment_entries_sql);
+        dbDelta($unavailable_reasons_sql);
+        dbDelta($fulfillment_audit_sql);
+    }
+
+    /**
      * Seed starter Household Goods browse groups and catalog categories.
      */
     private static function seed_household_goods_catalog() {
@@ -764,6 +864,38 @@ class SVDP_Database {
     }
 
     /**
+     * Seed operational unavailable reasons used by the shared fulfillment workflow.
+     */
+    private static function seed_unavailable_reasons() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'svdp_unavailable_reasons';
+
+        if (!self::table_exists($table)) {
+            return;
+        }
+
+        $count = intval($wpdb->get_var("SELECT COUNT(*) FROM $table"));
+        if ($count > 0) {
+            return;
+        }
+
+        $reasons = [
+            'Not currently in stock',
+            'Item condition not suitable',
+            'Item could not be located',
+            'Other approved operational reason',
+        ];
+
+        foreach ($reasons as $index => $reason) {
+            $wpdb->insert($table, [
+                'reason_text' => $reason,
+                'display_order' => $index,
+                'active' => 1,
+            ]);
+        }
+    }
+
+    /**
      * Add request-group linkage to voucher rows on existing installs.
      */
     private static function add_request_group_columns() {
@@ -784,6 +916,42 @@ class SVDP_Database {
 
         if (!self::index_exists($table, 'uniq_svdp_request_group_voucher_type')) {
             $wpdb->query("ALTER TABLE $table ADD UNIQUE KEY uniq_svdp_request_group_voucher_type (request_group_id, voucher_type)");
+        }
+    }
+
+    /**
+     * Add voucher-level finalization fields for shared Release C fulfillment.
+     */
+    private static function add_release_c_finalization_columns() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'svdp_vouchers';
+
+        if (!self::table_exists($table)) {
+            return;
+        }
+
+        if (!self::column_exists($table, 'finalized_at')) {
+            $wpdb->query("ALTER TABLE $table ADD COLUMN finalized_at datetime DEFAULT NULL AFTER redemption_total_value");
+        }
+
+        if (!self::column_exists($table, 'finalized_by_user_id')) {
+            $wpdb->query("ALTER TABLE $table ADD COLUMN finalized_by_user_id bigint(20) DEFAULT NULL AFTER finalized_at");
+        }
+
+        if (!self::column_exists($table, 'finalization_note')) {
+            $wpdb->query("ALTER TABLE $table ADD COLUMN finalization_note text DEFAULT NULL AFTER finalized_by_user_id");
+        }
+
+        if (!self::column_exists($table, 'finalization_note_by_user_id')) {
+            $wpdb->query("ALTER TABLE $table ADD COLUMN finalization_note_by_user_id bigint(20) DEFAULT NULL AFTER finalization_note");
+        }
+
+        if (!self::column_exists($table, 'finalization_note_at')) {
+            $wpdb->query("ALTER TABLE $table ADD COLUMN finalization_note_at datetime DEFAULT NULL AFTER finalization_note_by_user_id");
+        }
+
+        if (!self::column_exists($table, 'receipt_file_path')) {
+            $wpdb->query("ALTER TABLE $table ADD COLUMN receipt_file_path varchar(500) DEFAULT NULL AFTER finalization_note_at");
         }
     }
 

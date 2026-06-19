@@ -8,6 +8,7 @@ $item_progress = $voucher['item_progress'] ?? [
     'cancelled' => 0,
 ];
 $correction_status = $voucher['stored_status'] ?? $voucher['status'];
+$technical_status = $voucher['stored_status'] ?? $voucher['status'];
 $can_mutate_furniture = !empty($can_mutate_furniture);
 $furniture_catalog_items = is_array($furniture_catalog_items ?? null) ? $furniture_catalog_items : [];
 $cancellation_reasons = is_array($cancellation_reasons ?? null) ? $cancellation_reasons : [];
@@ -32,8 +33,8 @@ $detail_refresh_trigger = $can_mutate_furniture
         <div>
             <div class="svdp-card-badges">
                 <span class="svdp-type-badge svdp-type-furniture"><?php echo esc_html($voucher['voucher_type_label'] ?? 'Furniture'); ?></span>
-                <span class="svdp-status-badge svdp-badge-<?php echo esc_attr(strtolower($voucher['status'])); ?>">
-                    <?php echo esc_html($voucher['status']); ?>
+                <span class="svdp-status-badge svdp-badge-<?php echo esc_attr($voucher['cashier_status'] ?? strtolower($voucher['status'])); ?>">
+                    <?php echo esc_html($voucher['cashier_status_label'] ?? $voucher['status']); ?>
                 </span>
                 <span class="svdp-type-badge svdp-type-workflow">
                     <?php echo esc_html($voucher['workflow_status_label'] ?? 'Submitted'); ?>
@@ -511,7 +512,7 @@ $detail_refresh_trigger = $can_mutate_furniture
         <?php endif; ?>
     </section>
 
-    <?php if ($voucher['status'] === 'Redeemed'): ?>
+    <?php if ($technical_status === 'Redeemed'): ?>
         <section class="svdp-cashier-info-panel">
             <h3><?php echo esc_html($document_copy['completionDocumentsHeading']); ?></h3>
             <?php if (!empty($voucher['furniture_completed_at'])): ?>

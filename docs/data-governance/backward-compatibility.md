@@ -40,3 +40,11 @@ Voucher-type delivery capabilities and delivery fee lookups affect future reques
 Slice C2 adds Household Goods catalog/configuration tables and admin-only mutation surfaces. Existing Clothing and Furniture voucher behavior remains unchanged, including the legacy Furniture catalog data and historical `household` normalization as Furniture history.
 
 Household Goods catalog and limit changes affect future requests only. Issued Household Goods request lines in later slices must use the C2 snapshot helper so later catalog edits, archive/restore actions, or limit changes do not alter historical vouchers.
+
+## Slice C3 Compatibility Notes
+
+Slice C3 adds shared requested-line and fulfillment-entry tables for new Release C Furniture and Household Goods vouchers. Existing Furniture vouchers that only have legacy `wp_svdp_voucher_items` rows continue to use the legacy Furniture detail, receipt, and invoice behavior.
+
+Household Goods and shared Furniture fulfillment require requested-line snapshots. C3 does not backfill historical Furniture items into the new tables and does not reinterpret legacy `household` voucher values as Household Goods.
+
+Voucher finalization notes are voucher-level, internal-only, and not printed on neighbor receipts or Conference/Partner invoices. Existing historical Furniture completion notes remain preserved on legacy records.

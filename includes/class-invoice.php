@@ -397,15 +397,26 @@ class SVDP_Invoice {
     private static function calculate_totals($voucher) {
         $items_total = 0.0;
 
-        foreach ((array) ($voucher['items'] ?? []) as $item) {
-            if (($item['status'] ?? '') === 'completed' && isset($item['actual_price'])) {
-                $items_total += (float) $item['actual_price'];
+        if (!empty($voucher['uses_shared_fulfillment'])) {
+            foreach ((array) ($voucher['fulfillment_lines'] ?? []) as $line) {
+                foreach ((array) ($line['entries'] ?? []) as $entry) {
+                    $items_total += (float) ($entry['line_total'] ?? 0);
+                }
+            }
+        } else {
+            foreach ((array) ($voucher['items'] ?? []) as $item) {
+                if (($item['status'] ?? '') === 'completed' && isset($item['actual_price'])) {
+                    $items_total += (float) $item['actual_price'];
+                }
             }
         }
 
         $items_total = round($items_total, 2);
         $conference_share_total = round($items_total * 0.5, 2);
         $delivery_fee = !empty($voucher['delivery_required']) ? round((float) ($voucher['delivery_fee'] ?? 0), 2) : 0.0;
+        if (!empty($voucher['request_group_id']) && self::group_delivery_fee_already_invoiced((int) $voucher['request_group_id'], (int) ($voucher['id'] ?? 0))) {
+            $delivery_fee = 0.0;
+        }
         $amount = round($conference_share_total + $delivery_fee, 2);
 
         return [
@@ -424,6 +435,28 @@ class SVDP_Invoice {
      */
     private static function generate_invoice_number($voucher_id) {
         return 'INV-' . current_time('Ymd') . '-' . str_pad((string) intval($voucher_id), 6, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Check whether another child voucher in the same request group already billed delivery.
+     */
+    private static function group_delivery_fee_already_invoiced($request_group_id, $current_voucher_id) {
+        global $wpdb;
+        $invoices_table = $wpdb->prefix . 'svdp_invoices';
+        $vouchers_table = $wpdb->prefix . 'svdp_vouchers';
+
+        $count = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*)
+             FROM $invoices_table i
+             INNER JOIN $vouchers_table v ON v.id = i.voucher_id
+             WHERE v.request_group_id = %d
+               AND i.voucher_id <> %d
+               AND i.delivery_fee > 0",
+            $request_group_id,
+            $current_voucher_id
+        ));
+
+        return intval($count) > 0;
     }
 
     /**

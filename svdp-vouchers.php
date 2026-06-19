@@ -37,6 +37,7 @@ require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-furniture-photo-storage.
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-furniture-receipt.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-invoice.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-statement.php';
+require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-household-goods-fulfillment.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-furniture-voucher.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-cashier-shell.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-shortcodes.php';
@@ -264,6 +265,18 @@ class SVDP_Vouchers_Plugin {
         register_rest_route('svdp/v1', '/cashier/vouchers/(?P<id>\d+)/complete', [
             'methods' => 'POST',
             'callback' => ['SVDP_Furniture_Voucher', 'complete_voucher'],
+            'permission_callback' => [$this, 'user_can_redeem_furniture_vouchers']
+        ]);
+
+        register_rest_route('svdp/v1', '/cashier/vouchers/(?P<id>\d+)/fulfillment/save', [
+            'methods' => 'POST',
+            'callback' => ['SVDP_Household_Goods_Fulfillment', 'save_progress'],
+            'permission_callback' => [$this, 'user_can_redeem_furniture_vouchers']
+        ]);
+
+        register_rest_route('svdp/v1', '/cashier/vouchers/(?P<id>\d+)/fulfillment/finalize', [
+            'methods' => 'POST',
+            'callback' => ['SVDP_Household_Goods_Fulfillment', 'finalize_voucher'],
             'permission_callback' => [$this, 'user_can_redeem_furniture_vouchers']
         ]);
 

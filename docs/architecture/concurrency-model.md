@@ -40,3 +40,9 @@ The C1 backend request-group service wraps request-group creation, child voucher
 Household Goods catalog administration uses last-write-wins updates through WordPress admin AJAX, guarded by capability checks and validation immediately before each database write. Duplicate active browse group names and duplicate active category names within a browse group are checked at mutation time.
 
 C2 does not add asynchronous processing, public request submission, or cashier fulfillment concurrency. Later request creation slices must snapshot current catalog values at issuance and must not recalculate issued snapshots after concurrent configuration changes.
+
+## Slice C3 Implementation Note
+
+Shared fulfillment Save Progress uses last-write-wins replacement of unfinalized fulfillment entries for each requested line. The finalization endpoint refuses already redeemed, denied, dynamically expired, or line-less vouchers, and finalization locks ordinary editing by changing the voucher to `Redeemed`.
+
+Retries after successful finalization are guarded by the redeemed status and existing invoice uniqueness. C3 does not add asynchronous processing, dispatch, inventory, POS, or delivery-attempt behavior.

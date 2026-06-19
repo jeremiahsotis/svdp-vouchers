@@ -37,6 +37,7 @@ class SVDP_Voucher {
         $conferences_table = $wpdb->prefix . 'svdp_conferences';
         $furniture_meta_table = $wpdb->prefix . 'svdp_furniture_voucher_meta';
         $invoices_table = $wpdb->prefix . 'svdp_invoices';
+        $request_group_delivery_table = $wpdb->prefix . 'svdp_voucher_request_group_delivery';
 
         $results = $wpdb->get_results("
             SELECT
@@ -53,10 +54,20 @@ class SVDP_Voucher {
                 fm.estimated_total_max,
                 fm.estimated_requestor_portion_min,
                 fm.estimated_requestor_portion_max,
+                rgd.delivery_requested as group_delivery_requested,
+                rgd.delivery_fee_snapshot as group_delivery_fee,
+                rgd.address_line_1 as group_delivery_address_line_1,
+                rgd.address_line_2 as group_delivery_address_line_2,
+                rgd.city as group_delivery_city,
+                rgd.state as group_delivery_state,
+                rgd.zip as group_delivery_zip,
+                rgd.verified as group_delivery_verified,
+                rgd.normalized_address as group_delivery_normalized_address,
                 fm.completed_at as furniture_completed_at,
                 fm.completed_by_user_id as furniture_completed_by_user_id,
-                fm.receipt_file_path,
-                fm.invoice_file_path,
+                v.receipt_file_path as voucher_receipt_file_path,
+                fm.receipt_file_path as furniture_receipt_file_path,
+                fm.invoice_file_path as furniture_invoice_file_path,
                 fi.invoice_number,
                 fi.invoice_date,
                 fi.amount as invoice_amount,
@@ -67,6 +78,7 @@ class SVDP_Voucher {
             FROM $vouchers_table v
             LEFT JOIN $conferences_table c ON v.conference_id = c.id
             LEFT JOIN $furniture_meta_table fm ON fm.voucher_id = v.id
+            LEFT JOIN $request_group_delivery_table rgd ON rgd.request_group_id = v.request_group_id
             LEFT JOIN $invoices_table fi ON fi.voucher_id = v.id
             WHERE v.status != 'Denied'
             ORDER BY v.voucher_created_date DESC, v.id DESC
@@ -97,6 +109,7 @@ class SVDP_Voucher {
         $conferences_table = $wpdb->prefix . 'svdp_conferences';
         $furniture_meta_table = $wpdb->prefix . 'svdp_furniture_voucher_meta';
         $invoices_table = $wpdb->prefix . 'svdp_invoices';
+        $request_group_delivery_table = $wpdb->prefix . 'svdp_voucher_request_group_delivery';
 
         $voucher = $wpdb->get_row($wpdb->prepare("
             SELECT
@@ -113,10 +126,20 @@ class SVDP_Voucher {
                 fm.estimated_total_max,
                 fm.estimated_requestor_portion_min,
                 fm.estimated_requestor_portion_max,
+                rgd.delivery_requested as group_delivery_requested,
+                rgd.delivery_fee_snapshot as group_delivery_fee,
+                rgd.address_line_1 as group_delivery_address_line_1,
+                rgd.address_line_2 as group_delivery_address_line_2,
+                rgd.city as group_delivery_city,
+                rgd.state as group_delivery_state,
+                rgd.zip as group_delivery_zip,
+                rgd.verified as group_delivery_verified,
+                rgd.normalized_address as group_delivery_normalized_address,
                 fm.completed_at as furniture_completed_at,
                 fm.completed_by_user_id as furniture_completed_by_user_id,
-                fm.receipt_file_path,
-                fm.invoice_file_path,
+                v.receipt_file_path as voucher_receipt_file_path,
+                fm.receipt_file_path as furniture_receipt_file_path,
+                fm.invoice_file_path as furniture_invoice_file_path,
                 fi.invoice_number,
                 fi.invoice_date,
                 fi.amount as invoice_amount,
@@ -127,6 +150,7 @@ class SVDP_Voucher {
             FROM $vouchers_table v
             LEFT JOIN $conferences_table c ON v.conference_id = c.id
             LEFT JOIN $furniture_meta_table fm ON fm.voucher_id = v.id
+            LEFT JOIN $request_group_delivery_table rgd ON rgd.request_group_id = v.request_group_id
             LEFT JOIN $invoices_table fi ON fi.voucher_id = v.id
             WHERE v.id = %d
               AND v.status != 'Denied'
@@ -148,14 +172,14 @@ class SVDP_Voucher {
 
         return self::format_cashier_voucher($voucher, $item_progress, $furniture_items);
     }
-    
+
     /**
      * Get all vouchers with coat information
      */
     public static function get_vouchers($request) {
         return self::get_cashier_vouchers();
     }
-    
+
     /**
      * Check if coat can be issued (resets August 1st)
      */
@@ -163,25 +187,25 @@ class SVDP_Voucher {
         if (empty($coat_issued_date)) {
             return true;
         }
-        
+
         // Get most recent August 1st
         $today = new DateTime();
         $current_year = (int)$today->format('Y');
         $current_month = (int)$today->format('m');
-        
+
         // If we're before August, use last year's August 1st
         if ($current_month < 8) {
             $reset_date = new DateTime(($current_year - 1) . '-08-01');
         } else {
             $reset_date = new DateTime($current_year . '-08-01');
         }
-        
+
         $issued_date = new DateTime($coat_issued_date);
-        
+
         // Can issue if the coat was issued before the most recent August 1st
         return $issued_date < $reset_date;
     }
-    
+
     /**
      * Check for duplicate or similar voucher
      */
@@ -240,7 +264,7 @@ class SVDP_Voucher {
             $voucher_date = new DateTime($exact_match->voucher_created_date);
             $next_eligible = clone $voucher_date;
             $next_eligible->modify("+{$eligibility_days} days");
-            
+
             return [
                 'matchType' => 'exact',
                 'found' => true,
@@ -253,7 +277,7 @@ class SVDP_Voucher {
                 'nextEligibleDate' => $next_eligible->format('Y-m-d'),
             ];
         }
-        
+
         // STEP 2: Check for SIMILAR names (if no exact match, same voucher_type)
         // Using SOUNDEX for phonetic matching and checking same DOB
         $similar_query = $wpdb->prepare("
@@ -294,7 +318,7 @@ class SVDP_Voucher {
                 $voucher_date = new DateTime($match->voucher_created_date);
                 $next_eligible = clone $voucher_date;
                 $next_eligible->modify("+{$eligibility_days} days");
-                
+
                 $matches[] = [
                     'firstName' => $match->first_name,
                     'lastName' => $match->last_name,
@@ -305,17 +329,17 @@ class SVDP_Voucher {
                     'nextEligibleDate' => $next_eligible->format('Y-m-d'),
                 ];
             }
-            
+
             return [
                 'matchType' => 'similar',
                 'found' => true,
                 'matches' => $matches,
             ];
         }
-        
+
         return ['found' => false];
     }
-    
+
     /**
      * Create voucher
      */
@@ -454,21 +478,21 @@ class SVDP_Voucher {
         ];
 
         $result = $wpdb->insert($table, array_merge($voucher_data, $address_verification));
-        
+
         if ($result === false) {
             return new WP_Error('database_error', 'Failed to create voucher');
         }
-        
+
         $voucher_id = $wpdb->insert_id;
-        
+
         $next_eligible = self::get_next_eligible_date($conference_obj);
-        
+
         // Calculate coat eligibility (next August 1st if after current August 1st)
         $coat_eligible_after = null;
         $today = new DateTime();
         $current_year = (int)$today->format('Y');
         $current_month = (int)$today->format('m');
-        
+
         if ($current_month >= 8) {
             $next_august = new DateTime(($current_year + 1) . '-08-01');
         } else {
@@ -478,7 +502,7 @@ class SVDP_Voucher {
 
         // Send email notification to conference
         self::send_conference_notification($voucher_id);
-        
+
         return [
             'success' => true,
             'voucher_id' => $voucher_id,
@@ -1075,7 +1099,7 @@ class SVDP_Voucher {
      */
     public static function create_denied_voucher($request) {
         $params = self::get_request_data($request);
-        
+
         $first_name = sanitize_text_field($params['firstName']);
         $last_name = sanitize_text_field($params['lastName']);
         $dob = sanitize_text_field($params['dob']);
@@ -1089,10 +1113,10 @@ class SVDP_Voucher {
         $voucher_type = isset($params['voucherType'])
             ? self::normalize_voucher_type(sanitize_text_field($params['voucherType']))
             : 'clothing';
-        
+
         global $wpdb;
         $table = $wpdb->prefix . 'svdp_vouchers';
-        
+
         // Get conference by slug or name
         $conference_obj = SVDP_Conference::get_by_slug($conference);
         if (!$conference_obj) {
@@ -1101,11 +1125,11 @@ class SVDP_Voucher {
                 $conference
             ));
         }
-        
+
         if (!$conference_obj) {
             return new WP_Error('invalid_conference', 'Conference not found');
         }
-        
+
         // Calculate voucher value based on conference type
         $household_size = $adults + $children;
         if ($conference_obj->is_emergency) {
@@ -1113,7 +1137,7 @@ class SVDP_Voucher {
         } else {
             $voucher_value = $household_size * 20;
         }
-        
+
         // Insert denied voucher
         $result = $wpdb->insert($table, [
             'first_name' => $first_name,
@@ -1131,13 +1155,13 @@ class SVDP_Voucher {
             'status' => 'Denied',
             'denial_reason' => $denial_reason,
         ]);
-        
+
         if ($result === false) {
             return new WP_Error('database_error', 'Failed to create denied voucher record');
         }
-        
+
         $voucher_id = $wpdb->insert_id;
-        
+
         return [
             'success' => true,
             'voucher_id' => $voucher_id,
@@ -1373,7 +1397,7 @@ class SVDP_Voucher {
 
         return self::apply_corrections($voucher_id, $changes, $authority);
     }
-    
+
     /**
      * Update voucher status
      */
@@ -1388,6 +1412,21 @@ class SVDP_Voucher {
         $update_data = ['status' => $status];
 
         if ($status === 'Redeemed') {
+            global $wpdb;
+            $existing = $wpdb->get_row($wpdb->prepare(
+                "SELECT status, voucher_created_date FROM {$wpdb->prefix}svdp_vouchers WHERE id = %d LIMIT 1",
+                $id
+            ));
+
+            if ($existing && $existing->status === 'Active') {
+                $created = new DateTime($existing->voucher_created_date);
+                $expiration = clone $created;
+                $expiration->modify('+30 days');
+                if ((new DateTime()) > $expiration) {
+                    return new WP_Error('voucher_expired', 'Expired vouchers can be viewed but cannot be redeemed through the ordinary cashier workflow.', ['status' => 409]);
+                }
+            }
+
             $update_data['redeemed_date'] = date('Y-m-d');
 
             // Get item counts if provided
@@ -1415,7 +1454,7 @@ class SVDP_Voucher {
             'redemption_value' => isset($redemption_value) ? number_format($redemption_value, 2) : null
         ]);
     }
-    
+
     /**
      * Update coat status with household counts
      */
@@ -1429,12 +1468,12 @@ class SVDP_Voucher {
         $adults = intval($params['adults']);
         $children = intval($params['children']);
         $coat_copy = SVDP_Voucher_Copy::get_coat_copy();
-    
+
         // Validate that at least one coat is being issued
         if ($adults < 0 || $children < 0) {
             return new WP_Error('invalid_input', $coat_copy['invalidCounts'], ['status' => 400]);
         }
-    
+
         if ($adults === 0 && $children === 0) {
             return new WP_Error('invalid_input', $coat_copy['mustIssueAtLeastOne'], ['status' => 400]);
         }
@@ -1472,9 +1511,9 @@ class SVDP_Voucher {
             'coat_adults_issued' => $adults,
             'coat_children_issued' => $children,
         ];
-    
+
         $result = $wpdb->update($table, $update_data, ['id' => $id]);
-    
+
         if ($result === false) {
             return new WP_Error('update_failed', $coat_copy['updateFailed'], ['status' => 500]);
         }
@@ -1494,7 +1533,7 @@ class SVDP_Voucher {
         global $wpdb;
         $vouchers_table = $wpdb->prefix . 'svdp_vouchers';
         $conferences_table = $wpdb->prefix . 'svdp_conferences';
-        
+
         // Get voucher with conference info
         $voucher = $wpdb->get_row($wpdb->prepare("
             SELECT v.*, c.name as conference_name, c.notification_email
@@ -1502,11 +1541,11 @@ class SVDP_Voucher {
             LEFT JOIN $conferences_table c ON v.conference_id = c.id
             WHERE v.id = %d
         ", $voucher_id));
-        
+
         if (!$voucher || empty($voucher->notification_email)) {
             return; // No email configured for this conference
         }
-        
+
         // Skip email for Emergency conference (cashier station)
         if (empty($voucher->vincentian_name) || empty($voucher->vincentian_email)) {
             return;
@@ -1521,12 +1560,12 @@ class SVDP_Voucher {
                 $voucher_id
             ));
         }
-        
+
         // Calculate expiration date (30 days from creation)
         $created = new DateTime($voucher->voucher_created_date);
         $expires = clone $created;
         $expires->modify('+30 days');
-        
+
         // Build email
         $to = $voucher->notification_email;
         $voucher_type_label = ucfirst(self::normalize_voucher_type($voucher->voucher_type));
@@ -1535,22 +1574,22 @@ class SVDP_Voucher {
             $voucher_type_label,
             $voucher->first_name . ' ' . $voucher->last_name,
         ]);
-        
+
         $household_size = intval($voucher->adults) + intval($voucher->children);
         $voucher_amount = floatval($voucher->voucher_value);
-        
+
         $message = self::get_email_template($voucher, $created, $expires, $household_size, $voucher_amount, $furniture_meta);
-        
+
         // Email headers
         $headers = [
             'Content-Type: text/html; charset=UTF-8',
             'From: ' . get_bloginfo('name') . ' <' . get_bloginfo('admin_email') . '>',
         ];
-        
+
         // Send email
         wp_mail($to, $subject, $message, $headers);
     }
-    
+
     /**
      * Generate email template
      */
@@ -1610,10 +1649,10 @@ class SVDP_Voucher {
                     <h2 style="margin: 0;"><?php echo esc_html($email_copy['headerTitle']); ?></h2>
                     <p style="margin: 5px 0 0 0;"><?php echo esc_html($voucher->conference_name); ?></p>
                 </div>
-                
+
                 <div class="content">
                     <p><?php echo esc_html(SVDP_Voucher_Copy::format($email_copy['createdIntroTemplate'], [$voucher_type])); ?></p>
-                    
+
                     <div class="info-box">
                         <p><span class="label"><?php echo esc_html($email_copy['neighborLabel']); ?>:</span> <?php echo esc_html($voucher->first_name . ' ' . $voucher->last_name); ?></p>
                         <p><span class="label"><?php echo esc_html($email_copy['dateOfBirthLabel']); ?>:</span> <?php echo esc_html($voucher->dob); ?></p>
@@ -1630,7 +1669,7 @@ class SVDP_Voucher {
                             <p><span class="label"><?php echo esc_html($email_copy['voucherAmountLabel']); ?>:</span> <?php echo esc_html($maximum_commitment_display); ?></p>
                         <?php endif; ?>
                     </div>
-                    
+
                     <div class="info-box">
                         <p><span class="label"><?php echo esc_html($email_copy['createdLabel']); ?>:</span> <?php echo $created->format('l, F j, Y \a\t g:i A'); ?></p>
                         <p><span class="label"><?php echo esc_html($email_copy['expiresLabel']); ?>:</span> <?php echo $expires->format('l, F j, Y'); ?></p>
@@ -1644,16 +1683,16 @@ class SVDP_Voucher {
                             <?php endif; ?>
                         </div>
                     <?php endif; ?>
-                    
+
                     <div class="highlight">
                         <p style="margin: 0;"><strong><?php echo esc_html($email_copy['reminderLabel']); ?>:</strong> <?php echo esc_html(SVDP_Voucher_Rules::get_redemption_rule_text()); ?></p>
                     </div>
-                    
+
                     <div class="info-box">
                         <p><span class="label"><?php echo esc_html($email_copy['createdByLabel']); ?>:</span> <?php echo esc_html($voucher->vincentian_name); ?></p>
                         <p><span class="label"><?php echo esc_html($email_copy['vincentianEmailLabel']); ?>:</span> <a href="mailto:<?php echo esc_attr($voucher->vincentian_email); ?>"><?php echo esc_html($voucher->vincentian_email); ?></a></p>
                     </div>
-                    
+
                     <p><strong><?php echo esc_html($email_copy['neighborNeedsHeading']); ?></strong></p>
                     <?php if ($is_furniture): ?>
                         <ul>
@@ -1670,7 +1709,7 @@ class SVDP_Voucher {
                         </ul>
                     <?php endif; ?>
                 </div>
-                
+
                 <div class="footer">
                     <p><?php echo esc_html($email_copy['automatedFooter']); ?></p>
                     <p><?php echo esc_html($email_copy['questionsFooter']); ?></p>
@@ -1755,16 +1794,24 @@ class SVDP_Voucher {
     private static function format_cashier_voucher($voucher, $item_progress = null, $furniture_items = []) {
         $normalized_voucher_type = self::normalize_voucher_type($voucher->voucher_type);
         $is_furniture = $normalized_voucher_type === 'furniture';
+        $is_household_goods = $normalized_voucher_type === 'household_goods';
+        $uses_shared_fulfillment = class_exists('SVDP_Household_Goods_Fulfillment')
+            ? SVDP_Household_Goods_Fulfillment::voucher_uses_shared_fulfillment((int) $voucher->id, $normalized_voucher_type)
+            : false;
+        $shared_fulfillment_state = $uses_shared_fulfillment
+            ? SVDP_Household_Goods_Fulfillment::get_fulfillment_state((int) $voucher->id)
+            : ['lines' => [], 'summary' => null];
         $created = new DateTime($voucher->voucher_created_date);
         $expiration = clone $created;
         $expiration->modify('+30 days');
         $today = new DateTime();
 
         $is_expired = ($today > $expiration && $voucher->status === 'Active');
-        $coat_eligible = !$is_furniture;
+        $cashier_status = self::resolve_cashier_status($voucher->status, $is_expired);
+        $coat_eligible = !$is_furniture && !$is_household_goods;
         $coat_eligible_after = null;
 
-        if (!$is_furniture && !empty($voucher->coat_issued_date)) {
+        if (!$is_furniture && !$is_household_goods && !empty($voucher->coat_issued_date)) {
             $coat_eligible = self::can_issue_coat($voucher->coat_issued_date);
             if (!$coat_eligible) {
                 $next_august = new DateTime();
@@ -1779,7 +1826,15 @@ class SVDP_Voucher {
             }
         }
 
-        if ($is_furniture && $item_progress === null) {
+        if ($uses_shared_fulfillment) {
+            $summary = $shared_fulfillment_state['summary'];
+            $item_progress = [
+                'total' => (int) ($summary['requested_units'] ?? 0),
+                'requested' => max(0, (int) ($summary['requested_units'] ?? 0) - (int) ($summary['resolved_units'] ?? 0)),
+                'completed' => (int) ($summary['fulfilled_units'] ?? 0),
+                'cancelled' => (int) ($summary['unavailable_units'] ?? 0),
+            ];
+        } elseif ($is_furniture && $item_progress === null) {
             $item_progress = [
                 'total' => (int) ($voucher->voucher_items_count ?? 0),
                 'requested' => (int) ($voucher->voucher_items_count ?? 0),
@@ -1789,8 +1844,10 @@ class SVDP_Voucher {
         }
 
         $workflow_status = $voucher->workflow_status ?? 'submitted';
-        if ($is_furniture && ($voucher->status ?? '') === 'Redeemed') {
+        if (($is_furniture || $is_household_goods) && ($voucher->status ?? '') === 'Redeemed') {
             $workflow_status = 'completed';
+        } elseif ($uses_shared_fulfillment) {
+            $workflow_status = !empty($shared_fulfillment_state['summary']['ready_to_finalize']) ? 'ready_for_completion' : ((int) ($shared_fulfillment_state['summary']['resolved_units'] ?? 0) > 0 ? 'in_progress' : 'submitted');
         } elseif ($is_furniture) {
             if (!empty($item_progress['total']) && intval($item_progress['requested']) === 0) {
                 $workflow_status = 'ready_for_completion';
@@ -1801,21 +1858,29 @@ class SVDP_Voucher {
             }
         }
 
-        $receipt_file_path = $is_furniture ? ($voucher->receipt_file_path ?? null) : null;
-        $invoice_file_path = $is_furniture
-            ? ($voucher->invoice_stored_file_path ?? $voucher->invoice_file_path ?? null)
-            : null;
+        $receipt_file_path = ($voucher->voucher_receipt_file_path ?? null) ?: ($voucher->furniture_receipt_file_path ?? null);
+        $invoice_file_path = ($voucher->invoice_stored_file_path ?? null) ?: ($voucher->furniture_invoice_file_path ?? null);
 
+        $has_group_delivery = isset($voucher->group_delivery_requested) && $voucher->group_delivery_requested !== null;
+        $delivery_required = $has_group_delivery ? !empty($voucher->group_delivery_requested) : !empty($voucher->delivery_required);
+        $delivery_fee = $has_group_delivery ? (float) ($voucher->group_delivery_fee ?? 0) : (float) ($voucher->delivery_fee ?? 0);
+        $delivery_address = [
+            'line_1' => $has_group_delivery ? ($voucher->group_delivery_address_line_1 ?? null) : ($voucher->delivery_address_line_1 ?? null),
+            'line_2' => $has_group_delivery ? ($voucher->group_delivery_address_line_2 ?? null) : ($voucher->delivery_address_line_2 ?? null),
+            'city' => $has_group_delivery ? ($voucher->group_delivery_city ?? null) : ($voucher->delivery_city ?? null),
+            'state' => $has_group_delivery ? ($voucher->group_delivery_state ?? null) : ($voucher->delivery_state ?? null),
+            'zip' => $has_group_delivery ? ($voucher->group_delivery_zip ?? null) : ($voucher->delivery_zip ?? null),
+        ];
         $delivery_address_parts = [
-            $voucher->delivery_address_line_1 ?? '',
-            $voucher->delivery_address_line_2 ?? '',
-            $voucher->delivery_city ?? '',
-            $voucher->delivery_state ?? '',
-            $voucher->delivery_zip ?? '',
+            $delivery_address['line_1'] ?? '',
+            $delivery_address['line_2'] ?? '',
+            $delivery_address['city'] ?? '',
+            $delivery_address['state'] ?? '',
+            $delivery_address['zip'] ?? '',
         ];
         $raw_delivery_display = self::format_delivery_address($delivery_address_parts);
-        $delivery_address_normalized = $voucher->delivery_normalized_address ?? '';
-        $delivery_address_verified = !empty($voucher->delivery_verified);
+        $delivery_address_normalized = $has_group_delivery ? ($voucher->group_delivery_normalized_address ?? '') : ($voucher->delivery_normalized_address ?? '');
+        $delivery_address_verified = $has_group_delivery ? !empty($voucher->group_delivery_verified) : !empty($voucher->delivery_verified);
         $delivery_address_display = $raw_delivery_display;
         $delivery_copy = SVDP_Voucher_Copy::get_delivery_copy();
 
@@ -1832,6 +1897,7 @@ class SVDP_Voucher {
 
         return [
             'id' => (int) $voucher->id,
+            'request_group_id' => isset($voucher->request_group_id) ? (int) $voucher->request_group_id : null,
             'first_name' => $voucher->first_name,
             'last_name' => $voucher->last_name,
             'dob' => $voucher->dob,
@@ -1847,11 +1913,20 @@ class SVDP_Voucher {
             'vincentian_email' => $voucher->vincentian_email,
             'created_by' => $voucher->created_by,
             'voucher_created_date' => $voucher->voucher_created_date,
-            'status' => $is_expired ? 'Expired' : $voucher->status,
+            'status' => $cashier_status['label'],
             'stored_status' => $voucher->status,
+            'cashier_status' => $cashier_status['slug'],
+            'cashier_status_label' => $cashier_status['label'],
+            'cashier_status_icon' => $cashier_status['icon'],
+            'cashier_status_date_label' => self::format_cashier_status_date_label($cashier_status['slug'], $voucher->voucher_created_date, $voucher->redeemed_date, $expiration),
+            'expiration_date' => $expiration->format('Y-m-d'),
             'workflow_status' => $workflow_status,
             'workflow_status_label' => self::format_workflow_status_label($workflow_status),
             'redeemed_date' => $voucher->redeemed_date,
+            'finalized_at' => $voucher->finalized_at ?? null,
+            'finalized_by_user_id' => isset($voucher->finalized_by_user_id) ? (int) $voucher->finalized_by_user_id : null,
+            'finalization_note' => $voucher->finalization_note ?? null,
+            'finalization_note_at' => $voucher->finalization_note_at ?? null,
             'override_note' => $voucher->override_note,
             'items_adult_redeemed' => (int) ($voucher->items_adult_redeemed ?? 0),
             'items_children_redeemed' => (int) ($voucher->items_children_redeemed ?? 0),
@@ -1862,18 +1937,12 @@ class SVDP_Voucher {
             'coat_children_issued' => isset($voucher->coat_children_issued) ? (int) $voucher->coat_children_issued : null,
             'coat_eligible' => $coat_eligible,
             'coat_eligible_after' => $coat_eligible_after,
-            'delivery_required' => $is_furniture ? !empty($voucher->delivery_required) : false,
-            'delivery_fee' => isset($voucher->delivery_fee) && $voucher->delivery_fee !== null ? (float) $voucher->delivery_fee : 0.0,
-            'delivery_address' => $is_furniture ? [
-                'line_1' => $voucher->delivery_address_line_1 ?? null,
-                'line_2' => $voucher->delivery_address_line_2 ?? null,
-                'city' => $voucher->delivery_city ?? null,
-                'state' => $voucher->delivery_state ?? null,
-                'zip' => $voucher->delivery_zip ?? null,
-            ] : null,
-            'delivery_address_display' => $is_furniture ? $delivery_address_display : '',
-            'delivery_address_verified' => $is_furniture ? (bool) $delivery_address_verified : false,
-            'delivery_address_normalized' => $is_furniture ? ($delivery_address_normalized ?: null) : null,
+            'delivery_required' => ($is_furniture || $is_household_goods) ? $delivery_required : false,
+            'delivery_fee' => ($is_furniture || $is_household_goods) ? $delivery_fee : 0.0,
+            'delivery_address' => ($is_furniture || $is_household_goods) ? $delivery_address : null,
+            'delivery_address_display' => ($is_furniture || $is_household_goods) ? $delivery_address_display : '',
+            'delivery_address_verified' => ($is_furniture || $is_household_goods) ? (bool) $delivery_address_verified : false,
+            'delivery_address_normalized' => ($is_furniture || $is_household_goods) ? ($delivery_address_normalized ?: null) : null,
             'estimated_total_min' => $estimated_total_min,
             'estimated_total_max' => $estimated_total_max,
             'estimated_total_display' => $is_furniture ? self::format_money_range($estimated_total_min, $estimated_total_max) : '',
@@ -1884,20 +1953,65 @@ class SVDP_Voucher {
                 : '',
             'furniture_completed_at' => $is_furniture ? ($voucher->furniture_completed_at ?? null) : null,
             'receipt_file_path' => $receipt_file_path,
-            'receipt_file_url' => $is_furniture ? SVDP_Furniture_Receipt::public_url_from_relative_path($receipt_file_path) : null,
+            'receipt_file_url' => ($is_furniture || $is_household_goods) ? SVDP_Furniture_Receipt::public_url_from_relative_path($receipt_file_path) : null,
             'invoice_file_path' => $invoice_file_path,
-            'invoice_file_url' => $is_furniture ? SVDP_Invoice::public_url_from_relative_path($invoice_file_path) : null,
-            'invoice_number' => $is_furniture ? ($voucher->invoice_number ?? null) : null,
-            'invoice_date' => $is_furniture ? ($voucher->invoice_date ?? null) : null,
-            'invoice_amount' => $is_furniture && isset($voucher->invoice_amount) ? (float) $voucher->invoice_amount : null,
-            'invoice_delivery_fee' => $is_furniture && isset($voucher->invoice_delivery_fee) ? (float) $voucher->invoice_delivery_fee : null,
-            'invoice_items_total' => $is_furniture && isset($voucher->invoice_items_total) ? (float) $voucher->invoice_items_total : null,
-            'invoice_conference_share_total' => $is_furniture && isset($voucher->conference_share_total) ? (float) $voucher->conference_share_total : null,
-            'item_progress' => $is_furniture ? $item_progress : null,
-            'remaining_items' => $is_furniture ? intval($item_progress['requested'] ?? 0) : null,
-            'items' => $is_furniture ? $furniture_items : [],
+            'invoice_file_url' => ($is_furniture || $is_household_goods) ? SVDP_Invoice::public_url_from_relative_path($invoice_file_path) : null,
+            'invoice_number' => ($is_furniture || $is_household_goods) ? ($voucher->invoice_number ?? null) : null,
+            'invoice_date' => ($is_furniture || $is_household_goods) ? ($voucher->invoice_date ?? null) : null,
+            'invoice_amount' => ($is_furniture || $is_household_goods) && isset($voucher->invoice_amount) ? (float) $voucher->invoice_amount : null,
+            'invoice_delivery_fee' => ($is_furniture || $is_household_goods) && isset($voucher->invoice_delivery_fee) ? (float) $voucher->invoice_delivery_fee : null,
+            'invoice_items_total' => ($is_furniture || $is_household_goods) && isset($voucher->invoice_items_total) ? (float) $voucher->invoice_items_total : null,
+            'invoice_conference_share_total' => ($is_furniture || $is_household_goods) && isset($voucher->conference_share_total) ? (float) $voucher->conference_share_total : null,
+            'uses_shared_fulfillment' => $uses_shared_fulfillment,
+            'fulfillment_lines' => $shared_fulfillment_state['lines'],
+            'fulfillment_summary' => $shared_fulfillment_state['summary'],
+            'item_progress' => ($is_furniture || $is_household_goods) ? $item_progress : null,
+            'remaining_items' => ($is_furniture || $is_household_goods) ? intval($item_progress['requested'] ?? 0) : null,
+            'items' => $is_furniture && !$uses_shared_fulfillment ? $furniture_items : [],
             'recent_corrections' => self::get_recent_corrections((int) $voucher->id, 2),
         ];
+    }
+
+    /**
+     * Resolve the cashier-facing primary status with redeemed taking precedence.
+     */
+    private static function resolve_cashier_status($stored_status, $is_expired) {
+        if ($stored_status === 'Redeemed') {
+            return [
+                'slug' => 'redeemed',
+                'label' => 'REDEEMED',
+                'icon' => 'DONE',
+            ];
+        }
+
+        if ($is_expired || $stored_status === 'Expired') {
+            return [
+                'slug' => 'expired',
+                'label' => 'EXPIRED',
+                'icon' => 'STOP',
+            ];
+        }
+
+        return [
+            'slug' => 'ready',
+            'label' => 'READY TO REDEEM',
+            'icon' => 'GO',
+        ];
+    }
+
+    /**
+     * Build date support text for cashier cards and details.
+     */
+    private static function format_cashier_status_date_label($cashier_status, $created_date, $redeemed_date, $expiration) {
+        if ($cashier_status === 'redeemed' && !empty($redeemed_date)) {
+            return 'Redeemed ' . date('M j, Y', strtotime($redeemed_date));
+        }
+
+        if ($cashier_status === 'expired') {
+            return 'Expired ' . $expiration->format('M j, Y');
+        }
+
+        return 'Redeem by ' . $expiration->format('M j, Y');
     }
 
     /**

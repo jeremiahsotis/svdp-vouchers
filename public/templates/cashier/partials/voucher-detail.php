@@ -1,6 +1,11 @@
 <?php
 $voucher_type = $voucher['voucher_type'] ?? 'clothing';
 
+if (!empty($voucher['uses_shared_fulfillment']) && in_array($voucher_type, ['furniture', 'household_goods'], true)) {
+    include SVDP_VOUCHERS_PLUGIN_DIR . 'public/templates/cashier/partials/voucher-detail-shared-fulfillment.php';
+    return;
+}
+
 if ($voucher_type === 'furniture') {
     include SVDP_VOUCHERS_PLUGIN_DIR . 'public/templates/cashier/partials/voucher-detail-furniture.php';
     return;
@@ -13,8 +18,9 @@ $max_child_items = intval($voucher['children']) * $items_per_person;
 $max_total_items = !empty($voucher['voucher_items_count']) ? intval($voucher['voucher_items_count']) : ($household_total * $items_per_person);
 $toggle_prefix = 'voucher-' . intval($voucher['id']);
 $correction_status = $voucher['stored_status'] ?? $voucher['status'];
-$show_redeem_panel = $voucher['status'] === 'Active';
-$show_coat_panel = in_array($voucher['status'], ['Active', 'Redeemed'], true)
+$technical_status = $voucher['stored_status'] ?? $voucher['status'];
+$show_redeem_panel = ($voucher['cashier_status'] ?? '') === 'ready' && $technical_status === 'Active';
+$show_coat_panel = in_array($technical_status, ['Active', 'Redeemed'], true)
     && $voucher['coat_eligible']
     && $voucher['coat_status'] !== 'Issued';
 $coat_copy = SVDP_Voucher_Copy::get_coat_copy();
@@ -33,8 +39,8 @@ $correction_reasons = SVDP_Override_Reason::get_active();
             <h2><?php echo esc_html($voucher['first_name'] . ' ' . $voucher['last_name']); ?></h2>
             <p><?php echo esc_html($voucher['conference_name']); ?> • DOB <?php echo esc_html(date('m/d/Y', strtotime($voucher['dob']))); ?></p>
         </div>
-        <span class="svdp-status-badge svdp-badge-<?php echo esc_attr(strtolower($voucher['status'])); ?>">
-            <?php echo esc_html($voucher['status']); ?>
+        <span class="svdp-status-badge svdp-badge-<?php echo esc_attr($voucher['cashier_status'] ?? strtolower($voucher['status'])); ?>">
+            <?php echo esc_html($voucher['cashier_status_label'] ?? $voucher['status']); ?>
         </span>
     </div>
 
@@ -157,7 +163,7 @@ $correction_reasons = SVDP_Override_Reason::get_active();
         <?php endif; ?>
     </section>
 
-    <?php if ($voucher['status'] === 'Redeemed'): ?>
+    <?php if ($technical_status === 'Redeemed'): ?>
         <div class="svdp-cashier-info-panel">
             <h3>Redemption Summary</h3>
             <p>Redeemed on <?php echo esc_html($voucher['redeemed_date']); ?>.</p>
@@ -276,7 +282,7 @@ $correction_reasons = SVDP_Override_Reason::get_active();
         </div>
     <?php endif; ?>
 
-    <?php if ($voucher['status'] === 'Expired'): ?>
+    <?php if (($voucher['cashier_status'] ?? '') === 'expired'): ?>
         <div class="svdp-cashier-info-panel">
             <h3>Voucher Expired</h3>
             <p>This clothing voucher is outside the 30-day active window and is now read-only.</p>

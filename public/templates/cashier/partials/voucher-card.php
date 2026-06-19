@@ -1,9 +1,14 @@
 <?php
 $is_selected = intval($selected_id) === intval($voucher['id']);
 $household_total = intval($voucher['adults']) + intval($voucher['children']);
-$status_class = strtolower($voucher['status']);
+$status_class = sanitize_html_class($voucher['cashier_status'] ?? strtolower($voucher['status']));
+$status_label = $voucher['cashier_status_label'] ?? $voucher['status'];
+$status_icon = $voucher['cashier_status_icon'] ?? 'INFO';
+$status_date_label = $voucher['cashier_status_date_label'] ?? '';
 $voucher_type = $voucher['voucher_type'] ?? 'clothing';
 $is_furniture = $voucher_type === 'furniture';
+$is_household_goods = $voucher_type === 'household_goods';
+$is_fulfillment_voucher = $is_furniture || $is_household_goods;
 $detail_url = rest_url('svdp/v1/cashier/vouchers/' . intval($voucher['id']));
 $item_progress = $voucher['item_progress'] ?? null;
 $remaining_items = intval($voucher['remaining_items'] ?? ($item_progress['requested'] ?? 0));
@@ -12,15 +17,23 @@ $coat_copy = SVDP_Voucher_Copy::get_coat_copy();
 ?>
 <button
     type="button"
-    class="svdp-cashier-list-card svdp-card-<?php echo esc_attr($status_class); ?><?php echo $is_selected ? ' is-selected' : ''; ?><?php echo $is_furniture ? ' svdp-card-furniture' : ''; ?>"
+    class="svdp-cashier-list-card svdp-card-<?php echo esc_attr($status_class); ?><?php echo $is_selected ? ' is-selected' : ''; ?><?php echo $is_fulfillment_voucher ? ' svdp-card-furniture' : ''; ?>"
     data-voucher-card
     data-voucher-id="<?php echo esc_attr($voucher['id']); ?>"
     hx-get="<?php echo esc_url($detail_url); ?>"
     hx-target="#svdpCashierDetailPanel"
     hx-swap="innerHTML"
 >
+    <span class="svdp-card-status-rail" aria-hidden="true"></span>
     <div class="svdp-cashier-list-card-header">
         <div>
+            <div class="svdp-card-status-line">
+                <span class="svdp-card-status-icon" aria-hidden="true"><?php echo esc_html($status_icon); ?></span>
+                <span class="svdp-card-status-label"><?php echo esc_html($status_label); ?></span>
+            </div>
+            <?php if ($status_date_label !== ''): ?>
+                <div class="svdp-card-status-date"><?php echo esc_html($status_date_label); ?></div>
+            <?php endif; ?>
             <div class="svdp-card-name"><?php echo esc_html($voucher['first_name'] . ' ' . $voucher['last_name']); ?></div>
             <div class="svdp-card-subtitle"><?php echo esc_html($voucher['conference_name']); ?></div>
         </div>
@@ -28,18 +41,15 @@ $coat_copy = SVDP_Voucher_Copy::get_coat_copy();
             <span class="svdp-type-badge svdp-type-<?php echo esc_attr($voucher_type); ?>">
                 <?php echo esc_html($voucher['voucher_type_label'] ?? ucfirst($voucher_type)); ?>
             </span>
-            <?php if ($is_furniture): ?>
+            <?php if ($is_fulfillment_voucher): ?>
                 <span class="svdp-type-badge svdp-type-workflow">
                     <?php echo esc_html($voucher['workflow_status_label'] ?? 'Submitted'); ?>
                 </span>
             <?php endif; ?>
-            <span class="svdp-status-badge svdp-badge-<?php echo esc_attr($status_class); ?>">
-                <?php echo esc_html($voucher['status']); ?>
-            </span>
         </div>
     </div>
 
-    <?php if ($is_furniture): ?>
+    <?php if ($is_fulfillment_voucher): ?>
         <div class="svdp-cashier-list-card-grid">
             <div class="svdp-detail-item">
                 <span class="svdp-detail-label">DOB</span>
@@ -54,8 +64,14 @@ $coat_copy = SVDP_Voucher_Copy::get_coat_copy();
                 <span class="svdp-detail-value"><?php echo esc_html(!empty($voucher['delivery_required']) ? $delivery_copy['yesLabel'] : $delivery_copy['noLabel']); ?></span>
             </div>
             <div class="svdp-detail-item">
-                <span class="svdp-detail-label">Items</span>
-                <span class="svdp-detail-value"><?php echo esc_html(intval($voucher['voucher_items_count'])); ?> requested</span>
+                <span class="svdp-detail-label"><?php echo $is_household_goods ? 'Categories' : 'Items'; ?></span>
+                <span class="svdp-detail-value">
+                    <?php
+                    $requested_units = intval($voucher['fulfillment_summary']['requested_units'] ?? $voucher['voucher_items_count']);
+                    echo esc_html($requested_units);
+                    ?>
+                    requested
+                </span>
             </div>
         </div>
 
@@ -63,12 +79,21 @@ $coat_copy = SVDP_Voucher_Copy::get_coat_copy();
             <div class="svdp-cashier-inline-summary">
                 <span>
                     <?php
-                    echo esc_html(
-                        intval($item_progress['total']) . ' items • ' .
-                        intval($item_progress['completed']) . ' completed • ' .
-                        intval($item_progress['cancelled']) . ' cancelled • ' .
-                        $remaining_items . ' remaining'
-                    );
+                    if (!empty($voucher['uses_shared_fulfillment'])) {
+                        echo esc_html(
+                            intval($item_progress['total']) . ' requested units; ' .
+                            intval($item_progress['completed']) . ' fulfilled; ' .
+                            intval($item_progress['cancelled']) . ' unavailable; ' .
+                            $remaining_items . ' unresolved'
+                        );
+                    } else {
+                        echo esc_html(
+                            intval($item_progress['total']) . ' items; ' .
+                            intval($item_progress['completed']) . ' completed; ' .
+                            intval($item_progress['cancelled']) . ' cancelled; ' .
+                            $remaining_items . ' remaining'
+                        );
+                    }
                     ?>
                 </span>
             </div>
