@@ -24,6 +24,13 @@ class SVDP_Admin {
         add_action('wp_ajax_svdp_add_furniture_cancellation_reason', [$this, 'ajax_add_furniture_cancellation_reason']);
         add_action('wp_ajax_svdp_update_furniture_cancellation_reason', [$this, 'ajax_update_furniture_cancellation_reason']);
         add_action('wp_ajax_svdp_set_furniture_cancellation_reason_active', [$this, 'ajax_set_furniture_cancellation_reason_active']);
+        add_action('wp_ajax_svdp_add_household_goods_browse_group', [$this, 'ajax_add_household_goods_browse_group']);
+        add_action('wp_ajax_svdp_update_household_goods_browse_group', [$this, 'ajax_update_household_goods_browse_group']);
+        add_action('wp_ajax_svdp_set_household_goods_browse_group_active', [$this, 'ajax_set_household_goods_browse_group_active']);
+        add_action('wp_ajax_svdp_add_household_goods_category', [$this, 'ajax_add_household_goods_category']);
+        add_action('wp_ajax_svdp_update_household_goods_category', [$this, 'ajax_update_household_goods_category']);
+        add_action('wp_ajax_svdp_set_household_goods_category_active', [$this, 'ajax_set_household_goods_category_active']);
+        add_action('wp_ajax_svdp_update_household_goods_limits', [$this, 'ajax_update_household_goods_limits']);
 
         // Manager AJAX
         add_action('wp_ajax_svdp_add_manager', [$this, 'ajax_add_manager']);
@@ -75,6 +82,7 @@ class SVDP_Admin {
         wp_enqueue_style('svdp-vouchers-admin', SVDP_VOUCHERS_PLUGIN_URL . 'admin/css/admin.css', [], $this->get_asset_version('admin/css/admin.css'));
         wp_enqueue_script('svdp-vouchers-admin', SVDP_VOUCHERS_PLUGIN_URL . 'admin/js/admin.js', ['jquery'], $this->get_asset_version('admin/js/admin.js'), true);
         wp_enqueue_script('svdp-furniture-admin', SVDP_VOUCHERS_PLUGIN_URL . 'admin/js/furniture-admin.js', ['jquery'], $this->get_asset_version('admin/js/furniture-admin.js'), true);
+        wp_enqueue_script('svdp-household-goods-admin', SVDP_VOUCHERS_PLUGIN_URL . 'admin/js/household-goods-admin.js', ['jquery'], $this->get_asset_version('admin/js/household-goods-admin.js'), true);
         wp_enqueue_script('svdp-accounting-admin', SVDP_VOUCHERS_PLUGIN_URL . 'admin/js/accounting-admin.js', ['jquery', 'svdp-vouchers-admin'], $this->get_asset_version('admin/js/accounting-admin.js'), true);
         wp_enqueue_script('svdp-managers', SVDP_VOUCHERS_PLUGIN_URL . 'admin/js/managers.js', ['jquery'], $this->get_asset_version('admin/js/managers.js'), true);
         wp_enqueue_script('svdp-override-reasons', SVDP_VOUCHERS_PLUGIN_URL . 'admin/js/override-reasons.js', ['jquery', 'jquery-ui-sortable'], $this->get_asset_version('admin/js/override-reasons.js'), true);
@@ -516,6 +524,138 @@ class SVDP_Admin {
         }
 
         wp_send_json_success($active ? 'Furniture cancellation reason restored.' : 'Furniture cancellation reason archived.');
+    }
+
+    /**
+     * AJAX: Add Household Goods browse group.
+     */
+    public function ajax_add_household_goods_browse_group() {
+        check_ajax_referer('svdp_admin_nonce', 'nonce');
+
+        if (!SVDP_Permissions::user_can_manage_household_goods_catalog()) {
+            wp_send_json_error('Permission denied');
+        }
+
+        $result = SVDP_Household_Goods_Catalog::create_browse_group($_POST);
+        if (is_wp_error($result)) {
+            wp_send_json_error($result->get_error_message());
+        }
+
+        wp_send_json_success(['id' => $result, 'message' => 'Browse group created.']);
+    }
+
+    /**
+     * AJAX: Update Household Goods browse group.
+     */
+    public function ajax_update_household_goods_browse_group() {
+        check_ajax_referer('svdp_admin_nonce', 'nonce');
+
+        if (!SVDP_Permissions::user_can_manage_household_goods_catalog()) {
+            wp_send_json_error('Permission denied');
+        }
+
+        $id = intval($_POST['id'] ?? 0);
+        $result = SVDP_Household_Goods_Catalog::update_browse_group($id, $_POST);
+        if (is_wp_error($result)) {
+            wp_send_json_error($result->get_error_message());
+        }
+
+        wp_send_json_success('Browse group updated.');
+    }
+
+    /**
+     * AJAX: Archive or restore Household Goods browse group.
+     */
+    public function ajax_set_household_goods_browse_group_active() {
+        check_ajax_referer('svdp_admin_nonce', 'nonce');
+
+        if (!SVDP_Permissions::user_can_manage_household_goods_catalog()) {
+            wp_send_json_error('Permission denied');
+        }
+
+        $id = intval($_POST['id'] ?? 0);
+        $active = intval($_POST['active'] ?? 0);
+        $result = SVDP_Household_Goods_Catalog::set_browse_group_active($id, $active);
+        if (is_wp_error($result)) {
+            wp_send_json_error($result->get_error_message());
+        }
+
+        wp_send_json_success($active ? 'Browse group restored.' : 'Browse group archived.');
+    }
+
+    /**
+     * AJAX: Add Household Goods category.
+     */
+    public function ajax_add_household_goods_category() {
+        check_ajax_referer('svdp_admin_nonce', 'nonce');
+
+        if (!SVDP_Permissions::user_can_manage_household_goods_catalog()) {
+            wp_send_json_error('Permission denied');
+        }
+
+        $result = SVDP_Household_Goods_Catalog::create_category($_POST);
+        if (is_wp_error($result)) {
+            wp_send_json_error($result->get_error_message());
+        }
+
+        wp_send_json_success(['id' => $result, 'message' => 'Household Goods category created.']);
+    }
+
+    /**
+     * AJAX: Update Household Goods category.
+     */
+    public function ajax_update_household_goods_category() {
+        check_ajax_referer('svdp_admin_nonce', 'nonce');
+
+        if (!SVDP_Permissions::user_can_manage_household_goods_catalog()) {
+            wp_send_json_error('Permission denied');
+        }
+
+        $id = intval($_POST['id'] ?? 0);
+        $result = SVDP_Household_Goods_Catalog::update_category($id, $_POST);
+        if (is_wp_error($result)) {
+            wp_send_json_error($result->get_error_message());
+        }
+
+        wp_send_json_success('Household Goods category updated.');
+    }
+
+    /**
+     * AJAX: Archive or restore Household Goods category.
+     */
+    public function ajax_set_household_goods_category_active() {
+        check_ajax_referer('svdp_admin_nonce', 'nonce');
+
+        if (!SVDP_Permissions::user_can_manage_household_goods_catalog()) {
+            wp_send_json_error('Permission denied');
+        }
+
+        $id = intval($_POST['id'] ?? 0);
+        $active = intval($_POST['active'] ?? 0);
+        $result = SVDP_Household_Goods_Catalog::set_category_active($id, $active);
+        if (is_wp_error($result)) {
+            wp_send_json_error($result->get_error_message());
+        }
+
+        wp_send_json_success($active ? 'Household Goods category restored.' : 'Household Goods category archived.');
+    }
+
+    /**
+     * AJAX: Update Household Goods limits.
+     */
+    public function ajax_update_household_goods_limits() {
+        check_ajax_referer('svdp_admin_nonce', 'nonce');
+
+        if (!SVDP_Permissions::user_can_manage_household_goods_limits()) {
+            wp_send_json_error('Permission denied');
+        }
+
+        $result = SVDP_Household_Goods_Catalog::update_voucher_quantity_max($_POST['voucher_quantity_max'] ?? '');
+        if (is_wp_error($result)) {
+            wp_send_json_error($result->get_error_message());
+        }
+
+        wp_send_json_success('Household Goods limits updated.');
     }
 
     /**

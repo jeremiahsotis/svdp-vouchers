@@ -137,10 +137,14 @@
       "surfaces": [
         "docs/product/release-c-product-contract.md",
         "planning/release-c-slice-map.md",
+        "includes/class-household-goods-catalog.php",
         "includes/class-voucher-type-settings.php",
         "includes/class-database.php",
+        "includes/class-permissions.php",
         "includes/class-voucher.php",
         "public/js/voucher-request.js",
+        "admin/js/household-goods-admin.js",
+        "admin/views/tab-household-goods.php",
         "admin/views/admin-page.php",
         "includes/class-admin.php"
       ],

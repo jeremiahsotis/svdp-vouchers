@@ -22,6 +22,9 @@ class SVDP_Permissions {
             'access_cashier_station',
             'svdp_redeem_furniture_vouchers',
             'svdp_manage_furniture_catalog',
+            'svdp_manage_household_goods_catalog',
+            'svdp_manage_household_goods_limits',
+            'svdp_view_voucher_configuration_audit',
             'svdp_view_audit_log',
         ]);
     }
@@ -54,6 +57,36 @@ class SVDP_Permissions {
      */
     public static function user_can_manage_furniture_catalog($user = null) {
         return self::user_has_capability($user, 'svdp_manage_furniture_catalog') || self::user_has_capability($user, 'manage_options');
+    }
+
+    /**
+     * Check whether a user can manage Household Goods browse groups and catalog categories.
+     *
+     * @param WP_User|int|null $user User object, user ID, or current user.
+     * @return bool
+     */
+    public static function user_can_manage_household_goods_catalog($user = null) {
+        return self::user_has_capability($user, 'svdp_manage_household_goods_catalog') || self::user_has_capability($user, 'manage_options');
+    }
+
+    /**
+     * Check whether a user can manage Household Goods limits.
+     *
+     * @param WP_User|int|null $user User object, user ID, or current user.
+     * @return bool
+     */
+    public static function user_can_manage_household_goods_limits($user = null) {
+        return self::user_has_capability($user, 'svdp_manage_household_goods_limits') || self::user_has_capability($user, 'manage_options');
+    }
+
+    /**
+     * Check whether a user can view configuration audit history.
+     *
+     * @param WP_User|int|null $user User object, user ID, or current user.
+     * @return bool
+     */
+    public static function user_can_view_voucher_configuration_audit($user = null) {
+        return self::user_has_capability($user, 'svdp_view_voucher_configuration_audit') || self::user_has_capability($user, 'manage_options');
     }
 
     /**

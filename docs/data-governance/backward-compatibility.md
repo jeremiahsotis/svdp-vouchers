@@ -34,3 +34,9 @@ Slice C1 adds nullable request-group linkage to voucher rows. Existing Clothing 
 The explicit new `household_goods` root type is recognized for Release C request-group foundation work. Legacy `household` values continue to normalize to Furniture history and are not converted to Household Goods.
 
 Voucher-type delivery capabilities and delivery fee lookups affect future request-group snapshots. Existing Furniture voucher meta, receipts, invoices, and delivery fee snapshots are not recalculated.
+
+## Slice C2 Compatibility Notes
+
+Slice C2 adds Household Goods catalog/configuration tables and admin-only mutation surfaces. Existing Clothing and Furniture voucher behavior remains unchanged, including the legacy Furniture catalog data and historical `household` normalization as Furniture history.
+
+Household Goods catalog and limit changes affect future requests only. Issued Household Goods request lines in later slices must use the C2 snapshot helper so later catalog edits, archive/restore actions, or limit changes do not alter historical vouchers.

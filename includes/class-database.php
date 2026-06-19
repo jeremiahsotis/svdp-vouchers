@@ -4,7 +4,7 @@
  */
 class SVDP_Database {
 
-    const SCHEMA_VERSION = '10';
+    const SCHEMA_VERSION = '11';
 
     /**
      * Run idempotent schema upgrades for the plugin.
@@ -51,8 +51,11 @@ class SVDP_Database {
         $request_groups_table = $wpdb->prefix . 'svdp_voucher_request_groups';
         $request_group_delivery_table = $wpdb->prefix . 'svdp_voucher_request_group_delivery';
         $voucher_type_capabilities_table = $wpdb->prefix . 'svdp_voucher_type_capabilities';
+        $household_goods_browse_groups_table = $wpdb->prefix . 'svdp_household_goods_browse_groups';
+        $household_goods_catalog_table = $wpdb->prefix . 'svdp_household_goods_catalog';
+        $configuration_audit_table = $wpdb->prefix . 'svdp_configuration_audit';
 
-        if (!self::table_exists($vouchers_table) || !self::table_exists($catalog_items_table) || !self::table_exists($voucher_items_table) || !self::table_exists($managers_table) || !self::table_exists($override_audit_table) || !self::table_exists($voucher_corrections_table) || !self::table_exists($request_groups_table) || !self::table_exists($request_group_delivery_table) || !self::table_exists($voucher_type_capabilities_table)) {
+        if (!self::table_exists($vouchers_table) || !self::table_exists($catalog_items_table) || !self::table_exists($voucher_items_table) || !self::table_exists($managers_table) || !self::table_exists($override_audit_table) || !self::table_exists($voucher_corrections_table) || !self::table_exists($request_groups_table) || !self::table_exists($request_group_delivery_table) || !self::table_exists($voucher_type_capabilities_table) || !self::table_exists($household_goods_browse_groups_table) || !self::table_exists($household_goods_catalog_table) || !self::table_exists($configuration_audit_table)) {
             return false;
         }
 
@@ -74,7 +77,10 @@ class SVDP_Database {
             && self::column_exists($managers_table, 'locked_until')
             && self::column_exists($managers_table, 'last_used_at')
             && self::column_exists($voucher_corrections_table, 'human_summary')
-            && self::column_exists($request_group_delivery_table, 'selected_voucher_types_snapshot');
+            && self::column_exists($request_group_delivery_table, 'selected_voucher_types_snapshot')
+            && self::column_exists($household_goods_browse_groups_table, 'updated_by_user_id')
+            && self::column_exists($household_goods_catalog_table, 'cashier_guidance')
+            && self::column_exists($configuration_audit_table, 'human_summary');
     }
 
     /**
@@ -180,6 +186,7 @@ class SVDP_Database {
 
         self::create_furniture_tables();
         self::create_release_c_foundation_tables();
+        self::create_household_goods_tables();
         self::create_managers_table();
         self::create_override_reasons_table();
         self::create_override_audit_table();
@@ -192,6 +199,7 @@ class SVDP_Database {
         self::insert_default_conferences();
         self::insert_default_settings();
         self::seed_voucher_type_capabilities();
+        self::seed_household_goods_catalog();
     }
 
     /**
@@ -248,6 +256,7 @@ class SVDP_Database {
             ['setting_key' => 'store_hours', 'setting_value' => 'Monday-Friday 9am-5pm', 'setting_type' => 'text'],
             ['setting_key' => 'redemption_instructions', 'setting_value' => 'Neighbors should visit the store and provide their first name, last name, and date of birth at the counter.', 'setting_type' => 'textarea'],
             ['setting_key' => 'available_voucher_types', 'setting_value' => 'clothing,furniture', 'setting_type' => 'text'],
+            ['setting_key' => 'household_goods_voucher_quantity_max', 'setting_value' => '0', 'setting_type' => 'integer'],
         ];
 
         foreach ($settings as $setting) {
@@ -597,6 +606,161 @@ class SVDP_Database {
         dbDelta($request_groups_sql);
         dbDelta($request_group_delivery_sql);
         dbDelta($voucher_type_capabilities_sql);
+    }
+
+    /**
+     * Create Release C Household Goods catalog and configuration audit tables.
+     */
+    private static function create_household_goods_tables() {
+        global $wpdb;
+        $charset_collate = $wpdb->get_charset_collate();
+
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+
+        $browse_groups_table = $wpdb->prefix . 'svdp_household_goods_browse_groups';
+        $browse_groups_sql = "CREATE TABLE $browse_groups_table (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            name varchar(200) NOT NULL,
+            slug varchar(200) NOT NULL,
+            sort_order int(11) NOT NULL DEFAULT 0,
+            active tinyint(1) NOT NULL DEFAULT 1,
+            updated_by_user_id bigint(20) DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY slug (slug),
+            KEY idx_svdp_hg_groups_active (active),
+            KEY idx_svdp_hg_groups_sort (sort_order)
+        ) $charset_collate;";
+
+        $catalog_table = $wpdb->prefix . 'svdp_household_goods_catalog';
+        $catalog_sql = "CREATE TABLE $catalog_table (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            browse_group_id bigint(20) NOT NULL,
+            name varchar(255) NOT NULL,
+            slug varchar(255) NOT NULL,
+            estimated_conference_partner_cost_per_unit decimal(10,2) NOT NULL DEFAULT 0.00,
+            quantity_max int(11) NOT NULL DEFAULT 0,
+            cashier_guidance text DEFAULT NULL,
+            sort_order int(11) NOT NULL DEFAULT 0,
+            active tinyint(1) NOT NULL DEFAULT 1,
+            updated_by_user_id bigint(20) DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY idx_svdp_hg_catalog_group (browse_group_id),
+            KEY idx_svdp_hg_catalog_active (active),
+            KEY idx_svdp_hg_catalog_sort (browse_group_id, sort_order),
+            KEY idx_svdp_hg_catalog_name (name)
+        ) $charset_collate;";
+
+        $configuration_audit_table = $wpdb->prefix . 'svdp_configuration_audit';
+        $configuration_audit_sql = "CREATE TABLE $configuration_audit_table (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            configuration_area varchar(100) NOT NULL,
+            record_type varchar(100) NOT NULL,
+            record_identifier varchar(200) NOT NULL,
+            record_name_snapshot varchar(255) NOT NULL,
+            field_changed varchar(100) NOT NULL,
+            before_value text DEFAULT NULL,
+            after_value text DEFAULT NULL,
+            changed_by_user_id bigint(20) DEFAULT NULL,
+            changed_at datetime NOT NULL,
+            human_summary text NOT NULL,
+            PRIMARY KEY (id),
+            KEY idx_svdp_config_audit_area (configuration_area),
+            KEY idx_svdp_config_audit_record (record_type, record_identifier),
+            KEY idx_svdp_config_audit_changed (changed_at)
+        ) $charset_collate;";
+
+        dbDelta($browse_groups_sql);
+        dbDelta($catalog_sql);
+        dbDelta($configuration_audit_sql);
+    }
+
+    /**
+     * Seed starter Household Goods browse groups and catalog categories.
+     */
+    private static function seed_household_goods_catalog() {
+        global $wpdb;
+        $groups_table = $wpdb->prefix . 'svdp_household_goods_browse_groups';
+        $catalog_table = $wpdb->prefix . 'svdp_household_goods_catalog';
+
+        if (!self::table_exists($groups_table) || !self::table_exists($catalog_table)) {
+            return;
+        }
+
+        $group_count = intval($wpdb->get_var("SELECT COUNT(*) FROM $groups_table"));
+        if ($group_count > 0) {
+            return;
+        }
+
+        $groups = [
+            'Kitchen' => [
+                ['Pots & Pans', '10.00', 0],
+                ['Plates & Bowls', '4.00', 12],
+                ['Cups & Glasses', '3.00', 12],
+                ['Silverware', '5.00', 2],
+                ['Cooking Utensils', '5.00', 4],
+            ],
+            'Bed & Bath' => [
+                ['Bedding', '12.00', 4],
+                ['Pillows', '5.00', 4],
+                ['Bath Towels', '4.00', 6],
+                ['Washcloths', '2.00', 8],
+            ],
+            'Window Coverings' => [
+                ['Curtains', '8.00', 6],
+                ['Curtain Rods', '5.00', 6],
+            ],
+            'Cleaning & Home Basics' => [
+                ['Laundry Basket', '5.00', 2],
+                ['Trash Can', '6.00', 2],
+                ['Broom', '5.00', 1],
+                ['Mop', '6.00', 1],
+            ],
+            'Small Appliances' => [
+                ['Toaster', '10.00', 1],
+                ['Coffee Maker', '12.00', 1],
+            ],
+            'Storage & Organization' => [
+                ['Storage Bins', '6.00', 6],
+            ],
+        ];
+
+        $group_order = 0;
+        foreach ($groups as $group_name => $categories) {
+            $wpdb->insert($groups_table, [
+                'name' => $group_name,
+                'slug' => sanitize_title($group_name),
+                'sort_order' => $group_order,
+                'active' => 1,
+                'updated_by_user_id' => get_current_user_id() ?: null,
+            ]);
+
+            $group_id = intval($wpdb->insert_id);
+            $category_order = 0;
+            foreach ($categories as $category) {
+                $wpdb->insert($catalog_table, [
+                    'browse_group_id' => $group_id,
+                    'name' => $category[0],
+                    'slug' => sanitize_title($category[0]),
+                    'estimated_conference_partner_cost_per_unit' => $category[1],
+                    'quantity_max' => $category[2],
+                    'cashier_guidance' => '',
+                    'sort_order' => $category_order,
+                    'active' => 1,
+                    'updated_by_user_id' => get_current_user_id() ?: null,
+                ]);
+                $category_order++;
+            }
+
+            $group_order++;
+        }
+
+        if (class_exists('SVDP_Settings')) {
+            SVDP_Settings::update_setting('household_goods_voucher_quantity_max', '0', 'integer');
+        }
     }
 
     /**
