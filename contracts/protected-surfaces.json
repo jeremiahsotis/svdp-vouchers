@@ -6,6 +6,16 @@
       "reason": "Core voucher creation, duplicate detection, eligibility, expiration, notification, furniture request persistence, and cashier voucher formatting."
     },
     {
+      "path": "includes/class-voucher-request-group.php",
+      "type": "php",
+      "reason": "Release C atomic request group creation, child voucher linking, and group-level delivery snapshot persistence."
+    },
+    {
+      "path": "includes/class-voucher-type-settings.php",
+      "type": "php",
+      "reason": "Release C voucher-type delivery capability configuration and future-request delivery fee lookup."
+    },
+    {
       "path": "includes/class-database.php",
       "type": "php",
       "reason": "Database schema, schema upgrades, protected data evolution, and migration-sensitive table definitions."

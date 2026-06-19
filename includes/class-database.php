@@ -4,7 +4,7 @@
  */
 class SVDP_Database {
 
-    const SCHEMA_VERSION = '9';
+    const SCHEMA_VERSION = '10';
 
     /**
      * Run idempotent schema upgrades for the plugin.
@@ -48,12 +48,16 @@ class SVDP_Database {
         $managers_table = $wpdb->prefix . 'svdp_managers';
         $override_audit_table = $wpdb->prefix . 'svdp_override_audit';
         $voucher_corrections_table = $wpdb->prefix . 'svdp_voucher_corrections';
+        $request_groups_table = $wpdb->prefix . 'svdp_voucher_request_groups';
+        $request_group_delivery_table = $wpdb->prefix . 'svdp_voucher_request_group_delivery';
+        $voucher_type_capabilities_table = $wpdb->prefix . 'svdp_voucher_type_capabilities';
 
-        if (!self::table_exists($vouchers_table) || !self::table_exists($catalog_items_table) || !self::table_exists($voucher_items_table) || !self::table_exists($managers_table) || !self::table_exists($override_audit_table) || !self::table_exists($voucher_corrections_table)) {
+        if (!self::table_exists($vouchers_table) || !self::table_exists($catalog_items_table) || !self::table_exists($voucher_items_table) || !self::table_exists($managers_table) || !self::table_exists($override_audit_table) || !self::table_exists($voucher_corrections_table) || !self::table_exists($request_groups_table) || !self::table_exists($request_group_delivery_table) || !self::table_exists($voucher_type_capabilities_table)) {
             return false;
         }
 
         return self::column_exists($vouchers_table, 'delivery_lat')
+            && self::column_exists($vouchers_table, 'request_group_id')
             && self::column_exists($vouchers_table, 'delivery_lng')
             && self::column_exists($vouchers_table, 'delivery_verified')
             && self::column_exists($vouchers_table, 'delivery_verification_source')
@@ -69,7 +73,8 @@ class SVDP_Database {
             && self::column_exists($managers_table, 'failed_attempts')
             && self::column_exists($managers_table, 'locked_until')
             && self::column_exists($managers_table, 'last_used_at')
-            && self::column_exists($voucher_corrections_table, 'human_summary');
+            && self::column_exists($voucher_corrections_table, 'human_summary')
+            && self::column_exists($request_group_delivery_table, 'selected_voucher_types_snapshot');
     }
 
     /**
@@ -84,6 +89,7 @@ class SVDP_Database {
         $vouchers_table = $wpdb->prefix . 'svdp_vouchers';
         $vouchers_sql = "CREATE TABLE $vouchers_table (
             id bigint(20) NOT NULL AUTO_INCREMENT,
+            request_group_id bigint(20) DEFAULT NULL,
             first_name varchar(100) NOT NULL,
             last_name varchar(100) NOT NULL,
             dob date NOT NULL,
@@ -118,6 +124,8 @@ class SVDP_Database {
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
+            UNIQUE KEY uniq_svdp_request_group_voucher_type (request_group_id, voucher_type),
+            KEY request_group_id (request_group_id),
             KEY first_name (first_name),
             KEY last_name (last_name),
             KEY dob (dob),
@@ -171,6 +179,7 @@ class SVDP_Database {
         dbDelta($settings_sql);
 
         self::create_furniture_tables();
+        self::create_release_c_foundation_tables();
         self::create_managers_table();
         self::create_override_reasons_table();
         self::create_override_audit_table();
@@ -178,9 +187,11 @@ class SVDP_Database {
         self::add_voucher_correction_human_summary_column();
         self::add_override_columns();
         self::add_address_verification_columns();
+        self::add_request_group_columns();
 
         self::insert_default_conferences();
         self::insert_default_settings();
+        self::seed_voucher_type_capabilities();
     }
 
     /**
@@ -521,6 +532,134 @@ class SVDP_Database {
     }
 
     /**
+     * Create Release C request-group and voucher-type capability tables.
+     */
+    private static function create_release_c_foundation_tables() {
+        global $wpdb;
+        $charset_collate = $wpdb->get_charset_collate();
+
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+
+        $request_groups_table = $wpdb->prefix . 'svdp_voucher_request_groups';
+        $request_groups_sql = "CREATE TABLE $request_groups_table (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            conference_id bigint(20) NOT NULL,
+            first_name varchar(100) NOT NULL,
+            last_name varchar(100) NOT NULL,
+            dob date NOT NULL,
+            adults int(11) NOT NULL DEFAULT 0,
+            children int(11) NOT NULL DEFAULT 0,
+            requestor_name varchar(200) DEFAULT NULL,
+            requestor_email varchar(200) DEFAULT NULL,
+            created_by varchar(50) NOT NULL DEFAULT 'Vincentian',
+            submitted_at datetime NOT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY idx_svdp_request_groups_conference (conference_id),
+            KEY idx_svdp_request_groups_identity (last_name, first_name, dob),
+            KEY idx_svdp_request_groups_submitted (submitted_at)
+        ) $charset_collate;";
+
+        $request_group_delivery_table = $wpdb->prefix . 'svdp_voucher_request_group_delivery';
+        $request_group_delivery_sql = "CREATE TABLE $request_group_delivery_table (
+            request_group_id bigint(20) NOT NULL,
+            delivery_requested tinyint(1) NOT NULL DEFAULT 0,
+            delivery_fee_snapshot decimal(10,2) NOT NULL DEFAULT 0.00,
+            eligible_voucher_types_snapshot text DEFAULT NULL,
+            selected_voucher_types_snapshot text DEFAULT NULL,
+            address_line_1 varchar(255) DEFAULT NULL,
+            address_line_2 varchar(255) DEFAULT NULL,
+            city varchar(100) DEFAULT NULL,
+            state varchar(50) DEFAULT NULL,
+            zip varchar(20) DEFAULT NULL,
+            lat decimal(10,7) DEFAULT NULL,
+            lng decimal(10,7) DEFAULT NULL,
+            verified tinyint(1) NOT NULL DEFAULT 0,
+            verification_source varchar(100) DEFAULT NULL,
+            verification_confidence decimal(5,4) DEFAULT NULL,
+            normalized_address varchar(500) DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (request_group_id)
+        ) $charset_collate;";
+
+        $voucher_type_capabilities_table = $wpdb->prefix . 'svdp_voucher_type_capabilities';
+        $voucher_type_capabilities_sql = "CREATE TABLE $voucher_type_capabilities_table (
+            voucher_type varchar(32) NOT NULL,
+            delivery_available tinyint(1) NOT NULL DEFAULT 0,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_by_user_id bigint(20) DEFAULT NULL,
+            PRIMARY KEY (voucher_type),
+            KEY idx_svdp_voucher_type_delivery (delivery_available)
+        ) $charset_collate;";
+
+        dbDelta($request_groups_sql);
+        dbDelta($request_group_delivery_sql);
+        dbDelta($voucher_type_capabilities_sql);
+    }
+
+    /**
+     * Add request-group linkage to voucher rows on existing installs.
+     */
+    private static function add_request_group_columns() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'svdp_vouchers';
+
+        if (!self::table_exists($table)) {
+            return;
+        }
+
+        if (!self::column_exists($table, 'request_group_id')) {
+            $wpdb->query("ALTER TABLE $table ADD COLUMN request_group_id bigint(20) DEFAULT NULL AFTER id");
+        }
+
+        if (!self::index_exists($table, 'request_group_id')) {
+            $wpdb->query("ALTER TABLE $table ADD KEY request_group_id (request_group_id)");
+        }
+
+        if (!self::index_exists($table, 'uniq_svdp_request_group_voucher_type')) {
+            $wpdb->query("ALTER TABLE $table ADD UNIQUE KEY uniq_svdp_request_group_voucher_type (request_group_id, voucher_type)");
+        }
+    }
+
+    /**
+     * Seed initial Release C delivery capability defaults.
+     */
+    private static function seed_voucher_type_capabilities() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'svdp_voucher_type_capabilities';
+
+        if (!self::table_exists($table)) {
+            return;
+        }
+
+        $defaults = [
+            'clothing' => 0,
+            'furniture' => 1,
+            'household_goods' => 1,
+        ];
+
+        foreach ($defaults as $voucher_type => $delivery_available) {
+            $exists = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM $table WHERE voucher_type = %s",
+                $voucher_type
+            ));
+
+            if ($exists) {
+                continue;
+            }
+
+            $wpdb->insert($table, [
+                'voucher_type' => $voucher_type,
+                'delivery_available' => $delivery_available,
+                'updated_at' => current_time('mysql'),
+                'updated_by_user_id' => get_current_user_id() ?: null,
+            ]);
+        }
+    }
+
+    /**
      * Normalize catalog coverage fields and voucher-item snapshots for furniture requests.
      */
     private static function normalize_furniture_coverage_data() {
@@ -814,5 +953,23 @@ class SVDP_Database {
 
         $column_exists = $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM $table LIKE %s", $column));
         return !empty($column_exists);
+    }
+
+    /**
+     * Check whether an index exists on a table.
+     *
+     * @param string $table Fully-qualified table name.
+     * @param string $index Index name.
+     * @return bool
+     */
+    private static function index_exists($table, $index) {
+        global $wpdb;
+
+        if (!self::table_exists($table)) {
+            return false;
+        }
+
+        $rows = $wpdb->get_results($wpdb->prepare("SHOW INDEX FROM $table WHERE Key_name = %s", $index));
+        return !empty($rows);
     }
 }

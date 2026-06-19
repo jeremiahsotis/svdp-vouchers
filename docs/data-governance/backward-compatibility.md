@@ -26,3 +26,11 @@ Future Release C slices must preserve:
 - legacy `household` values as Furniture history, not Household Goods.
 
 Configuration changes introduced by Release C must affect future records only unless the Release C Product Contract explicitly says otherwise.
+
+## Slice C1 Compatibility Notes
+
+Slice C1 adds nullable request-group linkage to voucher rows. Existing Clothing and Furniture vouchers without `request_group_id` remain valid and continue through the legacy display and redemption paths.
+
+The explicit new `household_goods` root type is recognized for Release C request-group foundation work. Legacy `household` values continue to normalize to Furniture history and are not converted to Household Goods.
+
+Voucher-type delivery capabilities and delivery fee lookups affect future request-group snapshots. Existing Furniture voucher meta, receipts, invoices, and delivery fee snapshots are not recalculated.

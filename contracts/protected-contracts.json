@@ -119,6 +119,7 @@
       "surfaces": [
         "docs/product/release-c-product-contract.md",
         "planning/release-c-slice-map.md",
+        "includes/class-voucher-request-group.php",
         "includes/class-voucher.php",
         "includes/class-database.php",
         "svdp-vouchers.php",
@@ -136,6 +137,7 @@
       "surfaces": [
         "docs/product/release-c-product-contract.md",
         "planning/release-c-slice-map.md",
+        "includes/class-voucher-type-settings.php",
         "includes/class-database.php",
         "includes/class-voucher.php",
         "public/js/voucher-request.js",
@@ -154,6 +156,8 @@
       "surfaces": [
         "docs/product/release-c-product-contract.md",
         "planning/release-c-slice-map.md",
+        "includes/class-voucher-request-group.php",
+        "includes/class-voucher-type-settings.php",
         "includes/class-database.php",
         "includes/class-voucher.php",
         "public/js/voucher-request.js",
