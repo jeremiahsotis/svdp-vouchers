@@ -5,7 +5,6 @@
 **Repository:** WordPress plugin, `svdp-vouchers`.  
 **Execution model:** Slice-based implementation with explicit checkpoints before proceeding.
 
-
 # Bootstrap - Slice C0 - Release C Contract Binding and Slice Rebaseline
 
 ## Authoritative Execution Sources

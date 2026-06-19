@@ -5,7 +5,6 @@
 **Repository:** WordPress plugin, `svdp-vouchers`.  
 **Execution model:** Slice-based implementation with explicit checkpoints before proceeding.
 
-
 # Codepack - Slice C0 - Release C Contract Binding and Slice Rebaseline
 
 ## Task
@@ -33,7 +32,6 @@ find . -name ".DS_Store" -print
 ```
 
 If project governance scripts differ in the current repo, use `docs/governance/canonical-commands.json` as the source of truth and record the variance in the checkpoint.
-
 
 ## Work Plan
 

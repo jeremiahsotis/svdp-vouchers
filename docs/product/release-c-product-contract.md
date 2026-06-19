@@ -348,18 +348,18 @@ wp_svdp_household_goods_browse_groups
 wp_svdp_household_goods_catalog
 ```
 
-| Field                       | Purpose                                                |
-| --------------------------- | ------------------------------------------------------ |
-| `id`                        | Primary identifier                                     |
-| `browse_group_id`           | Parent browse group                                    |
-| `name`                      | Requestable category name                              |
-| `slug`                      | Stable internal identifier                             |
-| `estimated_conference_partner_cost_per_unit`  | Request-time projected Conference / Partner cost per fulfilled unit            |
-| `quantity_max`              | Per-category limit; `0` means no limit                 |
-| `cashier_guidance`          | Optional managed guidance, never a voucher Notes field |
-| `sort_order`                | Display order                                          |
-| `active`                    | Available for future requests                          |
-| `created_at` / `updated_at` | Audit timestamps                                       |
+| Field                                        | Purpose                                                             |
+| -------------------------------------------- | ------------------------------------------------------------------- |
+| `id`                                         | Primary identifier                                                  |
+| `browse_group_id`                            | Parent browse group                                                 |
+| `name`                                       | Requestable category name                                           |
+| `slug`                                       | Stable internal identifier                                          |
+| `estimated_conference_partner_cost_per_unit` | Request-time projected Conference / Partner cost per fulfilled unit |
+| `quantity_max`                               | Per-category limit; `0` means no limit                              |
+| `cashier_guidance`                           | Optional managed guidance, never a voucher Notes field              |
+| `sort_order`                                 | Display order                                                       |
+| `active`                                     | Available for future requests                                       |
+| `created_at` / `updated_at`                  | Audit timestamps                                                    |
 
 ### Price semantics
 
@@ -374,10 +374,10 @@ Requested Quantity × Estimated Conference / Partner Cost Per Unit
 Example:
 
 | Category    | Requested quantity | Estimated max unit price | Projected Conference / Partner cost |
-| ----------- | -----------------: | -----------------------: | ----------------: |
-| Bath Towels |                  6 |                    $4.00 |            $24.00 |
-| Bedding     |                  4 |                   $12.00 |            $48.00 |
-| Pots & Pans |                  1 |                   $10.00 |            $10.00 |
+| ----------- | -----------------: | -----------------------: | ----------------------------------: |
+| Bath Towels |                  6 |                    $4.00 |                              $24.00 |
+| Bedding     |                  4 |                   $12.00 |                              $48.00 |
+| Pots & Pans |                  1 |                   $10.00 |                              $10.00 |
 
 This lets the system predict upper exposure in the same general way the Furniture catalog does.
 
@@ -453,22 +453,22 @@ For all new Release C Furniture and Household Goods vouchers, each requested ite
 wp_svdp_voucher_requested_lines
 ```
 
-| Field                               | Purpose                                                    |
-| ----------------------------------- | ---------------------------------------------------------- |
-| `id`                                | Primary identifier                                         |
-| `voucher_id`                        | Parent voucher                                             |
-| `line_type`                         | `furniture` or `household_goods`                           |
-| `source_catalog_id`                 | Furniture or Household Goods catalog source, if applicable |
-| `requested_name_snapshot`           | Immutable display name                                     |
-| `requested_group_snapshot`          | Furniture category or Household Goods browse group         |
-| `requested_quantity`                | Quantity requested                                         |
-| `estimated_conference_partner_cost_per_unit_snapshot` | Request-time Conference / Partner cost estimate                                |
-| `sort_order_snapshot`               | Display order                                              |
-| `unavailable_quantity`              | Quantity ultimately unavailable                            |
-| `unavailable_reason_id`             | Structured reason                                          |
-| `unavailable_reason_snapshot`       | Reason text snapshot                                       |
-| `resolution_status`                 | Requested, partially fulfilled, unavailable, resolved      |
-| `created_at` / `updated_at`         | Audit timestamps                                           |
+| Field                                                 | Purpose                                                    |
+| ----------------------------------------------------- | ---------------------------------------------------------- |
+| `id`                                                  | Primary identifier                                         |
+| `voucher_id`                                          | Parent voucher                                             |
+| `line_type`                                           | `furniture` or `household_goods`                           |
+| `source_catalog_id`                                   | Furniture or Household Goods catalog source, if applicable |
+| `requested_name_snapshot`                             | Immutable display name                                     |
+| `requested_group_snapshot`                            | Furniture category or Household Goods browse group         |
+| `requested_quantity`                                  | Quantity requested                                         |
+| `estimated_conference_partner_cost_per_unit_snapshot` | Request-time Conference / Partner cost estimate            |
+| `sort_order_snapshot`                                 | Display order                                              |
+| `unavailable_quantity`                                | Quantity ultimately unavailable                            |
+| `unavailable_reason_id`                               | Structured reason                                          |
+| `unavailable_reason_snapshot`                         | Reason text snapshot                                       |
+| `resolution_status`                                   | Requested, partially fulfilled, unavailable, resolved      |
+| `created_at` / `updated_at`                           | Audit timestamps                                           |
 
 ### Fulfillment-entry model
 

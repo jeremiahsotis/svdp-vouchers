@@ -5,7 +5,6 @@
 **Repository:** WordPress plugin, `svdp-vouchers`.  
 **Execution model:** Slice-based implementation with explicit checkpoints before proceeding.
 
-
 # Slice C0 - Release C Contract Binding and Slice Rebaseline
 
 ## Status
@@ -86,7 +85,6 @@ These are expected targets. Confirm exact paths against the current repo before 
 - Preserve historical Furniture completion notes where already stored, but do not expose them as a new-entry field.
 - Treat request group creation as atomic. No partial request groups.
 - Snapshot configuration values onto issued request records where required.
-
 
 ## Data and Migration Rules
 
