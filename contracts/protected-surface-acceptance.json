@@ -33,6 +33,26 @@
     {
       "path": "planning/release-c-slice-map.md",
       "reason": "Slice C0 documents the C1-C5 dependency order and Release C cross-slice hard stops."
+    },
+    {
+      "path": "includes/class-database.php",
+      "reason": "Slice C1 adds request-group, group-delivery, voucher-type capability schema, and nullable voucher request_group_id linkage."
+    },
+    {
+      "path": "includes/class-voucher.php",
+      "reason": "Slice C1 recognizes the explicit household_goods root type while preserving legacy household-as-furniture normalization and reads delivery fee configuration for future calculations."
+    },
+    {
+      "path": "includes/class-voucher-request-group.php",
+      "reason": "Slice C1 introduces the backend-only atomic request group service for one to three child vouchers and one group-level delivery snapshot."
+    },
+    {
+      "path": "includes/class-voucher-type-settings.php",
+      "reason": "Slice C1 introduces voucher-type delivery capability settings used by future request-group delivery decisions."
+    },
+    {
+      "path": "svdp-vouchers.php",
+      "reason": "Slice C1 loads the new backend service classes and localizes the configured delivery fee with the existing default."
     }
   ]
 }

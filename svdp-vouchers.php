@@ -23,10 +23,12 @@ define('SVDP_VOUCHERS_PLUGIN_URL', plugin_dir_url(__FILE__));
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-database.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-settings.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-permissions.php';
+require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-voucher-type-settings.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-conference.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-voucher-copy.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-voucher-rules.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-voucher.php';
+require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-voucher-request-group.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-voucher-correction-audit.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-furniture-catalog.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-furniture-cancellation-reason.php';
@@ -542,7 +544,7 @@ class SVDP_Vouchers_Plugin {
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'restUrl' => rest_url(),
             'nonce' => wp_create_nonce('wp_rest'),
-            'deliveryFee' => 50,
+            'deliveryFee' => SVDP_Voucher_Type_Settings::get_delivery_fee(),
             'copy' => SVDP_Voucher_Rules::get_client_copy_payload(),
             'itemValues' => [
                 'adult' => floatval($item_values['adult']),

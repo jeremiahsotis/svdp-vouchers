@@ -14,6 +14,7 @@ FriendShyft
 htmx
 Htmx
 intval
+jeremiahsotis
 llm_run
 micro_task
 MoneyShyft
@@ -25,6 +26,8 @@ planning_state
 preg
 providerish
 Proxmox
+rebaseline
+rebaselines
 replayability
 Replayability
 requestor
@@ -43,5 +46,6 @@ TINYINT
 unslash
 VARCHAR
 vincentian
+Vincentians
 widefat
 wpdb

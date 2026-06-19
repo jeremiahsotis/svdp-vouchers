@@ -14,6 +14,10 @@ class SVDP_Voucher {
             return 'furniture';
         }
 
+        if ($voucher_type === 'household_goods') {
+            return 'household_goods';
+        }
+
         return 'clothing';
     }
 
@@ -330,6 +334,14 @@ class SVDP_Voucher {
             ? self::normalize_voucher_type(sanitize_text_field($params['voucherType']))
             : 'clothing';
         $address_verification = self::sanitize_address_verification_payload($params);
+
+        if ($voucher_type === 'household_goods') {
+            return new WP_Error(
+                'household_goods_requires_request_group',
+                'Household Goods vouchers must be created through the Release C request group flow.',
+                ['status' => 400]
+            );
+        }
 
         // Extract new override fields
         $manager_id = isset($params['manager_id']) ? intval($params['manager_id']) : null;
@@ -801,7 +813,7 @@ class SVDP_Voucher {
             }
         }
 
-        $delivery_fee = $delivery_required ? 50.0 : 0.0;
+        $delivery_fee = $delivery_required ? SVDP_Voucher_Type_Settings::get_delivery_fee() : 0.0;
         $conference_commitment_min = round($conference_commitment_min, 2);
         $conference_commitment_max = round($conference_commitment_max, 2);
         $delivery_fee = round($delivery_fee, 2);
@@ -1730,7 +1742,11 @@ class SVDP_Voucher {
             return "(v.voucher_type = 'clothing' OR v.voucher_type = 'regular' OR v.voucher_type = '' OR v.voucher_type IS NULL)";
         }
 
-        return "(v.voucher_type = 'furniture' OR v.voucher_type = 'household')";
+        if ($normalized_type === 'furniture') {
+            return "(v.voucher_type = 'furniture' OR v.voucher_type = 'household')";
+        }
+
+        return "(v.voucher_type = 'household_goods')";
     }
 
     /**
@@ -1823,7 +1839,7 @@ class SVDP_Voucher {
             'children' => (int) $voucher->children,
             'voucher_value' => (float) $voucher->voucher_value,
             'voucher_type' => $normalized_voucher_type,
-            'voucher_type_label' => ucfirst($normalized_voucher_type),
+            'voucher_type_label' => self::format_voucher_type_label($normalized_voucher_type),
             'voucher_items_count' => (int) ($voucher->voucher_items_count ?? 0),
             'conference_id' => isset($voucher->conference_id) ? (int) $voucher->conference_id : 0,
             'conference_name' => $voucher->conference_name,
@@ -1899,5 +1915,18 @@ class SVDP_Voucher {
         ];
 
         return $labels[$workflow_status] ?? ucfirst(str_replace('_', ' ', (string) $workflow_status));
+    }
+
+    /**
+     * Format root voucher type slugs for cashier-facing payloads.
+     */
+    private static function format_voucher_type_label($voucher_type) {
+        $labels = [
+            'clothing' => 'Clothing',
+            'furniture' => 'Furniture',
+            'household_goods' => 'Household Goods',
+        ];
+
+        return $labels[$voucher_type] ?? ucfirst(str_replace('_', ' ', (string) $voucher_type));
     }
 }

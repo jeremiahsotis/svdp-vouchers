@@ -121,7 +121,7 @@ class SVDP_Settings {
             return 'furniture';
         }
 
-        if ($voucher_type === 'clothing' || $voucher_type === 'furniture') {
+        if ($voucher_type === 'clothing' || $voucher_type === 'furniture' || $voucher_type === 'household_goods') {
             return $voucher_type;
         }
 
