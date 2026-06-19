@@ -14,6 +14,11 @@
         <a href="?page=svdp-vouchers&tab=furniture-settings" class="nav-tab <?php echo $active_tab === 'furniture-settings' ? 'nav-tab-active' : ''; ?>">
             Furniture Reasons
         </a>
+        <?php if (SVDP_Permissions::user_can_manage_household_goods_catalog() || SVDP_Permissions::user_can_manage_household_goods_limits() || SVDP_Permissions::user_can_view_voucher_configuration_audit()) : ?>
+            <a href="?page=svdp-vouchers&tab=household-goods" class="nav-tab <?php echo $active_tab === 'household-goods' ? 'nav-tab-active' : ''; ?>">
+                Household Goods
+            </a>
+        <?php endif; ?>
         <a href="?page=svdp-vouchers&tab=invoices" class="nav-tab <?php echo $active_tab === 'invoices' ? 'nav-tab-active' : ''; ?>">
             Invoices
         </a>
@@ -50,6 +55,12 @@
                 break;
             case 'furniture-settings':
                 include 'tab-furniture-settings.php';
+                break;
+            case 'household-goods':
+                if (!SVDP_Permissions::user_can_manage_household_goods_catalog() && !SVDP_Permissions::user_can_manage_household_goods_limits() && !SVDP_Permissions::user_can_view_voucher_configuration_audit()) {
+                    wp_die(esc_html__('You do not have permission to view Household Goods configuration.', 'svdp-vouchers'));
+                }
+                include 'tab-household-goods.php';
                 break;
             case 'invoices':
                 include 'tab-invoices.php';

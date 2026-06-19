@@ -12,7 +12,7 @@ C0 binds the contract into the repository, records the S5 rebaseline, updates pr
 
 1. C0 - Release Contract Binding and Slice Rebaseline
 2. C1 - Request Groups and Delivery Foundation
-3. C2 - Household Goods Catalog and Voucher Type Capabilities
+3. C2 - Household Goods Catalog, Limits, and Administration
 4. C3 - Assisted Builder Multi-Voucher Submission
 5. C4 - Shared Furniture and Household Goods Fulfillment
 6. C5 - Receipts, Invoices, Cashier Status, and Release Regression
@@ -20,7 +20,7 @@ C0 binds the contract into the repository, records the S5 rebaseline, updates pr
 ## Dependency Rules
 
 - C1 must establish request group creation, child-voucher linkage, delivery snapshots, and historical compatibility foundations before any builder or fulfillment feature depends on them.
-- C2 depends on C1 and introduces Household Goods catalog administration plus voucher-type delivery capabilities without reinterpreting legacy `household` records.
+- C2 depends on C1 and introduces Household Goods catalog, limits, administration, and configuration audit without reinterpreting legacy `household` records.
 - C3 depends on C1 and C2 because the public builder must submit atomic request groups and use the configured Household Goods and delivery-capability data.
 - C4 depends on C1 through C3 because cashier fulfillment must operate on issued child vouchers and snapshotted requested lines.
 - C5 depends on C1 through C4 because receipt, invoice, status display, and full regression acceptance require the complete request-group, catalog, delivery, and fulfillment model.

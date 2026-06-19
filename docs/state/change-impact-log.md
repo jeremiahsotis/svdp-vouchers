@@ -65,3 +65,37 @@ The public Assisted Builder, cashier workspace, Household Goods catalog UI, and 
 Governance impact:
 
 Protected contracts now register the new request-group and voucher-type settings classes. Data governance records the schema version 10 migration and the no-backfill/no-reinterpretation compatibility rule.
+
+## 2026-06-19 - Slice C2 Household Goods Catalog and Limits
+
+Changed surfaces:
+
+- `includes/class-database.php`
+- `includes/class-household-goods-catalog.php`
+- `includes/class-permissions.php`
+- `includes/class-admin.php`
+- `admin/views/admin-page.php`
+- `admin/views/tab-household-goods.php`
+- `admin/js/household-goods-admin.js`
+- `svdp-vouchers.php`
+- `contracts/protected-surfaces.json`
+- `contracts/protected-contracts.json`
+- `contracts/protected-surface-acceptance.json`
+- `docs/data-governance/data-evolution-log.md`
+- `docs/data-governance/backward-compatibility.md`
+- `docs/architecture/concurrency-model.md`
+- `docs/security/access-audit-model.md`
+- `docs/adr/ADR-0003-release-c-household-goods-catalog-and-limits.md`
+- `specs/active/slice-C2/checkpoint-01.md`
+
+Impact summary:
+
+Slice C2 adds admin-managed Household Goods browse groups, catalog categories, category limits, voucher-wide requested quantity limits, active/archive behavior, request-line snapshot helpers, and configuration audit.
+
+Runtime impact:
+
+The public Assisted Builder, request-group submission UI, cashier fulfillment workspace, receipts, invoices, delivery logistics, and legacy Clothing/Furniture voucher behavior are unchanged.
+
+Governance impact:
+
+Protected contracts now register the Household Goods catalog service, admin UI, and admin JavaScript mutation flow. Data governance records schema version 11 and the no-backfill/no-recalculation rule for future Household Goods snapshots.

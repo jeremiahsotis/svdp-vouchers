@@ -53,6 +53,38 @@
     {
       "path": "svdp-vouchers.php",
       "reason": "Slice C1 loads the new backend service classes and localizes the configured delivery fee with the existing default."
+    },
+    {
+      "path": "includes/class-database.php",
+      "reason": "Slice C2 adds schema version 11 with Household Goods browse group, catalog, and configuration audit tables plus starter catalog seed data."
+    },
+    {
+      "path": "includes/class-household-goods-catalog.php",
+      "reason": "Slice C2 introduces the Household Goods catalog, limit, request-line snapshot helper, active/archive validation, and configuration audit service."
+    },
+    {
+      "path": "includes/class-permissions.php",
+      "reason": "Slice C2 adds explicit Household Goods catalog, limit, and configuration-audit capabilities for administrators."
+    },
+    {
+      "path": "includes/class-admin.php",
+      "reason": "Slice C2 adds nonce-protected AJAX endpoints for Household Goods browse group, category, and limit administration."
+    },
+    {
+      "path": "admin/views/admin-page.php",
+      "reason": "Slice C2 adds capability-gated navigation for the Household Goods administration tab."
+    },
+    {
+      "path": "admin/views/tab-household-goods.php",
+      "reason": "Slice C2 adds the Household Goods admin UI for browse groups, categories, limits, and read-only configuration audit."
+    },
+    {
+      "path": "admin/js/household-goods-admin.js",
+      "reason": "Slice C2 adds admin-side AJAX flows for Household Goods create, update, archive, restore, reorder-by-sort-order, and limit updates."
+    },
+    {
+      "path": "svdp-vouchers.php",
+      "reason": "Slice C2 loads the Household Goods catalog service during plugin bootstrap."
     }
   ]
 }
