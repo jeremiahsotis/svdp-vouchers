@@ -422,7 +422,7 @@ class SVDP_Furniture_Voucher {
         $item_id = intval($item_id);
 
         $voucher = $wpdb->get_row($wpdb->prepare(
-            "SELECT id, voucher_type, status
+            "SELECT id, voucher_type, status, voucher_created_date
              FROM $vouchers_table
              WHERE id = %d
              LIMIT 1",
@@ -439,6 +439,10 @@ class SVDP_Furniture_Voucher {
 
         if ($voucher->status === 'Denied' || $voucher->status === 'Redeemed') {
             return new WP_Error('voucher_not_mutable', 'This furniture voucher can no longer be changed.', ['status' => 409]);
+        }
+
+        if (self::is_unredeemed_expired($voucher)) {
+            return new WP_Error('voucher_expired', 'Expired vouchers can be viewed but cannot be fulfilled through the ordinary cashier workflow.', ['status' => 409]);
         }
 
         $item = $wpdb->get_row($wpdb->prepare(
@@ -481,7 +485,7 @@ class SVDP_Furniture_Voucher {
 
         $voucher_id = intval($voucher_id);
         $voucher = $wpdb->get_row($wpdb->prepare(
-            "SELECT v.id, v.voucher_type, v.status, fm.voucher_id AS furniture_meta_voucher_id
+            "SELECT v.id, v.voucher_type, v.status, v.voucher_created_date, fm.voucher_id AS furniture_meta_voucher_id
              FROM $vouchers_table v
              LEFT JOIN $furniture_meta_table fm ON fm.voucher_id = v.id
              WHERE v.id = %d
@@ -499,6 +503,10 @@ class SVDP_Furniture_Voucher {
 
         if ($voucher->status === 'Denied' || $voucher->status === 'Redeemed') {
             return new WP_Error('voucher_not_mutable', 'This furniture voucher has already been completed.', ['status' => 409]);
+        }
+
+        if (self::is_unredeemed_expired($voucher)) {
+            return new WP_Error('voucher_expired', 'Expired vouchers can be viewed but cannot be completed through the ordinary cashier workflow.', ['status' => 409]);
         }
 
         if (empty($voucher->furniture_meta_voucher_id)) {
@@ -752,6 +760,22 @@ class SVDP_Furniture_Voucher {
             ],
             ['voucher_id' => intval($voucher_id)]
         );
+    }
+
+    /**
+     * Check the protected 30-day expiration rule for unredeemed furniture vouchers.
+     */
+    private static function is_unredeemed_expired($voucher) {
+        if (($voucher->status ?? '') !== 'Active' || empty($voucher->voucher_created_date)) {
+            return false;
+        }
+
+        $created = new DateTime($voucher->voucher_created_date);
+        $expiration = clone $created;
+        $expiration->modify('+30 days');
+        $today = new DateTime();
+
+        return $today > $expiration;
     }
 
     /**

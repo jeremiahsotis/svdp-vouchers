@@ -179,10 +179,13 @@
       "surfaces": [
         "docs/product/release-c-product-contract.md",
         "planning/release-c-slice-map.md",
+        "includes/class-household-goods-fulfillment.php",
         "includes/class-furniture-voucher.php",
         "includes/class-voucher.php",
         "includes/class-database.php",
         "public/js/cashier-shell.js",
+        "public/js/cashier-station.js",
+        "public/templates/cashier/partials/voucher-detail-shared-fulfillment.php",
         "public/templates/cashier/partials/voucher-detail-furniture.php"
       ],
       "rules": [
@@ -197,9 +200,11 @@
       "surfaces": [
         "docs/product/release-c-product-contract.md",
         "planning/release-c-slice-map.md",
+        "includes/class-household-goods-fulfillment.php",
         "includes/class-furniture-voucher.php",
         "includes/class-voucher.php",
         "public/js/cashier-shell.js",
+        "public/templates/cashier/partials/voucher-detail-shared-fulfillment.php",
         "public/templates/cashier/partials/voucher-detail-furniture.php"
       ],
       "rules": [
@@ -214,6 +219,7 @@
       "surfaces": [
         "docs/product/release-c-product-contract.md",
         "planning/release-c-slice-map.md",
+        "includes/class-household-goods-fulfillment.php",
         "public/templates/documents/furniture-receipt.php",
         "includes/class-invoice.php",
         "includes/class-furniture-receipt.php",
@@ -234,6 +240,7 @@
         "public/js/cashier-shell.js",
         "public/js/cashier-station.js",
         "public/templates/cashier/partials/voucher-card.php",
+        "public/templates/cashier/partials/voucher-detail-shared-fulfillment.php",
         "public/templates/cashier/partials/voucher-detail-furniture.php"
       ],
       "rules": [

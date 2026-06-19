@@ -33,3 +33,9 @@ Household Goods catalog and limit mutations require explicit capabilities:
 - `svdp_view_voucher_configuration_audit`
 
 Administrators receive these capabilities by default. Cashiers and Vincentians do not receive Household Goods configuration authority. C2 configuration changes write read-only audit rows with record type, record identifier, record name snapshot, changed field, before value, after value, actor, timestamp, and a human summary.
+
+## Slice C3 Implementation Note
+
+Shared Furniture and Household Goods fulfillment mutations require the existing cashier access and furniture-redemption capability checks. Vincentians receive no cashier, catalog, unavailable-reason, or finalization authority in C3.
+
+Save Progress and Finalize Voucher write `wp_svdp_voucher_fulfillment_audit` rows with voucher, event type, actor, timestamp, human summary, and serialized after-state. Finalization stores the optional Internal Finalization Note only on the voucher row with author and timestamp, and external receipts/invoices omit that note.

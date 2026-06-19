@@ -59,6 +59,7 @@ class SVDP_Cashier_Shell {
         $can_mutate_furniture = SVDP_Permissions::user_can_redeem_furniture_vouchers();
         $furniture_catalog_items = [];
         $cancellation_reasons = [];
+        $unavailable_reasons = [];
 
         if (!$voucher) {
             $html = self::render_template('public/templates/cashier/partials/detail-empty.php', [
@@ -73,11 +74,16 @@ class SVDP_Cashier_Shell {
             $cancellation_reasons = SVDP_Furniture_Cancellation_Reason::get_all(false);
         }
 
+        if (!empty($voucher['uses_shared_fulfillment'])) {
+            $unavailable_reasons = SVDP_Household_Goods_Fulfillment::get_unavailable_reasons();
+        }
+
         $html = self::render_template('public/templates/cashier/partials/voucher-detail.php', [
             'voucher' => $voucher,
             'can_mutate_furniture' => $can_mutate_furniture,
             'furniture_catalog_items' => $furniture_catalog_items,
             'cancellation_reasons' => $cancellation_reasons,
+            'unavailable_reasons' => $unavailable_reasons,
         ]);
 
         return self::html_response($html);
@@ -101,15 +107,15 @@ class SVDP_Cashier_Shell {
                 }
             }
 
-            if ($filters['filter'] === 'active' && $voucher['status'] !== 'Active') {
+            if ($filters['filter'] === 'active' && ($voucher['cashier_status'] ?? '') !== 'ready') {
                 return false;
             }
 
-            if ($filters['filter'] === 'redeemed' && $voucher['status'] !== 'Redeemed') {
+            if ($filters['filter'] === 'redeemed' && ($voucher['cashier_status'] ?? '') !== 'redeemed') {
                 return false;
             }
 
-            if ($filters['filter'] === 'expired' && $voucher['status'] !== 'Expired') {
+            if ($filters['filter'] === 'expired' && ($voucher['cashier_status'] ?? '') !== 'expired') {
                 return false;
             }
 
@@ -154,10 +160,10 @@ class SVDP_Cashier_Shell {
 
         return [
             'active' => count(array_filter($all_vouchers, function($voucher) {
-                return $voucher['status'] === 'Active';
+                return ($voucher['cashier_status'] ?? '') === 'ready';
             })),
             'redeemed_today' => count(array_filter($all_vouchers, function($voucher) use ($today) {
-                return $voucher['status'] === 'Redeemed' && $voucher['redeemed_date'] === $today;
+                return ($voucher['cashier_status'] ?? '') === 'redeemed' && $voucher['redeemed_date'] === $today;
             })),
             'coat_available' => count(array_filter($all_vouchers, function($voucher) {
                 return $voucher['coat_eligible'] && $voucher['coat_status'] !== 'Issued';

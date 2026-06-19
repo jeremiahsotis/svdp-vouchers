@@ -99,3 +99,45 @@ The public Assisted Builder, request-group submission UI, cashier fulfillment wo
 Governance impact:
 
 Protected contracts now register the Household Goods catalog service, admin UI, and admin JavaScript mutation flow. Data governance records schema version 11 and the no-backfill/no-recalculation rule for future Household Goods snapshots.
+
+## 2026-06-19 - Slice C3 Shared Fulfillment Workspace and Cashier Status
+
+Changed surfaces:
+
+- `includes/class-database.php`
+- `includes/class-household-goods-fulfillment.php`
+- `includes/class-voucher.php`
+- `includes/class-furniture-voucher.php`
+- `includes/class-invoice.php`
+- `includes/class-cashier-shell.php`
+- `svdp-vouchers.php`
+- `public/js/cashier-shell.js`
+- `public/js/cashier-station.js`
+- `public/css/voucher-forms.css`
+- `public/templates/cashier/partials/voucher-card.php`
+- `public/templates/cashier/partials/voucher-detail.php`
+- `public/templates/cashier/partials/voucher-detail-furniture.php`
+- `public/templates/cashier/partials/voucher-detail-shared-fulfillment.php`
+- `public/templates/documents/furniture-receipt.php`
+- `public/templates/documents/furniture-invoice.php`
+- `contracts/protected-surfaces.json`
+- `contracts/protected-contracts.json`
+- `contracts/protected-surface-acceptance.json`
+- `docs/data-governance/data-evolution-log.md`
+- `docs/data-governance/backward-compatibility.md`
+- `docs/architecture/concurrency-model.md`
+- `docs/security/access-audit-model.md`
+- `planning/release-c-slice-map.md`
+- `specs/active/slice-C3/checkpoint-01.md`
+
+Impact summary:
+
+Slice C3 adds the shared requested-line and fulfillment-entry model, one-screen cashier fulfillment workspace, Save Progress, Finalize Voucher, structured unavailable quantities/reasons, internal voucher-level finalization note, and cashier card status labels for READY TO REDEEM, REDEEMED, and EXPIRED.
+
+Runtime impact:
+
+Line-backed Furniture and Household Goods vouchers use the shared fulfillment workspace. Legacy Furniture vouchers without shared requested lines keep the existing item-resolution and document path. Redeemed vouchers take status precedence over expiration, and unredeemed expired vouchers are blocked from ordinary redemption/finalization.
+
+Governance impact:
+
+Protected contracts now register the shared fulfillment service and template. Data governance records schema version 12 with no destructive backfill, concurrency records last-write Save Progress before finalization, and access audit records fulfillment/finalization audit behavior.

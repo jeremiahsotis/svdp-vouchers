@@ -70,34 +70,64 @@ $document_copy = SVDP_Voucher_Copy::get_document_copy();
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ((array) ($voucher['items'] ?? []) as $item): ?>
-                        <tr>
-                            <td>
-                                <strong><?php echo esc_html($item['requested_item_name']); ?></strong><br>
-                                <span class="status-note"><?php echo esc_html($item['requested_category_label']); ?></span>
-                            </td>
-                            <td>
-                                <?php if (($item['status'] ?? '') === 'completed'): ?>
-                                    <?php if (!empty($item['has_substitution'])): ?>
-                                        Fulfilled as <?php echo esc_html($item['substitute_item_name']); ?>
+                    <?php if (!empty($voucher['uses_shared_fulfillment'])): ?>
+                        <?php foreach ((array) ($voucher['fulfillment_lines'] ?? []) as $line): ?>
+                            <?php foreach ((array) ($line['entries'] ?? []) as $entry): ?>
+                                <tr>
+                                    <td>
+                                        <strong><?php echo esc_html($line['requested_name']); ?></strong><br>
+                                        <span class="status-note"><?php echo esc_html($line['requested_group'] ?: $voucher['voucher_type_label']); ?></span>
+                                    </td>
+                                    <td>
+                                        <?php echo esc_html(intval($entry['fulfilled_quantity'])); ?> fulfilled
+                                        <?php if (intval($line['unavailable_quantity']) > 0): ?>
+                                            <br><span class="status-note"><?php echo esc_html(intval($line['unavailable_quantity'])); ?> unavailable</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td><?php echo esc_html('$' . number_format((float) $entry['line_total'], 2)); ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                            <?php if (empty($line['entries']) && intval($line['unavailable_quantity']) > 0): ?>
+                                <tr>
+                                    <td>
+                                        <strong><?php echo esc_html($line['requested_name']); ?></strong><br>
+                                        <span class="status-note"><?php echo esc_html($line['requested_group'] ?: $voucher['voucher_type_label']); ?></span>
+                                    </td>
+                                    <td><?php echo esc_html(intval($line['unavailable_quantity'])); ?> unavailable</td>
+                                    <td>$0.00</td>
+                                </tr>
+                            <?php endif; ?>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <?php foreach ((array) ($voucher['items'] ?? []) as $item): ?>
+                            <tr>
+                                <td>
+                                    <strong><?php echo esc_html($item['requested_item_name']); ?></strong><br>
+                                    <span class="status-note"><?php echo esc_html($item['requested_category_label']); ?></span>
+                                </td>
+                                <td>
+                                    <?php if (($item['status'] ?? '') === 'completed'): ?>
+                                        <?php if (!empty($item['has_substitution'])): ?>
+                                            Fulfilled as <?php echo esc_html($item['substitute_item_name']); ?>
+                                        <?php else: ?>
+                                            Fulfilled as requested
+                                        <?php endif; ?>
                                     <?php else: ?>
-                                        Fulfilled as requested
+                                        Cancelled: <?php echo esc_html($item['cancellation_reason_label'] ?: 'No reason recorded'); ?>
                                     <?php endif; ?>
-                                <?php else: ?>
-                                    Cancelled: <?php echo esc_html($item['cancellation_reason_label'] ?: 'No reason recorded'); ?>
-                                <?php endif; ?>
-                            </td>
-                            <td>
-                                <?php
-                                if (($item['status'] ?? '') === 'completed' && isset($item['actual_price'])) {
-                                    echo esc_html('$' . number_format((float) $item['actual_price'], 2));
-                                } else {
-                                    echo esc_html('$0.00');
-                                }
-                                ?>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
+                                </td>
+                                <td>
+                                    <?php
+                                    if (($item['status'] ?? '') === 'completed' && isset($item['actual_price'])) {
+                                        echo esc_html('$' . number_format((float) $item['actual_price'], 2));
+                                    } else {
+                                        echo esc_html('$0.00');
+                                    }
+                                    ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                 </tbody>
             </table>
 

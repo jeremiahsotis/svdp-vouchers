@@ -1,6 +1,6 @@
 <?php
 $delivery_required = !empty($voucher['delivery_required']);
-$completed_date = !empty($voucher['furniture_completed_at']) ? $voucher['furniture_completed_at'] : current_time('mysql');
+$completed_date = !empty($voucher['finalized_at']) ? $voucher['finalized_at'] : (!empty($voucher['furniture_completed_at']) ? $voucher['furniture_completed_at'] : current_time('mysql'));
 $delivery_copy = SVDP_Voucher_Copy::get_delivery_copy();
 $document_copy = SVDP_Voucher_Copy::get_document_copy();
 ?>
@@ -81,45 +81,65 @@ $document_copy = SVDP_Voucher_Copy::get_document_copy();
 
         <section class="section">
             <h2 style="margin: 0 0 16px; color: #12344d;">Item Outcomes</h2>
-            <?php foreach ((array) ($voucher['items'] ?? []) as $item): ?>
-                <article class="item">
-                    <div style="display: flex; justify-content: space-between; gap: 12px; align-items: flex-start;">
-                        <div>
-                            <h3><?php echo esc_html($item['requested_item_name']); ?></h3>
-                            <p><?php echo esc_html($item['requested_category_label']); ?></p>
+            <?php if (!empty($voucher['uses_shared_fulfillment'])): ?>
+                <?php foreach ((array) ($voucher['fulfillment_lines'] ?? []) as $line): ?>
+                    <article class="item">
+                        <div style="display: flex; justify-content: space-between; gap: 12px; align-items: flex-start;">
+                            <div>
+                                <h3><?php echo esc_html($line['requested_name']); ?></h3>
+                                <p><?php echo esc_html($line['requested_group'] ?: $voucher['voucher_type_label']); ?></p>
+                            </div>
+                            <span class="badge badge-completed">
+                                Resolved <?php echo esc_html(intval($line['resolved_quantity'])); ?> of <?php echo esc_html(intval($line['requested_quantity'])); ?>
+                            </span>
                         </div>
-                        <span class="badge <?php echo ($item['status'] ?? '') === 'completed' ? 'badge-completed' : 'badge-cancelled'; ?>">
-                            <?php echo esc_html(ucfirst($item['status'] ?? 'requested')); ?>
-                        </span>
-                    </div>
+                        <p>Fulfilled quantity: <?php echo esc_html(intval($line['fulfilled_quantity'])); ?>.</p>
+                        <?php if (intval($line['unavailable_quantity']) > 0): ?>
+                            <p>Unavailable quantity: <?php echo esc_html(intval($line['unavailable_quantity'])); ?>.</p>
+                        <?php endif; ?>
+                    </article>
+                <?php endforeach; ?>
+            <?php else: ?>
+                <?php foreach ((array) ($voucher['items'] ?? []) as $item): ?>
+                    <article class="item">
+                        <div style="display: flex; justify-content: space-between; gap: 12px; align-items: flex-start;">
+                            <div>
+                                <h3><?php echo esc_html($item['requested_item_name']); ?></h3>
+                                <p><?php echo esc_html($item['requested_category_label']); ?></p>
+                            </div>
+                            <span class="badge <?php echo ($item['status'] ?? '') === 'completed' ? 'badge-completed' : 'badge-cancelled'; ?>">
+                                <?php echo esc_html(ucfirst($item['status'] ?? 'requested')); ?>
+                            </span>
+                        </div>
 
-                    <?php if (($item['status'] ?? '') === 'completed'): ?>
-                        <p>
-                            <?php if (!empty($item['has_substitution'])): ?>
-                                Fulfilled as <strong><?php echo esc_html($item['substitute_item_name']); ?></strong>.
-                            <?php else: ?>
-                                Fulfilled as requested.
+                        <?php if (($item['status'] ?? '') === 'completed'): ?>
+                            <p>
+                                <?php if (!empty($item['has_substitution'])): ?>
+                                    Fulfilled as <strong><?php echo esc_html($item['substitute_item_name']); ?></strong>.
+                                <?php else: ?>
+                                    Fulfilled as requested.
+                                <?php endif; ?>
+                            </p>
+                            <?php if (!empty($item['completion_notes'])): ?>
+                                <div class="note">
+                                    <strong>Notes:</strong> <?php echo esc_html($item['completion_notes']); ?>
+                                </div>
                             <?php endif; ?>
-                        </p>
-                        <?php if (!empty($item['completion_notes'])): ?>
-                            <div class="note">
-                                <strong>Notes:</strong> <?php echo esc_html($item['completion_notes']); ?>
-                            </div>
+                        <?php elseif (($item['status'] ?? '') === 'cancelled'): ?>
+                            <p>Cancelled: <?php echo esc_html($item['cancellation_reason_label'] ?: 'No reason recorded'); ?>.</p>
+                            <?php if (!empty($item['cancellation_notes'])): ?>
+                                <div class="note">
+                                    <strong>Notes:</strong> <?php echo esc_html($item['cancellation_notes']); ?>
+                                </div>
+                            <?php endif; ?>
                         <?php endif; ?>
-                    <?php elseif (($item['status'] ?? '') === 'cancelled'): ?>
-                        <p>Cancelled: <?php echo esc_html($item['cancellation_reason_label'] ?: 'No reason recorded'); ?>.</p>
-                        <?php if (!empty($item['cancellation_notes'])): ?>
-                            <div class="note">
-                                <strong>Notes:</strong> <?php echo esc_html($item['cancellation_notes']); ?>
-                            </div>
-                        <?php endif; ?>
-                    <?php endif; ?>
-                </article>
-            <?php endforeach; ?>
+                    </article>
+                <?php endforeach; ?>
+            <?php endif; ?>
         </section>
 
         <div class="footer">
-            <p>Keep this receipt for your records. Store staff can use it to confirm what was fulfilled, substituted, or cancelled on this furniture voucher.</p>
+            <p>Keep this receipt for your records. Store staff can use it to confirm what was fulfilled or unavailable on this voucher.</p>
         </div>
     </div>
 </body>

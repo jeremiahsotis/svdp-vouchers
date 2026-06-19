@@ -21,6 +21,11 @@
       "reason": "Release C Household Goods browse group, catalog, limits, snapshot helper, and configuration audit mutation surface."
     },
     {
+      "path": "includes/class-household-goods-fulfillment.php",
+      "type": "php",
+      "reason": "Release C shared Furniture and Household Goods requested-line fulfillment, Save Progress, finalization, unavailable quantities, finalization notes, document generation, and audit mutation surface."
+    },
+    {
       "path": "includes/class-database.php",
       "type": "php",
       "reason": "Database schema, schema upgrades, protected data evolution, and migration-sensitive table definitions."
@@ -76,6 +81,11 @@
       "reason": "Cashier furniture detail contract, delivery verification display, item resolution, and voucher completion UI."
     },
     {
+      "path": "public/templates/cashier/partials/voucher-detail-shared-fulfillment.php",
+      "type": "php-template",
+      "reason": "Release C one-screen Furniture and Household Goods fulfillment workspace contract, including inline price rows, unavailable quantities, Save Progress, and Finalize Voucher."
+    },
+    {
       "path": "public/templates/documents/furniture-receipt.php",
       "type": "php-template",
       "reason": "Neighbor-facing furniture receipt contract and redemption-rule display."
@@ -129,6 +139,11 @@
       "path": "planning/release-c-slice-map.md",
       "type": "planning_contract",
       "reason": "Release C slice dependency map and cross-slice hard-stop planning surface."
+    },
+    {
+      "path": "public/css/voucher-forms.css",
+      "type": "auth_boundary",
+      "reason": "Cashier-facing stylesheet controls protected voucher status, fulfillment, and redemption UI presentation."
     }
   ]
 }

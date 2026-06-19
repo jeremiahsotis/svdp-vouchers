@@ -85,6 +85,66 @@
     {
       "path": "svdp-vouchers.php",
       "reason": "Slice C2 loads the Household Goods catalog service during plugin bootstrap."
+    },
+    {
+      "path": "includes/class-database.php",
+      "reason": "Slice C3 adds schema version 12 with shared requested-line, fulfillment-entry, unavailable-reason, fulfillment-audit, voucher finalization note, and receipt path persistence."
+    },
+    {
+      "path": "includes/class-household-goods-fulfillment.php",
+      "reason": "Slice C3 introduces the shared Furniture and Household Goods fulfillment service for Save Progress, Finalize Voucher, validation, document generation, and audit rows."
+    },
+    {
+      "path": "includes/class-voucher.php",
+      "reason": "Slice C3 adds cashier-facing status precedence, shared fulfillment state formatting, finalization-note fields, and expired-voucher ordinary redemption guard."
+    },
+    {
+      "path": "includes/class-furniture-voucher.php",
+      "reason": "Slice C3 preserves legacy Furniture workflow while blocking ordinary mutation/completion for dynamically expired unredeemed vouchers."
+    },
+    {
+      "path": "includes/class-invoice.php",
+      "reason": "Slice C3 calculates invoice totals from shared fulfillment entries when present while preserving legacy Furniture item totals."
+    },
+    {
+      "path": "includes/class-cashier-shell.php",
+      "reason": "Slice C3 passes structured unavailable reasons to the shared fulfillment detail and filters cashier cards by resolved display status."
+    },
+    {
+      "path": "svdp-vouchers.php",
+      "reason": "Slice C3 loads the shared fulfillment service and registers protected Save Progress and Finalize Voucher REST endpoints."
+    },
+    {
+      "path": "public/js/cashier-shell.js",
+      "reason": "Slice C3 adds inline shared fulfillment row management, calculated totals, Save Progress, Finalize Voucher submission, and validation."
+    },
+    {
+      "path": "public/js/cashier-station.js",
+      "reason": "Slice C3 keeps the legacy cashier card renderer compatible with new cashier-facing READY TO REDEEM, REDEEMED, and EXPIRED status fields."
+    },
+    {
+      "path": "public/templates/cashier/partials/voucher-card.php",
+      "reason": "Slice C3 makes cashier cards show large status labels, date support text, and non-color cues while preserving card architecture."
+    },
+    {
+      "path": "public/templates/cashier/partials/voucher-detail.php",
+      "reason": "Slice C3 routes line-backed Furniture and Household Goods vouchers to the shared fulfillment workspace while preserving legacy Clothing and Furniture paths."
+    },
+    {
+      "path": "public/templates/cashier/partials/voucher-detail-furniture.php",
+      "reason": "Slice C3 updates legacy Furniture detail to use cashier-facing status labels without changing historical item-resolution behavior."
+    },
+    {
+      "path": "public/templates/cashier/partials/voucher-detail-shared-fulfillment.php",
+      "reason": "Slice C3 adds the one-screen fulfillment workspace for requested lines, multiple price rows, unavailable quantities, internal finalization note, Save Progress, and Finalize Voucher."
+    },
+    {
+      "path": "public/templates/documents/furniture-receipt.php",
+      "reason": "Slice C3 renders shared fulfillment receipt outcomes without prices, internal finalization notes, or staff-only unavailable reason details while preserving legacy Furniture receipt behavior."
+    },
+    {
+      "path": "public/templates/documents/furniture-invoice.php",
+      "reason": "Slice C3 renders shared fulfillment invoice rows with actual fulfilled values while preserving legacy Furniture invoice behavior."
     }
   ]
 }
