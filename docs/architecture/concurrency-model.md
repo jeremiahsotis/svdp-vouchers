@@ -3,17 +3,30 @@
 ## Rules
 
 ### Idempotency
+
 All external mutations must be:
+
 - idempotent
-OR
+  OR
 - explicitly guarded
 
 ### Retry Behavior
+
 - retries must not create duplicates
 - side effects must be controlled
 
 ### Ordering
+
 - define ordering guarantees where required
 
 ### Conflict Handling
+
 - last-write-wins or explicit conflict resolution
+
+## Release C Request Group Rule
+
+Slice C0 adds planning constraints only.
+
+Future Release C request group creation must be atomic. Retries must not create duplicate child vouchers inside a request group, and no partial request group may remain visible as a valid request.
+
+Future cashier fulfillment work must define conflict behavior for saving requested-line and fulfillment-entry changes before finalization.
