@@ -57,7 +57,7 @@ class SVDP_Conference {
 
         $default_voucher_types = $organization_type === 'store'
             ? ['clothing']
-            : ['clothing', 'furniture'];
+            : ['clothing', 'furniture', 'household_goods'];
 
         $result = $wpdb->insert($table, [
             'name' => sanitize_text_field($name),

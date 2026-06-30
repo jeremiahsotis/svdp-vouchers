@@ -8,7 +8,7 @@
     }
 
     const STOCK_MESSAGE =
-      "Stock fluctuates. Items are not guaranteed to be in stock. The neighbor will need to visit the store to see what is currently available.";
+      "Stock fluctuates. Items are NOT guaranteed to be in stock. The neighbor will need to visit the store to see what is currently available. Staff are not able to verify availability.";
     const TYPE_LABELS = {
       clothing: "Clothing Voucher",
       furniture: "Furniture Voucher",
@@ -37,6 +37,17 @@
       form.attr("data-delivery-capabilities"),
       {},
     );
+    const defaultRequestorLabels = {
+      entity: form.attr("data-requestor-entity-label") || "Conference",
+      name:
+        form.attr("data-requestor-name-label") ||
+        "Conference Member / Vincentian Name",
+      email:
+        form.attr("data-requestor-email-label") ||
+        "Conference Member / Vincentian Email",
+    };
+
+    let maxCostModalReturnFocus = null;
 
     const state = {
       stepIndex: 0,
@@ -73,6 +84,10 @@
       addressSearchRequest: null,
       addressSearchQuery: "",
       addressSuggestions: [],
+      eligibility: {
+        checkedSignature: "",
+        issues: [],
+      },
       confirmation: null,
     };
 
@@ -88,6 +103,45 @@
 
       $("#svdpBuilderBack").on("click", goBack);
       $("#svdpBuilderNext").on("click", goNext);
+      $("#svdpSummaryAction").on("click", function () {
+        const currentStep = state.visibleSteps[state.stepIndex];
+        if (currentStep === "review") {
+          form.trigger("submit");
+          return;
+        }
+        goNext();
+      });
+
+      $("#svdpMobileSummaryAction").on("click", function () {
+        const currentStep = state.visibleSteps[state.stepIndex];
+        if (currentStep === "review") {
+          form.trigger("submit");
+          return;
+        }
+        goNext();
+      });
+
+      $("#svdpBuilderSubmit").on("click", function (event) {
+        if ($(this).attr("data-confirmation-action") === "request-another") {
+          event.preventDefault();
+          window.location.reload();
+        }
+      });
+
+      $("#svdpMaxCostConfirm").on("click", function () {
+        closeMaxCostConfirmation(false);
+        submitRequest(true);
+      });
+
+      form.on("click", "[data-max-cost-cancel]", function () {
+        closeMaxCostConfirmation(true);
+      });
+
+      $(document).on("keydown", function (event) {
+        if (event.key === "Escape" && !$("#svdpMaxCostModal").prop("hidden")) {
+          closeMaxCostConfirmation(true);
+        }
+      });
 
       form.on("submit", function (event) {
         event.preventDefault();
@@ -96,10 +150,17 @@
 
       form.on(
         "input change",
-        '[name="adults"], [name="children"]',
+        '[name="firstName"], [name="lastName"], [name="dob"], [name="adults"], [name="children"]',
         function () {
-          updateHouseholdCount();
-          updateSummary();
+          clearEligibilityState();
+
+          if (
+            $(this).is('[name="adults"]') ||
+            $(this).is('[name="children"]')
+          ) {
+            updateHouseholdCount();
+            updateSummary();
+          }
         },
       );
 
@@ -257,6 +318,8 @@
       }
 
       const selected = state.selectedTypes.indexOf(type) !== -1;
+      clearEligibilityState();
+
       if (!selected) {
         state.selectedTypes.push(type);
         sortSelectedTypes();
@@ -334,6 +397,11 @@
     }
 
     function recalculateSteps() {
+      if (state.selectedTypes.length === 0) {
+        state.visibleSteps = ["assistance"];
+        return;
+      }
+
       const steps = ["assistance", "household"];
 
       if (isSelected("clothing")) {
@@ -364,6 +432,7 @@
         "Step " + (state.stepIndex + 1) + " of " + state.visibleSteps.length,
       );
       $("#svdpStepTitle").text(STEP_LABELS[currentStep] || "");
+      syncRequestorLabels();
       renderStepper(currentStep);
       renderAssistanceCards();
       syncConferenceTypeAvailability();
@@ -386,6 +455,10 @@
       $("#svdpBuilderBack").prop("disabled", state.stepIndex === 0);
       $("#svdpBuilderNext").prop("hidden", currentStep === "review");
       $("#svdpBuilderSubmit").prop("hidden", currentStep !== "review");
+      $("#svdpSummaryAction").text(
+        currentStep === "review" ? "Submit" : "Continue",
+      );
+      form.attr("data-current-step", currentStep);
       updateSummary();
       window.setTimeout(updateAllPillArrows, 0);
     }
@@ -400,15 +473,15 @@
                 : index < state.stepIndex
                   ? " is-complete"
                   : "";
+            const label = STEP_LABELS[step] || "";
             return (
               '<li class="' +
               stateClass +
+              '" aria-label="' +
+              escapeHtml(label) +
               '">' +
               '<span class="svdp-step-number">' +
               (index + 1) +
-              "</span>" +
-              "<span>" +
-              escapeHtml(STEP_LABELS[step]) +
               "</span>" +
               "</li>"
             );
@@ -446,10 +519,231 @@
       if (!valid) {
         return;
       }
+
+      if (currentStep === "household") {
+        runEligibilityBeforeNextStep();
+        return;
+      }
+
+      advanceStep();
+    }
+
+    function advanceStep() {
       if (state.stepIndex < state.visibleSteps.length - 1) {
         state.stepIndex += 1;
         render();
       }
+    }
+
+    function runEligibilityBeforeNextStep() {
+      const nextButton = $("#svdpBuilderNext");
+      nextButton.prop("disabled", true).text("Checking eligibility...");
+
+      checkEligibilityAfterHousehold()
+        .then(function (canContinue) {
+          if (canContinue) {
+            advanceStep();
+          }
+        })
+        .catch(function (xhr) {
+          const response = xhr && xhr.responseJSON ? xhr.responseJSON : null;
+          const message =
+            response && response.message
+              ? response.message
+              : xhr.message || "Eligibility could not be checked right now.";
+          showInlineError("household", message);
+        })
+        .always(function () {
+          nextButton.prop("disabled", false).text("Continue");
+        });
+    }
+
+    function clearEligibilityState() {
+      state.eligibility.checkedSignature = "";
+      state.eligibility.issues = [];
+    }
+
+    function getEligibilitySignature() {
+      return JSON.stringify({
+        firstName: $.trim(form.find('[name="firstName"]').val()),
+        lastName: $.trim(form.find('[name="lastName"]').val()),
+        dob: getFormattedDob(),
+        conference: form.find('[name="conference"]').val() || "",
+        voucherTypes: state.selectedTypes.slice().sort(),
+      });
+    }
+
+    function checkEligibilityAfterHousehold() {
+      const signature = getEligibilitySignature();
+
+      if (state.eligibility.checkedSignature === signature) {
+        return $.Deferred().resolve(true).promise();
+      }
+
+      if (state.selectedTypes.length === 0) {
+        return $.Deferred().resolve(false).promise();
+      }
+
+      const checks = state.selectedTypes.map(function (type) {
+        return $.ajax({
+          url: svdpVouchers.restUrl + "svdp/v1/vouchers/check-duplicate",
+          method: "POST",
+          headers: { "X-WP-Nonce": svdpVouchers.nonce },
+          data: JSON.stringify({
+            firstName: $.trim(form.find('[name="firstName"]').val()),
+            lastName: $.trim(form.find('[name="lastName"]').val()),
+            dob: getFormattedDob(),
+            conference: form.find('[name="conference"]').val(),
+            voucherType: type,
+            createdBy: "Vincentian",
+          }),
+          contentType: "application/json",
+        }).then(function (response) {
+          return {
+            voucherType: type,
+            response: response || { found: false },
+          };
+        });
+      });
+
+      return $.when.apply($, checks).then(function () {
+        const results =
+          checks.length === 1
+            ? [arguments[0]]
+            : Array.prototype.slice.call(arguments);
+        const issues = results
+          .map(function (result) {
+            return buildEligibilityIssue(result.voucherType, result.response);
+          })
+          .filter(Boolean);
+
+        state.eligibility.checkedSignature = signature;
+        state.eligibility.issues = issues;
+
+        if (issues.length === 0) {
+          return true;
+        }
+
+        const blockedTypes = issues.map(function (issue) {
+          return issue.voucherType;
+        });
+
+        state.selectedTypes = state.selectedTypes.filter(function (type) {
+          return blockedTypes.indexOf(type) === -1;
+        });
+
+        blockedTypes.forEach(clearTypeData);
+        clearDeliveryIfNoEligibleTypes();
+        recalculateSteps();
+
+        showEligibilityWarning(issues);
+
+        if (state.selectedTypes.length === 0) {
+          state.stepIndex = 0;
+          render();
+          showInlineError(
+            "assistance",
+            "None of the selected voucher types are currently eligible for this household.",
+          );
+          return false;
+        }
+
+        state.stepIndex = Math.min(
+          state.stepIndex,
+          Math.max(0, state.visibleSteps.length - 1),
+        );
+        render();
+
+        return true;
+      });
+    }
+
+    function buildEligibilityIssue(type, response) {
+      if (!response || !response.found) {
+        return null;
+      }
+
+      return {
+        voucherType: type,
+        label: TYPE_LABELS[type] || typeShortLabel(type),
+        matchType: response.matchType || "exact",
+        response: response,
+      };
+    }
+
+    function showEligibilityWarning(issues) {
+      const remainingLabels = state.selectedTypes.map(typeShortLabel);
+      const lines = [
+        "One or more selected voucher types are not currently eligible for this household.",
+        "",
+      ];
+
+      issues.forEach(function (issue) {
+        lines.push(issue.label);
+
+        if (issue.matchType === "similar" && issue.response.matches) {
+          issue.response.matches.forEach(function (match) {
+            lines.push("• Issuing entity: " + safeText(match.conference));
+            lines.push(
+              "• Issued date: " +
+                formatDateForDisplay(match.voucherCreatedDate),
+            );
+            lines.push("• Issued by: " + safeText(match.vincentianName));
+            lines.push(
+              "• Next eligible date: " +
+                formatDateForDisplay(match.nextEligibleDate),
+            );
+          });
+        } else {
+          lines.push(
+            "• Issuing entity: " + safeText(issue.response.conference),
+          );
+          lines.push(
+            "• Issued date: " +
+              formatDateForDisplay(issue.response.voucherCreatedDate),
+          );
+          lines.push("• Issued by: " + safeText(issue.response.vincentianName));
+          lines.push(
+            "• Next eligible date: " +
+              formatDateForDisplay(issue.response.nextEligibleDate),
+          );
+        }
+
+        lines.push("");
+      });
+
+      if (remainingLabels.length > 0) {
+        lines.push(
+          "The ineligible voucher type" +
+            (issues.length === 1 ? " has" : "s have") +
+            " been removed. The request can continue with: " +
+            formatTypeList(remainingLabels) +
+            ".",
+        );
+      } else {
+        lines.push(
+          "All selected voucher types were removed because none are currently eligible.",
+        );
+      }
+
+      window.alert(lines.join("\n"));
+    }
+
+    function safeText(value) {
+      return value ? String(value) : "Not recorded";
+    }
+
+    function formatDateForDisplay(value) {
+      if (!value) {
+        return "Not recorded";
+      }
+
+      const parts = String(value).split("-");
+      if (parts.length === 3) {
+        return parts[1] + "/" + parts[2] + "/" + parts[0];
+      }
+
+      return String(value);
     }
 
     function validateStep(step) {
@@ -555,14 +849,14 @@
         if (!$.trim(form.find('[name="vincentianName"]').val())) {
           return showInlineError(
             "requestor",
-            "Enter the requestor name.",
+            "Enter the " + getRequestorLabels().name + ".",
             form.find('[name="vincentianName"]'),
           );
         }
         if (!$.trim(form.find('[name="vincentianEmail"]').val())) {
           return showInlineError(
             "requestor",
-            "Enter the requestor email.",
+            "Enter the " + getRequestorLabels().email + ".",
             form.find('[name="vincentianEmail"]'),
           );
         }
@@ -837,7 +1131,9 @@
         '<div class="svdp-catalog-price"><span class="svdp-catalog-price-label">Furniture price</span><strong>' +
         escapeHtml(item.priceDisplay || "") +
         "</strong></div>" +
-        '<div class="svdp-catalog-price svdp-catalog-price-conference"><span class="svdp-catalog-price-label">Estimated Conference / Partner Cost</span><strong>' +
+        '<div class="svdp-catalog-price svdp-catalog-price-conference"><span class="svdp-catalog-price-label">Maximum ' +
+        escapeHtml(getRequestorLabels().entity) +
+        " Cost</span><strong>" +
         escapeHtml(formatMoney(estimate)) +
         "</strong></div>" +
         "</div>" +
@@ -979,9 +1275,15 @@
 
     function renderReview() {
       const sections = [];
+      const entityLabel = getRequestorLabels().entity;
+      const maxCost = getMaximumCostTotal();
+      const hasDeliveryAvailable = getDeliveryEligibleTypes().length > 0;
+
       sections.push(
-        renderReviewSection("Household Information", "household", [
-          escapeHtml(getHouseholdName()),
+        renderReviewSection("Neighbor", "household", [
+          '<strong class="svdp-review-primary-line">' +
+            escapeHtml(getHouseholdName()) +
+            "</strong>",
           "Date of Birth: " + escapeHtml(getFormattedDob()),
           "Household size: " +
             getHouseholdSize() +
@@ -990,92 +1292,135 @@
         ]),
       );
 
+      const voucherRows = [];
+
       if (isSelected("clothing")) {
-        sections.push(
-          renderReviewSection("Clothing Voucher", "clothing", [
-            "Clothing Voucher selected",
-            "The voucher expires 30 days after it is created.",
-            "The voucher is redeemed in one visit.",
-          ]),
+        voucherRows.push(
+          '<div class="svdp-review-voucher-card">' +
+            "<h5>Clothing Voucher</h5>" +
+            "<p>Redeem in one visit within 30 days of issue date.</p>" +
+            "</div>",
         );
       }
 
       if (isSelected("furniture")) {
-        const items = getSelectedFurnitureItems().map(function (item) {
-          return escapeHtml(item.name) + ": " + item.quantity;
-        });
-        items.push(
-          escapeHtml(
-            (svdpVouchers.copy &&
-              svdpVouchers.copy.pricing &&
-              svdpVouchers.copy.pricing.pricingExplanation) ||
-              "All furniture prices shown have already been discounted by 50%.",
-          ),
-        );
-        sections.push(
-          renderReviewSection("Furniture Voucher", "furniture", items),
+        voucherRows.push(
+          '<div class="svdp-review-voucher-card">' +
+            "<h5>Furniture Voucher</h5>" +
+            '<ul class="svdp-review-compact-list">' +
+            getSelectedFurnitureItems()
+              .map(function (item) {
+                return (
+                  "<li>" +
+                  escapeHtml(item.name) +
+                  " × " +
+                  item.quantity +
+                  " · " +
+                  escapeHtml(
+                    formatMoney(getFurnitureEstimate(item) * item.quantity),
+                  ) +
+                  "</li>"
+                );
+              })
+              .join("") +
+            "</ul>" +
+            "<p><strong>Maximum " +
+            escapeHtml(entityLabel) +
+            " Furniture Cost: " +
+            escapeHtml(formatMoney(getFurnitureEstimateTotal())) +
+            "</strong></p>" +
+            "</div>",
         );
       }
 
       if (isSelected("household_goods")) {
-        const categories = getSelectedHouseholdGoodsCategories().map(
-          function (category) {
-            return escapeHtml(category.name) + ": " + category.quantity;
-          },
-        );
-        categories.push(
-          "Total requested Household Goods units: " +
-            getHouseholdGoodsUnitCount(),
-        );
-        categories.push(
-          "Estimated Conference / Partner Cost: " +
-            formatMoney(getHouseholdGoodsEstimate()),
-        );
-        categories.push(
-          "Estimate based on current catalog settings. Actual fulfillment details and final redemption totals are recorded when the voucher is redeemed.",
-        );
-        sections.push(
-          renderReviewSection(
-            "Household Goods Voucher",
-            "household_goods",
-            categories,
-          ),
+        voucherRows.push(
+          '<div class="svdp-review-voucher-card">' +
+            "<h5>Household Goods Voucher</h5>" +
+            '<ul class="svdp-review-compact-list">' +
+            getSelectedHouseholdGoodsCategories()
+              .map(function (category) {
+                return (
+                  "<li>" +
+                  escapeHtml(category.name) +
+                  " × " +
+                  category.quantity +
+                  " · " +
+                  escapeHtml(
+                    formatMoney(
+                      Number(
+                        category.estimatedConferencePartnerCostPerUnit || 0,
+                      ) * category.quantity,
+                    ),
+                  ) +
+                  "</li>"
+                );
+              })
+              .join("") +
+            "</ul>" +
+            "<p><strong>Maximum " +
+            escapeHtml(entityLabel) +
+            " Household Goods Cost: " +
+            escapeHtml(formatMoney(getHouseholdGoodsEstimate())) +
+            "</strong></p>" +
+            "</div>",
         );
       }
 
-      if (state.visibleSteps.indexOf("delivery") !== -1) {
+      sections.push(
+        renderReviewSection("Vouchers to Create", "assistance", voucherRows),
+      );
+
+      if (hasDeliveryAvailable) {
         const deliveryRows = [
           state.deliveryRequested
-            ? "Delivery: " + formatMoney(deliveryFee)
-            : "Delivery: Not selected",
-          "Eligible voucher types: " +
-            formatTypeList(getDeliveryEligibleTypes().map(typeShortLabel)),
+            ? "Delivery requested."
+            : "No delivery requested.",
         ];
+
         if (state.deliveryRequested) {
           deliveryRows.push(
-            "Address: " + escapeHtml(getDeliveryAddressDisplay()),
+            "Delivery Address: " + escapeHtml(getDeliveryAddressDisplay()),
+          );
+          deliveryRows.push(
+            "Delivery Fee: " + escapeHtml(formatMoney(deliveryFee)),
           );
         }
+
         sections.push(
           renderReviewSection("Delivery", "delivery", deliveryRows),
         );
       }
 
       sections.push(
-        renderReviewSection("Requestor / Organization", "requestor", [
+        renderReviewSection(entityLabel + " Requestor", "requestor", [
           "Organization: " + escapeHtml(getSelectedConferenceLabel()),
-          "Requestor: " +
+          getRequestorLabels().name +
+            ": " +
             escapeHtml($.trim(form.find('[name="vincentianName"]').val())),
-          "Email: " +
+          getRequestorLabels().email +
+            ": " +
             escapeHtml($.trim(form.find('[name="vincentianEmail"]').val())),
         ]),
       );
 
       if (isSelected("furniture") || isSelected("household_goods")) {
         sections.push(
-          '<div class="svdp-stock-message">' +
-            escapeHtml(STOCK_MESSAGE) +
-            "</div>",
+          '<section class="svdp-review-section svdp-review-total-section">' +
+            "<h4>Maximum " +
+            escapeHtml(entityLabel) +
+            " Cost</h4>" +
+            "<p>This is the maximum amount the " +
+            escapeHtml(entityLabel) +
+            " may be responsible for based on the selected voucher items" +
+            (state.deliveryRequested && hasDeliveryAvailable
+              ? " and delivery."
+              : ".") +
+            "</p>" +
+            '<strong class="svdp-review-grand-total">' +
+            escapeHtml(formatMoney(maxCost)) +
+            "</strong>" +
+            "</section>",
         );
       }
 
@@ -1101,7 +1446,7 @@
       );
     }
 
-    function submitRequest() {
+    function submitRequest(confirmedMaxCost) {
       clearAllInlineErrors();
       for (let i = 0; i < state.visibleSteps.length; i += 1) {
         if (!validateStep(state.visibleSteps[i])) {
@@ -1111,40 +1456,76 @@
         }
       }
 
+      if (
+        !confirmedMaxCost &&
+        (isSelected("furniture") || isSelected("household_goods"))
+      ) {
+        showMaxCostConfirmation();
+        return;
+      }
+
       const submitBtn = $("#svdpBuilderSubmit");
       submitBtn.prop("disabled", true).text("Submitting...");
-      checkDuplicatesForSelectedTypes()
-        .then(function () {
-          return $.ajax({
-            url: svdpVouchers.restUrl + "svdp/v1/vouchers/request-group",
-            method: "POST",
-            headers: { "X-WP-Nonce": svdpVouchers.nonce },
-            data: JSON.stringify(buildSubmissionPayload()),
-            contentType: "application/json",
-          });
-        })
+      $("#svdpMobileSummaryAction, #svdpSummaryAction").prop("disabled", true);
+      $.ajax({
+        url: svdpVouchers.restUrl + "svdp/v1/vouchers/request-group",
+        method: "POST",
+        headers: { "X-WP-Nonce": svdpVouchers.nonce },
+        data: JSON.stringify(buildSubmissionPayload()),
+        contentType: "application/json",
+      })
         .then(function (response) {
           state.confirmation = response;
           renderConfirmation(response);
           $("[data-step-panel]").prop("hidden", true);
           $('[data-step-panel="confirmation"]').prop("hidden", false);
-          $(".svdp-builder-progress, .svdp-builder-actions").prop(
-            "hidden",
-            true,
-          );
+          $(".svdp-builder-progress").prop("hidden", true);
+          $(".svdp-builder-actions").prop("hidden", false);
+          $("#svdpBuilderBack, #svdpBuilderNext").prop("hidden", true);
+          $("#svdpBuilderSubmit")
+            .prop("hidden", false)
+            .prop("disabled", false)
+            .attr("data-confirmation-action", "request-another")
+            .text("Request Another Voucher");
+          $(".svdp-builder-summary").prop("hidden", true);
+          $("#svdpMobileSummaryBar").prop("hidden", true);
+          $("body").removeClass("svdp-mobile-summary-visible");
+          form.removeClass("svdp-summary-is-visible");
           $("html, body").animate({ scrollTop: form.offset().top - 20 }, 300);
         })
         .catch(function (xhr) {
-          const response = xhr && xhr.responseJSON ? xhr.responseJSON : null;
-          const message =
-            response && response.message
-              ? response.message
-              : xhr.message || "The request could not be submitted.";
-          showMessage(message, "error");
+          showMessage(getSubmitErrorMessage(xhr), "error");
         })
         .always(function () {
-          submitBtn.prop("disabled", false).text("Submit Request");
+          if (
+            submitBtn.attr("data-confirmation-action") !== "request-another"
+          ) {
+            submitBtn.prop("disabled", false).text("Submit Request");
+          }
+          $("#svdpMobileSummaryAction, #svdpSummaryAction").prop(
+            "disabled",
+            false,
+          );
         });
+    }
+
+    function getSubmitErrorMessage(xhr) {
+      const response = xhr && xhr.responseJSON ? xhr.responseJSON : null;
+      const message =
+        response && response.message
+          ? response.message
+          : xhr && xhr.message
+            ? xhr.message
+            : "The request could not be submitted.";
+
+      if (xhr && xhr.status === 409) {
+        return (
+          message +
+          " Go back and adjust the selected voucher types, or use a different household if this was only a test."
+        );
+      }
+
+      return message;
     }
 
     function checkDuplicatesForSelectedTypes() {
@@ -1180,6 +1561,94 @@
         });
       });
       return chain;
+    }
+
+    function getMaximumCostTotal() {
+      const deliveryTotal =
+        state.deliveryRequested && state.visibleSteps.indexOf("delivery") !== -1
+          ? deliveryFee
+          : 0;
+
+      return (
+        getFurnitureEstimateTotal() +
+        getHouseholdGoodsEstimate() +
+        deliveryTotal
+      );
+    }
+
+    function showMaxCostConfirmation() {
+      const entityLabel = getRequestorLabels().entity;
+      const furnitureTotal = getFurnitureEstimateTotal();
+      const householdGoodsTotal = getHouseholdGoodsEstimate();
+      const deliveryTotal =
+        state.deliveryRequested && state.visibleSteps.indexOf("delivery") !== -1
+          ? deliveryFee
+          : 0;
+      const maxTotal = furnitureTotal + householdGoodsTotal + deliveryTotal;
+
+      const rows = [
+        "<p>Please confirm the maximum " +
+          escapeHtml(entityLabel) +
+          " cost before submitting this voucher request.</p>",
+        '<div class="svdp-modal-cost-rows">',
+      ];
+
+      if (isSelected("furniture")) {
+        rows.push(
+          '<div class="svdp-modal-cost-row"><span>Furniture</span><strong>' +
+            escapeHtml(formatMoney(furnitureTotal)) +
+            "</strong></div>",
+        );
+      }
+
+      if (isSelected("household_goods")) {
+        rows.push(
+          '<div class="svdp-modal-cost-row"><span>Household Goods</span><strong>' +
+            escapeHtml(formatMoney(householdGoodsTotal)) +
+            "</strong></div>",
+        );
+      }
+
+      if (deliveryTotal > 0) {
+        rows.push(
+          '<div class="svdp-modal-cost-row"><span>Delivery</span><strong>' +
+            escapeHtml(formatMoney(deliveryTotal)) +
+            "</strong></div>",
+        );
+      }
+
+      rows.push(
+        '<div class="svdp-modal-cost-row svdp-modal-cost-total"><span>Maximum ' +
+          escapeHtml(entityLabel) +
+          " Cost</span><strong>" +
+          escapeHtml(formatMoney(maxTotal)) +
+          "</strong></div>",
+        "</div>",
+        "<p>By submitting this request, you are creating the selected voucher or vouchers. The neighbor will still need to visit the store to see what is available.</p>",
+      );
+
+      $("#svdpMaxCostContent").html(rows.join(""));
+      openMaxCostConfirmation();
+    }
+
+    function openMaxCostConfirmation() {
+      maxCostModalReturnFocus = document.activeElement;
+      $("#svdpMaxCostModal").prop("hidden", false);
+      $("#svdpMaxCostConfirm").trigger("focus");
+    }
+
+    function closeMaxCostConfirmation(restoreFocus) {
+      $("#svdpMaxCostModal").prop("hidden", true);
+
+      if (
+        restoreFocus &&
+        maxCostModalReturnFocus &&
+        typeof maxCostModalReturnFocus.focus === "function"
+      ) {
+        maxCostModalReturnFocus.focus();
+      }
+
+      maxCostModalReturnFocus = null;
     }
 
     function buildSubmissionPayload() {
@@ -1236,69 +1705,196 @@
     }
 
     function renderConfirmation(response) {
-      const rows = [
-        '<section class="svdp-review-section"><h4>Request Group</h4><ul>' +
-          "<li>Request group #" +
-          escapeHtml(String(response.request_group_id || "")) +
-          " was submitted.</li>" +
-          "<li>Created voucher types: " +
-          escapeHtml(formatTypeList(state.selectedTypes.map(typeShortLabel))) +
-          "</li>" +
-          "<li>Organization: " +
-          escapeHtml(getSelectedConferenceLabel()) +
-          "</li>" +
-          "<li>Delivery: " +
-          (state.deliveryRequested
-            ? escapeHtml(formatMoney(deliveryFee))
-            : "Not selected") +
-          "</li>" +
-          "</ul></section>",
-      ];
+      const rows = [];
+      const voucherInfo = response.voucher_info || {};
+      const storeHours = form.attr("data-store-hours") || "";
+      const redemptionInstructions =
+        form.attr("data-redemption-instructions") || "";
+      const hasDeliveryAvailable = getDeliveryEligibleTypes().length > 0;
 
-      if (response.voucher_ids) {
-        rows.push(
-          '<section class="svdp-review-section"><h4>Voucher Identifiers</h4><ul>' +
-            Object.keys(response.voucher_ids)
-              .map(function (type) {
-                return (
-                  "<li>" +
-                  escapeHtml(typeShortLabel(type)) +
-                  ": #" +
-                  escapeHtml(String(response.voucher_ids[type])) +
-                  "</li>"
-                );
-              })
-              .join("") +
-            "</ul></section>",
+      rows.push(
+        '<section class="svdp-review-section svdp-success-panel">' +
+          "<h4>Voucher Request Submitted</h4>" +
+          "<p>The voucher request was created successfully.</p>" +
+          "</section>",
+      );
+
+      rows.push(
+        renderReceiptSection("Neighbor", [
+          '<strong class="svdp-review-primary-line">' +
+            escapeHtml(getHouseholdName()) +
+            "</strong>",
+          "Date of Birth: " + escapeHtml(getFormattedDob()),
+          "Household size: " +
+            getHouseholdSize() +
+            " " +
+            (getHouseholdSize() === 1 ? "person" : "people"),
+          "Organization: " + escapeHtml(getSelectedConferenceLabel()),
+        ]),
+      );
+
+      rows.push(
+        '<section class="svdp-review-section svdp-created-vouchers-section">' +
+          "<h4>Created Vouchers</h4>" +
+          state.selectedTypes
+            .map(function (type) {
+              const info = voucherInfo[type] || {};
+              const voucherId =
+                info.voucher_id || response.voucher_ids?.[type] || "";
+
+              return (
+                '<div class="svdp-created-voucher-card">' +
+                "<h5>" +
+                escapeHtml(typeShortLabel(type)) +
+                "</h5>" +
+                '<div class="svdp-receipt-row"><span>Voucher #</span><strong>' +
+                escapeHtml(String(voucherId)) +
+                "</strong></div>" +
+                '<div class="svdp-receipt-row"><span>Redeem by</span><strong>' +
+                escapeHtml(formatDateForDisplay(info.expiration_date)) +
+                "</strong></div>" +
+                '<div class="svdp-receipt-row"><span>Next eligible</span><strong>' +
+                escapeHtml(formatDateForDisplay(info.next_eligible_date)) +
+                "</strong></div>" +
+                "</div>"
+              );
+            })
+            .join("") +
+          "</section>",
+      );
+
+      const instructionRows = [];
+
+      if (storeHours) {
+        instructionRows.push(
+          "<strong>Store Hours</strong><br>" + escapeHtml(storeHours),
         );
       }
 
-      if (isSelected("furniture")) {
-        rows.push(
-          '<p class="svdp-summary-policy-note svdp-light-policy">' +
-            escapeHtml(
-              (svdpVouchers.copy &&
-                svdpVouchers.copy.pricing &&
-                svdpVouchers.copy.pricing.pricingExplanation) ||
-                "All furniture prices shown have already been discounted by 50%.",
-            ) +
-            "</p>",
+      if (redemptionInstructions) {
+        instructionRows.push(
+          "<strong>Instructions for the Neighbor</strong><br>" +
+            escapeHtml(redemptionInstructions),
         );
       }
+
+      if (hasDeliveryAvailable && state.deliveryRequested) {
+        instructionRows.push(
+          "<strong>Delivery</strong><br>Delivery was requested for:<br>" +
+            escapeHtml(getDeliveryAddressDisplay()) +
+            "<br>Delivery fee: " +
+            escapeHtml(formatMoney(deliveryFee)),
+        );
+      }
+
+      if (instructionRows.length > 0) {
+        rows.push(
+          renderReceiptSection("What to Tell the Neighbor", instructionRows),
+        );
+      }
+
       if (isSelected("furniture") || isSelected("household_goods")) {
         rows.push(
-          '<div class="svdp-stock-message">' +
+          '<section class="svdp-review-section svdp-stock-message">' +
+            "<h4>Item Availability</h4>" +
+            "<p>" +
             escapeHtml(STOCK_MESSAGE) +
-            "</div>",
+            "</p>" +
+            "</section>",
         );
       }
 
       $("#svdpConfirmationContent").html(rows.join(""));
     }
 
+    function renderReceiptSection(title, rows) {
+      return (
+        '<section class="svdp-review-section svdp-receipt-section">' +
+        "<h4>" +
+        escapeHtml(title) +
+        "</h4>" +
+        rows
+          .map(function (row) {
+            return '<p class="svdp-receipt-line">' + row + "</p>";
+          })
+          .join("") +
+        "</section>"
+      );
+    }
+
+    function updateMobileSummaryBar(showSummary, currentStep) {
+      const mobileBar = $("#svdpMobileSummaryBar");
+      const mobileAction = $("#svdpMobileSummaryAction");
+      const isMobile = window.matchMedia("(max-width: 960px)").matches;
+      const shouldShowMobileBar = showSummary && isMobile;
+
+      mobileBar.prop("hidden", !shouldShowMobileBar);
+      $("body").toggleClass("svdp-mobile-summary-visible", shouldShowMobileBar);
+
+      if (!shouldShowMobileBar) {
+        return;
+      }
+
+      const types = state.selectedTypes
+        .filter(function (type) {
+          return type === "furniture" || type === "household_goods";
+        })
+        .map(typeShortLabel);
+
+      const furnitureCount = getFurnitureItemCount();
+      const householdGoodsCount = getHouseholdGoodsUnitCount();
+      const totalCount = furnitureCount + householdGoodsCount;
+      const estimate =
+        getFurnitureEstimateTotal() + getHouseholdGoodsEstimate();
+      const hasDeliveryAvailable = getDeliveryEligibleTypes().length > 0;
+      const deliveryText =
+        hasDeliveryAvailable && state.deliveryRequested
+          ? "Delivery " + formatMoney(deliveryFee)
+          : "No delivery requested";
+
+      $("#svdpMobileSummaryTypes").text(formatTypeList(types));
+      $("#svdpMobileSummaryTotal").text(
+        totalCount +
+          " " +
+          (totalCount === 1 ? "item" : "items") +
+          " • Maximum " +
+          formatMoney(estimate),
+      );
+      $("#svdpMobileSummaryDelivery")
+        .prop("hidden", !hasDeliveryAvailable)
+        .text(deliveryText);
+
+      mobileAction.text(currentStep === "review" ? "Submit" : "Continue");
+      mobileAction.prop(
+        "disabled",
+        currentStep !== "review" && $("#svdpBuilderNext").prop("disabled"),
+      );
+    }
+
     function updateSummary() {
+      const currentStep = state.visibleSteps[state.stepIndex] || "";
+      const showSummary = shouldShowSummary(currentStep);
+      const furnitureSelected = isSelected("furniture");
+      const householdGoodsSelected = isSelected("household_goods");
+      const hasDeliveryStep = state.visibleSteps.indexOf("delivery") !== -1;
+      const hasDeliveryAvailable = getDeliveryEligibleTypes().length > 0;
+
+      $(".svdp-builder-summary").prop("hidden", !showSummary);
+      form.toggleClass("svdp-summary-is-visible", showSummary);
+      updateMobileSummaryBar(showSummary, currentStep);
+
+      $('[data-summary-row="furniture"]').prop("hidden", !furnitureSelected);
+      $('[data-summary-row="household_goods"]').prop(
+        "hidden",
+        !householdGoodsSelected,
+      );
+      $('[data-summary-row="delivery"]').prop("hidden", !hasDeliveryAvailable);
+
       $("#svdpSelectedTypesSummary").html(
         state.selectedTypes
+          .filter(function (type) {
+            return type === "furniture" || type === "household_goods";
+          })
           .map(function (type) {
             return (
               '<span class="svdp-summary-chip">' +
@@ -1308,17 +1904,37 @@
           })
           .join(""),
       );
+
       $("#svdpSummaryFurnitureCount").text(getFurnitureItemCount());
       $("#svdpSummaryHouseholdGoodsUnits").text(getHouseholdGoodsUnitCount());
+
       $("#svdpSummaryEstimatedCost").text(
         formatMoney(getFurnitureEstimateTotal() + getHouseholdGoodsEstimate()),
       );
+
       $("#svdpSummaryDelivery").text(
-        state.deliveryRequested && state.visibleSteps.indexOf("delivery") !== -1
+        state.deliveryRequested && hasDeliveryAvailable
           ? formatMoney(deliveryFee)
-          : "Not selected",
+          : "No delivery requested",
       );
+
       updateHouseholdGoodsCounts();
+    }
+
+    function shouldShowSummary(step) {
+      if (!isSelected("furniture") && !isSelected("household_goods")) {
+        return false;
+      }
+
+      return (
+        [
+          "furniture",
+          "household_goods",
+          "delivery",
+          "requestor",
+          "review",
+        ].indexOf(step) !== -1
+      );
     }
 
     function updateHouseholdCount() {
@@ -1359,6 +1975,43 @@
         state.selectedTypes = fallback ? [fallback] : [availableTypes[0]];
       }
       sortSelectedTypes();
+    }
+
+    function getSelectedOrganizationType() {
+      const select = form.find('select[name="conference"]');
+      const hidden = form.find('input[type="hidden"][name="conference"]');
+
+      if (select.length) {
+        return (
+          select.find("option:selected").attr("data-organization-type") ||
+          "conference"
+        );
+      }
+
+      return hidden.attr("data-organization-type") || "conference";
+    }
+
+    function getRequestorLabels() {
+      const type = getSelectedOrganizationType();
+
+      if (type === "partner") {
+        return {
+          entity: "Partner",
+          name: "Partner Representative Name",
+          email: "Partner Representative Email",
+        };
+      }
+
+      return defaultRequestorLabels;
+    }
+
+    function syncRequestorLabels() {
+      const labels = getRequestorLabels();
+
+      $("#svdpRequestorNameLabel").text(labels.name + " *");
+      $("#svdpRequestorEmailLabel").text(labels.email + " *");
+      $("#svdpSummaryEntityLabel").text(labels.entity);
+      STEP_LABELS.requestor = labels.entity + " Requestor";
     }
 
     function selectedTypesAllowedByConference() {

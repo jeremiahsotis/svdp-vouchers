@@ -89,6 +89,74 @@ class SVDP_Voucher_Type_Settings {
     }
 
     /**
+     * Return the default Assistance Needed description for a voucher type.
+     */
+    public static function get_default_description($voucher_type) {
+        $voucher_type = self::normalize_voucher_type($voucher_type);
+
+        $defaults = [
+            'clothing' => 'Must redeem in one visit within 30 days of issue date.',
+            'furniture' => 'Choose needed furniture items and delivery, if needed. Must redeem in one visit within 30 days of issue date.',
+            'household_goods' => 'Choose needed household items. Must redeem in one visit within 30 days of issue date.',
+        ];
+
+        return $defaults[$voucher_type] ?? '';
+    }
+
+    /**
+     * Return the Assistance Needed description setting key for a voucher type.
+     */
+    public static function get_description_setting_key($voucher_type) {
+        $voucher_type = self::normalize_voucher_type($voucher_type);
+
+        if (!in_array($voucher_type, self::get_root_voucher_types(), true)) {
+            return '';
+        }
+
+        return 'voucher_type_description_' . $voucher_type;
+    }
+
+    /**
+     * Return the configured Assistance Needed description for a voucher type.
+     */
+    public static function get_description($voucher_type) {
+        $voucher_type = self::normalize_voucher_type($voucher_type);
+        $key = self::get_description_setting_key($voucher_type);
+
+        if ($key === '') {
+            return '';
+        }
+
+        return SVDP_Settings::get_setting($key, self::get_default_description($voucher_type));
+    }
+
+    /**
+     * Return configured Assistance Needed descriptions keyed by voucher type.
+     */
+    public static function get_descriptions() {
+        $descriptions = [];
+
+        foreach (self::get_root_voucher_types() as $voucher_type) {
+            $descriptions[$voucher_type] = self::get_description($voucher_type);
+        }
+
+        return $descriptions;
+    }
+
+    /**
+     * Update the configured Assistance Needed description for a voucher type.
+     */
+    public static function update_description($voucher_type, $description) {
+        $key = self::get_description_setting_key($voucher_type);
+
+        if ($key === '') {
+            return new WP_Error('invalid_voucher_type', 'Invalid voucher type.');
+        }
+
+        return SVDP_Settings::update_setting($key, sanitize_textarea_field($description), 'textarea');
+    }
+
+    /**
      * Normalize a list of root voucher types.
      */
     public static function normalize_voucher_types($voucher_types) {
