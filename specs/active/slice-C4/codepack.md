@@ -107,6 +107,8 @@ Stop and ask for direction if:
 ## Governance File Map
 
 - svdp-vouchers.php
+- admin/views/tab-conferences.php
+- admin/views/tab-settings.php
 - public/css/voucher-forms.css
 - includes/class-admin.php
 - includes/class-conference.php
