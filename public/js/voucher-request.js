@@ -47,6 +47,8 @@
         "Conference Member / Vincentian Email",
     };
 
+    let maxCostModalReturnFocus = null;
+
     const state = {
       stepIndex: 0,
       visibleSteps: [],
@@ -127,12 +129,18 @@
       });
 
       $("#svdpMaxCostConfirm").on("click", function () {
-        $("#svdpMaxCostModal").prop("hidden", true);
+        closeMaxCostConfirmation(false);
         submitRequest(true);
       });
 
       form.on("click", "[data-max-cost-cancel]", function () {
-        $("#svdpMaxCostModal").prop("hidden", true);
+        closeMaxCostConfirmation(true);
+      });
+
+      $(document).on("keydown", function (event) {
+        if (event.key === "Escape" && !$("#svdpMaxCostModal").prop("hidden")) {
+          closeMaxCostConfirmation(true);
+        }
       });
 
       form.on("submit", function (event) {
@@ -1486,12 +1494,7 @@
           $("html, body").animate({ scrollTop: form.offset().top - 20 }, 300);
         })
         .catch(function (xhr) {
-          const response = xhr && xhr.responseJSON ? xhr.responseJSON : null;
-          const message =
-            response && response.message
-              ? response.message
-              : xhr.message || "The request could not be submitted.";
-          showMessage(message, "error");
+          showMessage(getSubmitErrorMessage(xhr), "error");
         })
         .always(function () {
           if (
@@ -1504,6 +1507,25 @@
             false,
           );
         });
+    }
+
+    function getSubmitErrorMessage(xhr) {
+      const response = xhr && xhr.responseJSON ? xhr.responseJSON : null;
+      const message =
+        response && response.message
+          ? response.message
+          : xhr && xhr.message
+            ? xhr.message
+            : "The request could not be submitted.";
+
+      if (xhr && xhr.status === 409) {
+        return (
+          message +
+          " Go back and adjust the selected voucher types, or use a different household if this was only a test."
+        );
+      }
+
+      return message;
     }
 
     function checkDuplicatesForSelectedTypes() {
@@ -1606,7 +1628,27 @@
       );
 
       $("#svdpMaxCostContent").html(rows.join(""));
+      openMaxCostConfirmation();
+    }
+
+    function openMaxCostConfirmation() {
+      maxCostModalReturnFocus = document.activeElement;
       $("#svdpMaxCostModal").prop("hidden", false);
+      $("#svdpMaxCostConfirm").trigger("focus");
+    }
+
+    function closeMaxCostConfirmation(restoreFocus) {
+      $("#svdpMaxCostModal").prop("hidden", true);
+
+      if (
+        restoreFocus &&
+        maxCostModalReturnFocus &&
+        typeof maxCostModalReturnFocus.focus === "function"
+      ) {
+        maxCostModalReturnFocus.focus();
+      }
+
+      maxCostModalReturnFocus = null;
     }
 
     function buildSubmissionPayload() {

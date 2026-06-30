@@ -76,10 +76,10 @@ If project governance scripts differ in the current repo, use `docs/governance/c
 - Furniture and Household Goods search fields are high contrast and visibly labeled.
 - Category/browse-group pills show dynamic overflow arrows correctly.
 - Household Goods card values do not expose unit, retail, shelf, or spendable amounts.
-- Review shows Estimated Conference / Partner Cost only.
+- Review shows Maximum Conference or Partner Cost only.
 - Delivery appears once only when selected types are delivery eligible.
-- Delivery review shows Not selected or the configured fee, never $0.00.
-- Stock message appears on Review and Confirmation when Furniture or Household Goods is selected.
+- Delivery review shows No delivery requested or the configured fee when delivery is available, never $0.00.
+- Stock message appears on Confirmation when Furniture or Household Goods is selected.
 - Submission creates one request group and the correct child vouchers atomically.
 
 ## Required Developer Summary
