@@ -39,3 +39,9 @@ Administrators receive these capabilities by default. Cashiers and Vincentians d
 Shared Furniture and Household Goods fulfillment mutations require the existing cashier access and furniture-redemption capability checks. Vincentians receive no cashier, catalog, unavailable-reason, or finalization authority in C3.
 
 Save Progress and Finalize Voucher write `wp_svdp_voucher_fulfillment_audit` rows with voucher, event type, actor, timestamp, human summary, and serialized after-state. Finalization stores the optional Internal Finalization Note only on the voucher row with author and timestamp, and external receipts/invoices omit that note.
+
+## Slice C4 Implementation Note
+
+The Assisted Builder exposes public request-group submission with the same public request posture as the existing Vincentian voucher creation endpoints. It does not grant cashier, fulfillment, catalog administration, unavailable-reason, finalization, receipt, invoice, or configuration authority to Vincentians.
+
+Request-group creation snapshots household, requestor, Conference/Organization, selected voucher types, delivery choice, delivery fee, address verification data, and requested Furniture/Household Goods lines. C4 does not introduce unrestricted Vincentian notes or item-level cashier notes.

@@ -46,3 +46,9 @@ C2 does not add asynchronous processing, public request submission, or cashier f
 Shared fulfillment Save Progress uses last-write-wins replacement of unfinalized fulfillment entries for each requested line. The finalization endpoint refuses already redeemed, denied, dynamically expired, or line-less vouchers, and finalization locks ordinary editing by changing the voucher to `Redeemed`.
 
 Retries after successful finalization are guarded by the redeemed status and existing invoice uniqueness. C3 does not add asynchronous processing, dispatch, inventory, POS, or delivery-attempt behavior.
+
+## Slice C4 Implementation Note
+
+Public Assisted Builder submission calls the Release C request-group service, which validates selected voucher types, duplicate eligibility, type-specific selections, requested-line snapshots, and group-level delivery before committing. Request-group rows, child voucher rows, Furniture/Household Goods requested lines, and the delivery snapshot are written in one transaction.
+
+Duplicate child types remain guarded by the unique `(request_group_id, voucher_type)` key. C4 does not add asynchronous processing, saved drafts, dispatch, inventory, POS, or delivery-attempt behavior.
