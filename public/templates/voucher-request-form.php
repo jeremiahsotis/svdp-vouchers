@@ -4,12 +4,19 @@ $redemption_instructions = SVDP_Settings::get_setting('redemption_instructions',
 $custom_form_text = !empty($conference) ? ($conference->custom_form_text ?? '') : '';
 $custom_rules_text = !empty($conference) ? ($conference->custom_rules_text ?? '') : '';
 $request_voucher_types = SVDP_Settings::get_public_request_voucher_types();
+$root_voucher_types = class_exists('SVDP_Voucher_Type_Settings')
+    ? SVDP_Voucher_Type_Settings::get_root_voucher_types()
+    : ['clothing', 'furniture', 'household_goods'];
+$request_voucher_types = array_values(array_intersect($root_voucher_types, $request_voucher_types));
 $pricing_copy = SVDP_Voucher_Rules::get_pricing_copy();
+$delivery_capabilities = class_exists('SVDP_Voucher_Type_Settings')
+    ? SVDP_Voucher_Type_Settings::get_capabilities()
+    : [];
 
 if (!empty($conference)) {
     $request_voucher_types = array_values(array_intersect(
         $request_voucher_types,
-        SVDP_Settings::normalize_voucher_types($conference->allowed_voucher_types, $request_voucher_types)
+        SVDP_Settings::get_conference_allowed_request_voucher_types($conference)
     ));
 }
 
@@ -17,50 +24,41 @@ if (empty($request_voucher_types)) {
     $request_voucher_types = ['clothing'];
 }
 
-$default_voucher_type = in_array('clothing', $request_voucher_types, true)
-    ? 'clothing'
-    : $request_voucher_types[0];
 $voucher_type_labels = [
-    'clothing' => 'Clothing',
-    'furniture' => 'Furniture / Household Goods',
+    'clothing' => 'Clothing Voucher',
+    'furniture' => 'Furniture Voucher',
+    'household_goods' => 'Household Goods Voucher',
 ];
 $voucher_type_descriptions = [
-    'clothing' => 'Keep the current clothing voucher request flow.',
-    'furniture' => 'Select requested furniture items, capture delivery needs, and review the ' . $pricing_copy['maximumCommitmentLabel'] . '.',
+    'clothing' => 'Clothing assistance for the household.',
+    'furniture' => 'Select needed furniture items.',
+    'household_goods' => 'Select up to 10 household-goods categories and enter the quantity needed for each.',
 ];
-$furniture_categories = class_exists('SVDP_Furniture_Catalog')
-    ? SVDP_Furniture_Catalog::get_categories()
-    : [
-        'used_furniture' => 'Used Furniture',
-        'handmade_furniture' => 'Handmade Furniture',
-        'mattresses_frames' => 'Mattresses & Frames',
-        'household_goods' => 'Household Goods',
-    ];
+$delivery_capability_flags = [];
+foreach ($root_voucher_types as $voucher_type) {
+    $delivery_capability_flags[$voucher_type] = !empty($delivery_capabilities[$voucher_type]['delivery_available']);
+}
+$furniture_categories = class_exists('SVDP_Furniture_Catalog') ? SVDP_Furniture_Catalog::get_categories() : [];
 $furniture_category_hints = [
     'used_furniture' => 'Sofas, tables, chairs, and more',
     'handmade_furniture' => 'Built pieces and restored essentials',
     'mattresses_frames' => 'Beds, bunks, frames, and supports',
-    'household_goods' => 'Kitchen, bath, and daily-use goods',
+    'household_goods' => 'Legacy furniture-voucher household goods',
 ];
-$voucher_form_classes = ['svdp-voucher-form'];
-if (in_array('furniture', $request_voucher_types, true)) {
-    $voucher_form_classes[] = 'svdp-voucher-form-has-furniture';
-}
 ?>
 
-<div class="<?php echo esc_attr(implode(' ', $voucher_form_classes)); ?>">
-
+<div class="svdp-voucher-form svdp-assisted-builder">
     <h2>Voucher Request Form</h2>
-    <p class="svdp-form-intro">Use this form to request a voucher on behalf of a neighbor in need.</p>
+    <p class="svdp-form-intro">Use this form to request one linked voucher group for a neighbor in need.</p>
 
     <?php if (!empty($store_hours) || !empty($redemption_instructions)): ?>
     <div class="svdp-instructions">
         <h3>Store Information</h3>
         <?php if (!empty($store_hours)): ?>
-            <p><strong>🏪 Hours:</strong> <?php echo esc_html($store_hours); ?></p>
+            <p><strong>Hours:</strong> <?php echo esc_html($store_hours); ?></p>
         <?php endif; ?>
         <?php if (!empty($redemption_instructions)): ?>
-            <p><strong>ℹ️ Instructions:</strong> <?php echo esc_html($redemption_instructions); ?></p>
+            <p><strong>Instructions:</strong> <?php echo esc_html($redemption_instructions); ?></p>
         <?php endif; ?>
     </div>
     <?php endif; ?>
@@ -81,345 +79,267 @@ if (in_array('furniture', $request_voucher_types, true)) {
 
     <form
         id="svdpVoucherForm"
-        class="svdp-form"
-        data-default-voucher-type="<?php echo esc_attr($default_voucher_type); ?>"
+        class="svdp-form svdp-builder-form"
+        data-available-voucher-types="<?php echo esc_attr(wp_json_encode($request_voucher_types)); ?>"
+        data-delivery-capabilities="<?php echo esc_attr(wp_json_encode($delivery_capability_flags)); ?>"
     >
-        <h3>Neighbor Information</h3>
-
-        <div class="svdp-form-row">
-            <div class="svdp-form-group">
-                <label>First Name *</label>
-                <input type="text" name="firstName" required>
-            </div>
-
-            <div class="svdp-form-group">
-                <label>Last Name *</label>
-                <input type="text" name="lastName" required>
-            </div>
-        </div>
-
-        <div class="svdp-form-group svdp-dob-field">
-            <label>Date of Birth *</label>
-            <input type="date"
-                   name="dob"
-                   id="svdp-dob-input"
-                   class="svdp-date-input"
-                   placeholder="MM/DD/YYYY"
-                   required>
-            <small class="svdp-help-text">Used to track voucher eligibility and ensure appropriate intervals between requests.</small>
-        </div>
-
-        <div class="svdp-form-row">
-            <div class="svdp-form-group">
-                <label>Number of adults (18 and over) in household *</label>
-                <input type="number" name="adults" min="0" value="1" required>
-                <small class="svdp-help-text">Item allocation is based on household size. Count all adults in the home.</small>
-            </div>
-
-            <div class="svdp-form-group">
-                <label>Number of children (under 18) in household *</label>
-                <input type="number" name="children" min="0" value="0">
-                <small class="svdp-help-text">Item allocation is based on household size. Count all children in the home.</small>
-            </div>
-        </div>
-
-        <h3>Voucher Type</h3>
-
-        <?php if (count($request_voucher_types) === 1): ?>
-            <input type="hidden" name="voucherType" value="<?php echo esc_attr($default_voucher_type); ?>">
-            <div class="svdp-branch-note">
-                <strong><?php echo esc_html($voucher_type_labels[$default_voucher_type] ?? ucfirst($default_voucher_type)); ?></strong>
-                <span><?php echo esc_html($voucher_type_descriptions[$default_voucher_type] ?? ''); ?></span>
-            </div>
-        <?php else: ?>
-            <div class="svdp-voucher-type-options" id="svdpVoucherTypeOptions">
-                <?php foreach ($request_voucher_types as $voucher_type_option): ?>
-                    <label class="svdp-voucher-type-option" data-voucher-type-option="<?php echo esc_attr($voucher_type_option); ?>">
-                        <input
-                            type="radio"
-                            name="voucherType"
-                            value="<?php echo esc_attr($voucher_type_option); ?>"
-                            <?php checked($voucher_type_option, $default_voucher_type); ?>
-                        >
-                        <span class="svdp-voucher-type-option-title"><?php echo esc_html($voucher_type_labels[$voucher_type_option] ?? ucfirst($voucher_type_option)); ?></span>
-                        <span class="svdp-voucher-type-option-description"><?php echo esc_html($voucher_type_descriptions[$voucher_type_option] ?? ''); ?></span>
-                    </label>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
-
-        <p class="svdp-voucher-rule-note">
-            <?php echo esc_html(SVDP_Voucher_Rules::get_redemption_rule_text()); ?>
-        </p>
-
-        <div class="svdp-form-branch" data-voucher-branch="clothing">
-            <div class="svdp-branch-note">
-                <strong>Clothing Request</strong>
-                <span>Clothing requests keep the current familiar flow and item allowance behavior.</span>
-            </div>
-        </div>
-
-        <div class="svdp-form-branch" data-voucher-branch="furniture" hidden>
-            <div class="svdp-furniture-branch-layout">
-                <div class="svdp-furniture-selection-column">
-                    <div class="svdp-branch-note">
-                        <strong>Furniture Request</strong>
-                        <span>Select one or more items by category. <?php echo esc_html($pricing_copy['pricingExplanation']); ?></span>
+        <div class="svdp-builder-shell">
+            <main class="svdp-builder-main">
+                <div class="svdp-builder-progress" aria-label="Request progress">
+                    <div class="svdp-builder-progress-meta">
+                        <strong id="svdpStepCounter"></strong>
+                        <span id="svdpStepTitle"></span>
                     </div>
-                    <div class="svdp-furniture-browser">
-                        <div class="svdp-form-group svdp-furniture-search-shell">
-                            <label for="svdpFurnitureSearch">Search Furniture Catalog</label>
-                            <input
-                                type="search"
-                                id="svdpFurnitureSearch"
-                                class="svdp-furniture-search-input"
-                                placeholder="Search across all furniture items"
-                                autocomplete="off"
-                                disabled
-                            >
-                            <small class="svdp-help-text">Search across all furniture categories. Clearing the search restores category browsing.</small>
-                        </div>
-
-                        <div id="svdpFurnitureCatalog" class="svdp-furniture-catalog" data-catalog-loaded="false">
-                            <div id="svdpFurnitureCategoryCards" class="svdp-furniture-category-grid">
-                                <?php foreach ($furniture_categories as $category_key => $category_label): ?>
-                                    <div
-                                        role="button"
-                                        tabindex="0"
-                                        class="svdp-furniture-category-card"
-                                        data-category-card="<?php echo esc_attr($category_key); ?>"
-                                        aria-controls="svdpFurnitureCategorySection-<?php echo esc_attr($category_key); ?>"
-                                        aria-expanded="false"
-                                    >
-                                        <span class="svdp-furniture-category-card-copy">
-                                            <span class="svdp-furniture-category-card-title"><?php echo esc_html($category_label); ?></span>
-                                            <span class="svdp-furniture-category-card-hint">
-                                                <?php echo esc_html($furniture_category_hints[$category_key] ?? 'Browse this category'); ?>
-                                            </span>
-                                        </span>
-                                        <span class="svdp-furniture-category-card-meta">
-                                            <span class="svdp-furniture-category-card-count" data-category-selected-count="<?php echo esc_attr($category_key); ?>">0 selected</span>
-                                            <span class="svdp-furniture-category-card-status" data-category-available-count="<?php echo esc_attr($category_key); ?>">Loading items</span>
-                                        </span>
-                                    </div>
-                                <?php endforeach; ?>
-                            </div>
-
-                            <div id="svdpFurnitureCategorySections" class="svdp-furniture-category-sections">
-                                <?php foreach ($furniture_categories as $category_key => $category_label): ?>
-                                    <section
-                                        id="svdpFurnitureCategorySection-<?php echo esc_attr($category_key); ?>"
-                                        class="svdp-furniture-category-section"
-                                        data-category-section="<?php echo esc_attr($category_key); ?>"
-                                        hidden
-                                    >
-                                        <div class="svdp-furniture-category-section-header">
-                                            <div class="svdp-furniture-category-section-copy">
-                                                <h4><?php echo esc_html($category_label); ?></h4>
-                                                <p><?php echo esc_html($furniture_category_hints[$category_key] ?? ''); ?></p>
-                                            </div>
-                                            <span class="svdp-furniture-category-section-pill" data-category-pill="<?php echo esc_attr($category_key); ?>">Loading...</span>
-                                        </div>
-
-                                        <div class="svdp-furniture-category-section-body">
-                                            <p class="svdp-furniture-category-placeholder" data-category-placeholder="<?php echo esc_attr($category_key); ?>">
-                                                Catalog items for this category will appear here once the shell is hydrated.
-                                            </p>
-                                        </div>
-                                    </section>
-                                <?php endforeach; ?>
-                            </div>
-
-                            <div id="svdpFurnitureSearchEmpty" class="svdp-empty-state svdp-furniture-search-empty" hidden>
-                                <div class="svdp-empty-icon">🔎</div>
-                                <div class="svdp-empty-text">No furniture items match this search. Clear the search to browse all categories.</div>
-                            </div>
-
-                            <div id="svdpFurnitureCatalogLoading" class="svdp-loading">
-                                <div class="svdp-spinner"></div>
-                                <p>Loading furniture catalog...</p>
-                            </div>
-                        </div>
-                    </div>
+                    <ol id="svdpBuilderSteps" class="svdp-builder-steps"></ol>
                 </div>
 
-                <aside id="svdpFurnitureSummary" class="svdp-furniture-summary">
-                    <h4>Selected Items Summary</h4>
-                    <div class="svdp-summary-row">
-                        <span>Selected items</span>
-                        <strong id="svdpSummaryItemCount">0</strong>
+                <section class="svdp-builder-step" data-step-panel="assistance">
+                    <h3>Assistance Needed</h3>
+                    <p class="svdp-step-lede">Select one or more voucher types for this request.</p>
+                    <div class="svdp-assistance-grid" id="svdpAssistanceOptions">
+                        <?php foreach ($request_voucher_types as $voucher_type): ?>
+                            <?php
+                            $delivery_available = !empty($delivery_capability_flags[$voucher_type]);
+                            $description = $voucher_type_descriptions[$voucher_type] ?? '';
+                            if ($delivery_available && $voucher_type !== 'clothing') {
+                                $description .= ' Delivery may be available.';
+                            }
+                            ?>
+                            <button
+                                type="button"
+                                class="svdp-assistance-card"
+                                data-voucher-type-option="<?php echo esc_attr($voucher_type); ?>"
+                                aria-pressed="false"
+                            >
+                                <span class="svdp-selected-indicator" aria-hidden="true">✓</span>
+                                <span class="svdp-selected-text">Selected</span>
+                                <strong><?php echo esc_html($voucher_type_labels[$voucher_type] ?? ucfirst($voucher_type)); ?></strong>
+                                <span><?php echo esc_html($description); ?></span>
+                            </button>
+                        <?php endforeach; ?>
                     </div>
-                    <div class="svdp-summary-row">
-                        <span><?php echo esc_html($pricing_copy['selectedItemRetailMaximumLabel']); ?></span>
-                        <strong id="svdpSummaryTotal">Up to $0.00</strong>
-                    </div>
-                    <div class="svdp-summary-row">
-                        <span><?php echo esc_html($pricing_copy['maximumCommitmentLabel']); ?></span>
-                        <strong id="svdpSummaryRequestor">Up to $0.00</strong>
-                    </div>
-                    <p class="svdp-summary-policy-note"><?php echo esc_html($pricing_copy['pricingExplanation']); ?></p>
-                    <p class="svdp-summary-policy-note"><?php echo esc_html($pricing_copy['pricingRule']); ?></p>
+                    <div class="svdp-inline-error" data-error-for="assistance"></div>
+                </section>
 
-                    <input type="checkbox" name="deliveryRequired" id="svdpDeliveryRequired" value="1" hidden>
-                    <button
-                        type="button"
-                        id="svdpDeliveryToggle"
-                        class="svdp-btn svdp-delivery-toggle"
-                        aria-pressed="false"
-                    >
-                        Add Delivery
-                    </button>
-
-                    <div id="svdpDeliveryFeeNote" class="svdp-summary-row svdp-summary-row-delivery">
-                        <span><?php echo esc_html($pricing_copy['deliveryFeeLabel']); ?></span>
-                        <strong id="svdpSummaryDeliveryFee">$0.00</strong>
-                    </div>
-                    <div class="svdp-summary-row">
-                        <span><?php echo esc_html($pricing_copy['totalMaximumCommitmentLabel']); ?></span>
-                        <strong id="svdpSummaryTotalCommitment">Up to $0.00</strong>
-                    </div>
-
-                    <div id="svdpDeliveryAddressFields" class="svdp-delivery-address-fields" hidden>
+                <section class="svdp-builder-step" data-step-panel="household" hidden>
+                    <h3>Household Information</h3>
+                    <div class="svdp-form-row">
                         <div class="svdp-form-group">
-                            <label>Delivery Address Line 1 *</label>
-                            <input type="text" name="deliveryLine1">
+                            <label for="svdpFirstName">First Name *</label>
+                            <input id="svdpFirstName" type="text" name="firstName" autocomplete="given-name">
                         </div>
                         <div class="svdp-form-group">
-                            <label>Delivery Address Line 2</label>
-                            <input type="text" name="deliveryLine2">
+                            <label for="svdpLastName">Last Name *</label>
+                            <input id="svdpLastName" type="text" name="lastName" autocomplete="family-name">
+                        </div>
+                    </div>
+                    <div class="svdp-form-group svdp-dob-field">
+                        <label for="svdp-dob-input">Date of Birth *</label>
+                        <input type="date" name="dob" id="svdp-dob-input" class="svdp-date-input" placeholder="MM/DD/YYYY">
+                        <small class="svdp-help-text">Used to track voucher eligibility and intervals between requests.</small>
+                    </div>
+                    <div class="svdp-form-row">
+                        <div class="svdp-form-group">
+                            <label for="svdpAdults">Adults *</label>
+                            <input id="svdpAdults" type="number" name="adults" min="0" value="1">
+                        </div>
+                        <div class="svdp-form-group">
+                            <label for="svdpChildren">Children *</label>
+                            <input id="svdpChildren" type="number" name="children" min="0" value="0">
+                        </div>
+                    </div>
+                    <p id="svdpHouseholdCount" class="svdp-count-note">Household size: 1 person</p>
+                    <div class="svdp-inline-error" data-error-for="household"></div>
+                </section>
+
+                <section class="svdp-builder-step" data-step-panel="clothing" hidden>
+                    <h3>Clothing Voucher</h3>
+                    <div class="svdp-branch-note">
+                        <strong>Clothing Voucher selected</strong>
+                        <span><?php echo esc_html(SVDP_Voucher_Rules::get_redemption_rule_text()); ?></span>
+                    </div>
+                    <p class="svdp-voucher-rule-note">The voucher expires 30 days after it is created and is redeemed in one visit.</p>
+                </section>
+
+                <section class="svdp-builder-step" data-step-panel="furniture" hidden>
+                    <h3>Choose Furniture Items</h3>
+                    <p class="svdp-step-lede">Select needed furniture items and quantities.</p>
+                    <div class="svdp-catalog-search-shell">
+                        <label for="svdpFurnitureSearch">Search furniture</label>
+                        <input type="search" id="svdpFurnitureSearch" class="svdp-catalog-search-input" autocomplete="off" disabled>
+                        <small class="svdp-help-text">Search by item name or category.</small>
+                    </div>
+                    <div class="svdp-pill-scroll" data-pill-scroll="furniture">
+                        <button type="button" class="svdp-pill-arrow" data-pill-arrow="left" aria-label="Scroll furniture categories left" hidden>‹</button>
+                        <div id="svdpFurniturePills" class="svdp-filter-pills" tabindex="0" aria-label="Furniture categories"></div>
+                        <button type="button" class="svdp-pill-arrow" data-pill-arrow="right" aria-label="Scroll furniture categories right" hidden>›</button>
+                    </div>
+                    <div id="svdpFurnitureCatalog" class="svdp-catalog-list" data-catalog-loaded="false">
+                        <div id="svdpFurnitureCatalogLoading" class="svdp-loading">
+                            <div class="svdp-spinner"></div>
+                            <p>Loading furniture catalog...</p>
+                        </div>
+                    </div>
+                    <p class="svdp-summary-policy-note svdp-light-policy"><?php echo esc_html($pricing_copy['pricingExplanation']); ?></p>
+                    <div class="svdp-inline-error" data-error-for="furniture"></div>
+                </section>
+
+                <section class="svdp-builder-step" data-step-panel="household_goods" hidden>
+                    <h3>Household Goods</h3>
+                    <p class="svdp-step-lede">Select Household Goods categories and quantities.</p>
+                    <div class="svdp-catalog-search-shell">
+                        <label for="svdpHouseholdGoodsSearch">Search household goods</label>
+                        <input type="search" id="svdpHouseholdGoodsSearch" class="svdp-catalog-search-input" autocomplete="off" disabled>
+                        <small class="svdp-help-text">Search bedding, curtains, pots and pans, towels, and more.</small>
+                    </div>
+                    <div class="svdp-pill-scroll" data-pill-scroll="household_goods">
+                        <button type="button" class="svdp-pill-arrow" data-pill-arrow="left" aria-label="Scroll Household Goods groups left" hidden>‹</button>
+                        <div id="svdpHouseholdGoodsPills" class="svdp-filter-pills" tabindex="0" aria-label="Household Goods browse groups"></div>
+                        <button type="button" class="svdp-pill-arrow" data-pill-arrow="right" aria-label="Scroll Household Goods groups right" hidden>›</button>
+                    </div>
+                    <div class="svdp-count-strip">
+                        <span id="svdpHouseholdGoodsCategoryCount">Selected categories: 0 of 10</span>
+                        <span id="svdpHouseholdGoodsUnitCount">Requested units: 0</span>
+                    </div>
+                    <div id="svdpHouseholdGoodsCatalog" class="svdp-catalog-list" data-catalog-loaded="false">
+                        <div id="svdpHouseholdGoodsLoading" class="svdp-loading">
+                            <div class="svdp-spinner"></div>
+                            <p>Loading Household Goods catalog...</p>
+                        </div>
+                    </div>
+                    <div class="svdp-inline-error" data-error-for="household_goods"></div>
+                </section>
+
+                <section class="svdp-builder-step" data-step-panel="delivery" hidden>
+                    <h3>Delivery</h3>
+                    <p id="svdpDeliveryEligibleText" class="svdp-step-lede"></p>
+                    <input type="checkbox" name="deliveryRequired" id="svdpDeliveryRequired" value="1" hidden>
+                    <div class="svdp-delivery-choice-grid">
+                        <button type="button" class="svdp-choice-card is-selected" data-delivery-choice="none" aria-pressed="true">
+                            <strong>No delivery needed</strong>
+                            <span>The neighbor will visit the store.</span>
+                        </button>
+                        <button type="button" class="svdp-choice-card" data-delivery-choice="needed" aria-pressed="false">
+                            <strong>Delivery needed</strong>
+                            <span id="svdpDeliveryFeeChoice">Delivery: $<?php echo esc_html(number_format((float) SVDP_Voucher_Type_Settings::get_delivery_fee(), 2)); ?></span>
+                        </button>
+                    </div>
+                    <div id="svdpDeliveryAddressFields" class="svdp-delivery-address-fields" hidden>
+                        <div class="svdp-form-group">
+                            <label for="svdpDeliveryLine1">Delivery Address Line 1 *</label>
+                            <input id="svdpDeliveryLine1" type="text" name="deliveryLine1">
+                        </div>
+                        <div class="svdp-form-group">
+                            <label for="svdpDeliveryLine2">Delivery Address Line 2</label>
+                            <input id="svdpDeliveryLine2" type="text" name="deliveryLine2">
                         </div>
                         <div class="svdp-form-row">
                             <div class="svdp-form-group">
-                                <label>City *</label>
-                                <input type="text" name="deliveryCity">
+                                <label for="svdpDeliveryCity">City *</label>
+                                <input id="svdpDeliveryCity" type="text" name="deliveryCity">
                             </div>
                             <div class="svdp-form-group">
-                                <label>State *</label>
-                                <input type="text" name="deliveryState" maxlength="50">
+                                <label for="svdpDeliveryState">State *</label>
+                                <input id="svdpDeliveryState" type="text" name="deliveryState" maxlength="50">
                             </div>
                         </div>
                         <div class="svdp-form-group">
-                            <label>ZIP Code *</label>
-                            <input type="text" name="deliveryZip" maxlength="20">
+                            <label for="svdpDeliveryZip">ZIP Code *</label>
+                            <input id="svdpDeliveryZip" type="text" name="deliveryZip" maxlength="20">
                         </div>
                         <input type="hidden" name="deliveryLat" id="svdpDeliveryLat">
                         <input type="hidden" name="deliveryLng" id="svdpDeliveryLng">
                         <input type="hidden" name="deliveryVerified" id="svdpDeliveryVerified" value="0">
                         <input type="hidden" name="deliveryNormalized" id="svdpDeliveryNormalized">
                     </div>
+                    <div class="svdp-inline-error" data-error-for="delivery"></div>
+                </section>
 
-                    <p class="svdp-help-text">Delivery is added separately when selected.</p>
-                </aside>
-            </div>
+                <section class="svdp-builder-step" data-step-panel="requestor" hidden>
+                    <h3>Requestor / Organization</h3>
+                    <?php if (empty($conference)): ?>
+                    <div class="svdp-form-group">
+                        <label for="svdpConference">Conference or Partner Organization *</label>
+                        <select id="svdpConference" name="conference">
+                            <option value="">Select your organization...</option>
+                            <?php foreach ($conferences as $conf): ?>
+                                <?php
+                                $allowed_types = SVDP_Settings::get_conference_allowed_request_voucher_types($conf);
+                                ?>
+                                <option
+                                    value="<?php echo esc_attr($conf->slug); ?>"
+                                    data-allowed-voucher-types="<?php echo esc_attr(wp_json_encode($allowed_types)); ?>"
+                                >
+                                    <?php echo esc_html($conf->name); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <?php else: ?>
+                        <?php
+                        $conference_allowed_types = SVDP_Settings::get_conference_allowed_request_voucher_types($conference);
+                        ?>
+                        <input
+                            type="hidden"
+                            name="conference"
+                            value="<?php echo esc_attr($conference->slug); ?>"
+                            data-allowed-voucher-types="<?php echo esc_attr(wp_json_encode($conference_allowed_types)); ?>"
+                        >
+                        <p><strong>Organization:</strong> <?php echo esc_html($conference->name); ?></p>
+                    <?php endif; ?>
+
+                    <div class="svdp-form-group">
+                        <label for="svdpVincentianName">Requestor Name *</label>
+                        <input id="svdpVincentianName" type="text" name="vincentianName">
+                    </div>
+                    <div class="svdp-form-group">
+                        <label for="svdpVincentianEmail">Requestor Email *</label>
+                        <input id="svdpVincentianEmail" type="email" name="vincentianEmail">
+                    </div>
+                    <div class="svdp-inline-error" data-error-for="requestor"></div>
+                </section>
+
+                <section class="svdp-builder-step" data-step-panel="review" hidden>
+                    <h3>Review Request</h3>
+                    <div id="svdpReviewContent" class="svdp-review-sections"></div>
+                    <div class="svdp-inline-error" data-error-for="review"></div>
+                </section>
+
+                <section class="svdp-builder-step" data-step-panel="confirmation" hidden>
+                    <h3>Request Submitted</h3>
+                    <div id="svdpConfirmationContent" class="svdp-review-sections"></div>
+                </section>
+
+                <div id="svdpFormMessage" class="svdp-message" style="display: none;"></div>
+
+                <div class="svdp-builder-actions">
+                    <button type="button" id="svdpBuilderBack" class="svdp-btn svdp-btn-secondary">Back</button>
+                    <button type="button" id="svdpBuilderNext" class="svdp-btn svdp-btn-primary">Continue</button>
+                    <button type="submit" id="svdpBuilderSubmit" class="svdp-btn svdp-btn-primary" hidden>Submit Request</button>
+                </div>
+            </main>
+
+            <aside class="svdp-builder-summary" aria-label="Current request summary">
+                <h4>Request Summary</h4>
+                <div id="svdpSelectedTypesSummary" class="svdp-summary-chip-list"></div>
+                <div class="svdp-summary-row">
+                    <span>Furniture items</span>
+                    <strong id="svdpSummaryFurnitureCount">0</strong>
+                </div>
+                <div class="svdp-summary-row">
+                    <span>Household Goods units</span>
+                    <strong id="svdpSummaryHouseholdGoodsUnits">0</strong>
+                </div>
+                <div class="svdp-summary-row">
+                    <span>Estimated Conference / Partner Cost</span>
+                    <strong id="svdpSummaryEstimatedCost">$0.00</strong>
+                </div>
+                <div class="svdp-summary-row">
+                    <span>Delivery</span>
+                    <strong id="svdpSummaryDelivery">Not selected</strong>
+                </div>
+                <p class="svdp-summary-policy-note">Estimate based on current catalog settings. Actual fulfillment details and final redemption totals are recorded when the voucher is redeemed.</p>
+            </aside>
         </div>
-
-        <h3>Requestor Information</h3>
-
-        <?php if (empty($conference)): ?>
-        <div class="svdp-form-group">
-            <label>Conference or Partner Organization *</label>
-            <select name="conference" required>
-                <option value="">Select your organization...</option>
-                <?php foreach ($conferences as $conf): ?>
-                    <?php
-                    $allowed_types = SVDP_Settings::normalize_voucher_types(
-                        $conf->allowed_voucher_types,
-                        $conf->organization_type === 'store' ? ['clothing'] : ['clothing', 'furniture']
-                    );
-                    ?>
-                    <option
-                        value="<?php echo esc_attr($conf->slug); ?>"
-                        data-allowed-voucher-types="<?php echo esc_attr(wp_json_encode($allowed_types)); ?>"
-                    >
-                        <?php echo esc_html($conf->name); ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-        <?php else: ?>
-            <?php
-            $conference_allowed_types = SVDP_Settings::normalize_voucher_types(
-                $conference->allowed_voucher_types,
-                ['clothing', 'furniture']
-            );
-            ?>
-            <input
-                type="hidden"
-                name="conference"
-                value="<?php echo esc_attr($conference->slug); ?>"
-                data-allowed-voucher-types="<?php echo esc_attr(wp_json_encode($conference_allowed_types)); ?>"
-            >
-            <p><strong>Organization:</strong> <?php echo esc_html($conference->name); ?></p>
-        <?php endif; ?>
-
-        <div class="svdp-form-group">
-            <label>Your Name *</label>
-            <input type="text" name="vincentianName" required>
-            <small class="svdp-help-text">Your name as the staff member or volunteer requesting this voucher</small>
-        </div>
-
-        <div class="svdp-form-group">
-            <label>Your Email Address *</label>
-            <input type="email" name="vincentianEmail" required>
-            <small class="svdp-help-text">For voucher confirmation and follow-up if needed</small>
-        </div>
-
-        <button type="submit" class="svdp-btn svdp-btn-primary">Submit Voucher Request</button>
     </form>
-
-    <div
-        id="svdpFurnitureApprovalModal"
-        class="svdp-modal"
-        style="display: none;"
-        role="dialog"
-        aria-modal="true"
-        aria-hidden="true"
-        aria-labelledby="svdpFurnitureApprovalTitle"
-    >
-        <div class="svdp-modal-content">
-            <h3 id="svdpFurnitureApprovalTitle">Conference Approval Required</h3>
-            <p><?php echo esc_html($pricing_copy['approvalNotSubmittedText']); ?></p>
-            <p><?php echo esc_html($pricing_copy['pricingExplanation']); ?></p>
-
-            <div class="svdp-summary-row">
-                <span><?php echo esc_html($pricing_copy['selectedItemRetailMaximumLabel']); ?></span>
-                <strong
-                    id="svdpApprovalEstimatedTotal"
-                    style="color: #111 !important; font-weight: 700 !important; opacity: 1 !important; -webkit-text-fill-color: #111 !important;"
-                >Up to $0.00</strong>
-            </div>
-            <div class="svdp-summary-row">
-                <span><?php echo esc_html($pricing_copy['maximumCommitmentLabel']); ?></span>
-                <strong
-                    id="svdpApprovalConferencePortion"
-                    style="color: #111 !important; font-weight: 700 !important; opacity: 1 !important; -webkit-text-fill-color: #111 !important;"
-                >Up to $0.00</strong>
-            </div>
-            <div class="svdp-summary-row">
-                <span><?php echo esc_html($pricing_copy['deliveryFeeLabel']); ?></span>
-                <strong
-                    id="svdpApprovalDeliveryFee"
-                    style="color: #111 !important; font-weight: 700 !important; opacity: 1 !important; -webkit-text-fill-color: #111 !important;"
-                >$0.00</strong>
-            </div>
-            <div class="svdp-summary-row">
-                <span><?php echo esc_html($pricing_copy['totalMaximumCommitmentLabel']); ?></span>
-                <strong
-                    id="svdpApprovalTotalCommitment"
-                    style="color: #111 !important; font-weight: 700 !important; opacity: 1 !important; -webkit-text-fill-color: #111 !important;"
-                >Up to $0.00</strong>
-            </div>
-            <p><?php echo esc_html($pricing_copy['pricingRule']); ?></p>
-            <p><?php echo esc_html(SVDP_Voucher_Rules::get_redemption_rule_text()); ?></p>
-
-            <div class="svdp-modal-buttons">
-                <button type="button" id="svdpCancelFurnitureApproval" class="svdp-btn svdp-btn-secondary">Cancel this voucher</button>
-                <button type="button" id="svdpEditFurnitureApproval" class="svdp-btn svdp-btn-secondary">Edit this voucher</button>
-                <button type="button" id="svdpConfirmFurnitureApproval" class="svdp-btn svdp-btn-primary">Approve maximum commitment</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="svdpFormMessage" class="svdp-message" style="display: none;"></div>
-
 </div>

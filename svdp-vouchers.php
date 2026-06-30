@@ -138,6 +138,13 @@ class SVDP_Vouchers_Plugin {
             'permission_callback' => '__return_true'
         ]);
 
+        // Create Release C request group with one to three child vouchers
+        register_rest_route('svdp/v1', '/vouchers/request-group', [
+            'methods' => 'POST',
+            'callback' => ['SVDP_Voucher_Request_Group', 'create'],
+            'permission_callback' => '__return_true'
+        ]);
+
         // Address search for optional delivery verification
         register_rest_route('svdp/v1', '/address/search', [
             'methods' => 'GET',
@@ -155,6 +162,13 @@ class SVDP_Vouchers_Plugin {
         register_rest_route('svdp/v1', '/catalog-items', [
             'methods' => 'GET',
             'callback' => ['SVDP_Furniture_Catalog', 'get_public_catalog_items'],
+            'permission_callback' => '__return_true'
+        ]);
+
+        // Get active Household Goods catalog entries for the public request builder
+        register_rest_route('svdp/v1', '/household-goods/catalog', [
+            'methods' => 'GET',
+            'callback' => [$this, 'get_public_household_goods_catalog'],
             'permission_callback' => '__return_true'
         ]);
         
@@ -515,6 +529,17 @@ class SVDP_Vouchers_Plugin {
         }
 
         return $length;
+    }
+
+    /**
+     * Public request payload for active Household Goods browse groups and categories.
+     */
+    public function get_public_household_goods_catalog($request) {
+        return rest_ensure_response([
+            'success' => true,
+            'groups' => SVDP_Household_Goods_Catalog::get_active_grouped_for_request(),
+            'limits' => SVDP_Household_Goods_Catalog::get_limits(),
+        ]);
     }
 
     /**

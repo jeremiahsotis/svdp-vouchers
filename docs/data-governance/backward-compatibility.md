@@ -48,3 +48,11 @@ Slice C3 adds shared requested-line and fulfillment-entry tables for new Release
 Household Goods and shared Furniture fulfillment require requested-line snapshots. C3 does not backfill historical Furniture items into the new tables and does not reinterpret legacy `household` voucher values as Household Goods.
 
 Voucher finalization notes are voucher-level, internal-only, and not printed on neighbor receipts or Conference/Partner invoices. Existing historical Furniture completion notes remain preserved on legacy records.
+
+## Slice C4 Compatibility Notes
+
+Slice C4 replaces the public request form with the Release C Assisted Builder and exposes public request-group creation. Existing standalone voucher creation endpoints remain available for legacy Clothing/Furniture flows and cashier/emergency paths.
+
+New public grouped Furniture and Household Goods vouchers use shared requested-line snapshots at issuance. Existing Furniture vouchers without shared requested lines continue to use the legacy Furniture behavior.
+
+Existing non-store configuration rows saved with the old default of Clothing plus Furniture are treated as the Release C three-type default for future public requests only. Store-only Clothing behavior remains preserved, and historical `household` values remain Furniture history rather than Household Goods.

@@ -204,10 +204,15 @@ class SVDP_Settings {
      * @return array Array of voucher type strings
      */
     public static function get_available_voucher_types() {
-        return self::normalize_voucher_types(
-            self::get_setting('available_voucher_types', 'clothing,furniture'),
-            ['clothing', 'furniture']
-        );
+        $raw_types = self::get_setting('available_voucher_types', 'clothing,furniture,household_goods');
+        $normalized = self::normalize_voucher_types($raw_types, ['clothing', 'furniture', 'household_goods']);
+
+        if (self::is_legacy_two_type_default($raw_types)) {
+            $normalized[] = 'household_goods';
+            $normalized = array_values(array_unique($normalized));
+        }
+
+        return $normalized;
     }
 
     /**
@@ -216,7 +221,60 @@ class SVDP_Settings {
      * @return array
      */
     public static function get_public_request_voucher_types() {
-        return self::get_available_voucher_types();
+        return self::normalize_voucher_types(
+            self::get_available_voucher_types(),
+            ['clothing', 'furniture', 'household_goods']
+        );
+    }
+
+    /**
+     * Resolve Conference/Organization voucher types for new public requests.
+     *
+     * Existing non-store rows saved with the old default of clothing+furniture are
+     * treated as Release C's three-type default for future requests.
+     *
+     * @param object $conference Conference row.
+     * @return array
+     */
+    public static function get_conference_allowed_request_voucher_types($conference) {
+        $is_store = !empty($conference->organization_type) && $conference->organization_type === 'store';
+        $default = $is_store ? ['clothing'] : ['clothing', 'furniture', 'household_goods'];
+        $raw_types = $conference->allowed_voucher_types ?? '';
+        $normalized = self::normalize_voucher_types($raw_types, $default);
+
+        if (!$is_store && self::is_legacy_two_type_default($raw_types)) {
+            $normalized[] = 'household_goods';
+            $normalized = array_values(array_unique($normalized));
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Detect the old non-store default before Household Goods existed.
+     *
+     * @param mixed $raw_types Raw stored type list.
+     * @return bool
+     */
+    private static function is_legacy_two_type_default($raw_types) {
+        if (!is_string($raw_types)) {
+            return false;
+        }
+
+        $trimmed = trim($raw_types);
+        if ($trimmed === 'clothing,furniture') {
+            return true;
+        }
+
+        $decoded = json_decode($trimmed, true);
+        if (!is_array($decoded)) {
+            return false;
+        }
+
+        $normalized = self::normalize_voucher_types($decoded, []);
+        sort($normalized);
+
+        return $normalized === ['clothing', 'furniture'];
     }
 
     /**

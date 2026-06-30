@@ -115,8 +115,8 @@ class SVDP_Conference {
             $existing_conference = self::get_by_id($id);
             $default_types = ($existing_conference && $existing_conference->organization_type === 'store')
                 ? ['clothing']
-                : ['clothing', 'furniture'];
-            $update_data['allowed_voucher_types'] = SVDP_Settings::encode_voucher_types($data['allowed_voucher_types'], $default_types);
+                : ['clothing', 'furniture', 'household_goods'];
+            $update_data['allowed_voucher_types'] = SVDP_Settings::encode_voucher_types(wp_unslash($data['allowed_voucher_types']), $default_types);
         }
 
         if (isset($data['custom_form_text'])) {
@@ -131,7 +131,7 @@ class SVDP_Conference {
             return false;
         }
         
-        return $wpdb->update($table, $update_data, ['id' => $id]);
+        return $wpdb->update($table, $update_data, ['id' => $id]) !== false;
     }
     
     /**

@@ -8,6 +8,14 @@ Backfill required:
 Risk:
 Mitigation:
 
+## 2026-06-22 - Slice C4 Three-Voucher Assisted Builder UI and Request Submission
+
+Change: Exposed Release C public request-group submission through the Assisted Builder. New grouped submissions create child Clothing, Furniture, and Household Goods voucher rows through the existing request-group transaction, and new Furniture/Household Goods child vouchers receive shared requested-line snapshots at issuance. Added a public active Household Goods catalog payload for the builder. No schema version or database table definition changed.
+Impact: Future public requests can create one request group with one to three independently redeemable child vouchers. New line-backed Furniture and Household Goods child vouchers are ready for the C3 shared cashier fulfillment workspace. Legacy standalone Clothing/Furniture vouchers and legacy `household` voucher values remain unchanged.
+Backfill required: No. Historical voucher records, Furniture item rows, delivery records, receipts, invoices, and legacy `household` values are not rewritten or reinterpreted.
+Risk: Existing installs may have stored the old default voucher-type configuration of Clothing plus Furniture before Household Goods existed.
+Mitigation: The public request availability helper treats the old non-store two-type default as Release C's three-type default for future requests only, while still preserving explicit store-only Clothing behavior and without mutating stored historical records.
+
 ## 2026-06-19 - Slice C3 Shared Fulfillment and Cashier Status
 
 Change: Added schema version 12 with `wp_svdp_voucher_requested_lines`, `wp_svdp_voucher_fulfillment_entries`, `wp_svdp_unavailable_reasons`, and `wp_svdp_voucher_fulfillment_audit`. Added voucher-level `finalized_at`, `finalized_by_user_id`, `finalization_note`, `finalization_note_by_user_id`, `finalization_note_at`, and `receipt_file_path` fields. Seeded starter structured unavailable reasons when the reason table is empty.

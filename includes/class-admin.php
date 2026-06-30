@@ -241,10 +241,16 @@ class SVDP_Admin {
             wp_send_json_error('Permission denied');
         }
 
-        $id = intval($_POST['id']);
-        $voucher_types = $_POST['voucher_types']; // Already JSON string
+        $id = isset($_POST['id']) ? intval($_POST['id']) : 0;
+        $voucher_types = isset($_POST['voucher_types']) ? wp_unslash($_POST['voucher_types']) : '';
 
-        if (SVDP_Conference::update($id, ['allowed_voucher_types' => $voucher_types])) {
+        if ($id <= 0) {
+            wp_send_json_error('Invalid organization ID');
+        }
+
+        $updated = SVDP_Conference::update($id, ['allowed_voucher_types' => $voucher_types]);
+
+        if ($updated !== false) {
             wp_send_json_success('Voucher types updated successfully');
         } else {
             wp_send_json_error('Failed to update voucher types');

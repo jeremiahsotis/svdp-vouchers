@@ -215,7 +215,7 @@ class SVDP_Voucher {
         $first_name = sanitize_text_field($params['firstName']);
         $last_name = sanitize_text_field($params['lastName']);
         $dob = sanitize_text_field($params['dob']);
-        $created_by = sanitize_text_field($params['createdBy']);
+        $created_by = sanitize_text_field($params['createdBy'] ?? 'Vincentian');
         $voucher_type = isset($params['voucherType'])
             ? self::normalize_voucher_type(sanitize_text_field($params['voucherType']))
             : 'clothing';
@@ -1763,12 +1763,31 @@ class SVDP_Voucher {
      * Merge JSON and form parameters so REST and HTMX form posts both work.
      */
     private static function get_request_data($request) {
-        $json_params = $request->get_json_params();
-        if (!is_array($json_params)) {
-            $json_params = [];
+        if (is_array($request)) {
+            return $request;
         }
 
-        return array_merge($request->get_params(), $json_params);
+        if (!is_object($request)) {
+            return [];
+        }
+
+        $params = [];
+
+        if (method_exists($request, 'get_params')) {
+            $request_params = $request->get_params();
+            if (is_array($request_params)) {
+                $params = $request_params;
+            }
+        }
+
+        if (method_exists($request, 'get_json_params')) {
+            $json_params = $request->get_json_params();
+            if (is_array($json_params)) {
+                $params = array_merge($params, $json_params);
+            }
+        }
+
+        return $params;
     }
 
     /**

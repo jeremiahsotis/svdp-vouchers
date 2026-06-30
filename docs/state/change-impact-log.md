@@ -141,3 +141,33 @@ Line-backed Furniture and Household Goods vouchers use the shared fulfillment wo
 Governance impact:
 
 Protected contracts now register the shared fulfillment service and template. Data governance records schema version 12 with no destructive backfill, concurrency records last-write Save Progress before finalization, and access audit records fulfillment/finalization audit behavior.
+
+## 2026-06-22 - Slice C4 Three-Voucher Assisted Builder UI and Request Submission
+
+Changed surfaces:
+
+- `includes/class-settings.php`
+- `includes/class-voucher-request-group.php`
+- `public/templates/voucher-request-form.php`
+- `public/js/voucher-request.js`
+- `public/css/voucher-forms.css`
+- `svdp-vouchers.php`
+- `docs/data-governance/data-evolution-log.md`
+- `docs/data-governance/backward-compatibility.md`
+- `docs/architecture/concurrency-model.md`
+- `docs/security/access-audit-model.md`
+- `docs/state/change-impact-log.md`
+- `docs/future-governance/cross-slice-impact.md`
+- `specs/active/slice-C4/checkpoint-01.md`
+
+Impact summary:
+
+Slice C4 replaces the public single-voucher request form with the Release C Assisted Builder. The builder supports Clothing, Furniture, and Household Goods in any valid combination; derives visible steps dynamically; shows one configuration-driven Delivery step; displays Review and Confirmation content; and submits one atomic request group with child vouchers.
+
+Runtime impact:
+
+Public grouped submissions now use `POST /svdp/v1/vouchers/request-group`. New Furniture and Household Goods child vouchers receive shared requested-line snapshots for the C3 fulfillment workspace. The existing legacy voucher creation endpoint remains available for standalone Clothing/Furniture behavior outside the new builder.
+
+Governance impact:
+
+No schema migration was introduced. Data governance records no backfill/no reinterpretation of historical records. Concurrency records atomic grouped submission, and access audit records that the public builder does not grant cashier or admin authority.
