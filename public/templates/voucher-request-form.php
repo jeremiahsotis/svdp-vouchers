@@ -47,23 +47,14 @@ $furniture_category_hints = [
     'mattresses_frames' => 'Beds, bunks, frames, and supports',
     'household_goods' => 'Legacy furniture-voucher household goods',
 ];
+
+$organization_type = !empty($conference) ? ($conference->organization_type ?? 'conference') : 'conference';
+$requestor_entity_label = $organization_type === 'partner' ? 'Partner' : 'Conference';
+$requestor_name_label = $organization_type === 'partner' ? 'Partner Representative Name' : 'Conference Member / Vincentian Name';
+$requestor_email_label = $organization_type === 'partner' ? 'Partner Representative Email' : 'Conference Member / Vincentian Email';
 ?>
 
 <div class="svdp-voucher-form svdp-assisted-builder">
-    <h2>Voucher Request Form</h2>
-    <p class="svdp-form-intro">Use this form to request one linked voucher group for a neighbor in need.</p>
-
-    <?php if (!empty($store_hours) || !empty($redemption_instructions)): ?>
-    <div class="svdp-instructions">
-        <h3>Store Information</h3>
-        <?php if (!empty($store_hours)): ?>
-            <p><strong>Hours:</strong> <?php echo esc_html($store_hours); ?></p>
-        <?php endif; ?>
-        <?php if (!empty($redemption_instructions)): ?>
-            <p><strong>Instructions:</strong> <?php echo esc_html($redemption_instructions); ?></p>
-        <?php endif; ?>
-    </div>
-    <?php endif; ?>
 
     <?php if (!empty($custom_form_text)): ?>
     <div class="svdp-custom-text">
@@ -84,6 +75,11 @@ $furniture_category_hints = [
         class="svdp-form svdp-builder-form"
         data-available-voucher-types="<?php echo esc_attr(wp_json_encode($request_voucher_types)); ?>"
         data-delivery-capabilities="<?php echo esc_attr(wp_json_encode($delivery_capability_flags)); ?>"
+        data-requestor-entity-label="<?php echo esc_attr($requestor_entity_label); ?>"
+        data-requestor-name-label="<?php echo esc_attr($requestor_name_label); ?>"
+        data-requestor-email-label="<?php echo esc_attr($requestor_email_label); ?>"
+        data-store-hours="<?php echo esc_attr($store_hours); ?>"
+        data-redemption-instructions="<?php echo esc_attr($redemption_instructions); ?>"
     >
         <div class="svdp-builder-shell">
             <main class="svdp-builder-main">
@@ -96,8 +92,8 @@ $furniture_category_hints = [
                 </div>
 
                 <section class="svdp-builder-step" data-step-panel="assistance">
-                    <h3>Assistance Needed</h3>
-                    <p class="svdp-step-lede">Select one or more voucher types for this request.</p>
+                    <h3>What assistance is needed?</h3>
+                    <p class="svdp-step-lede">Select all voucher types needed for this household.</p>
                     <div class="svdp-assistance-grid" id="svdpAssistanceOptions">
                         <?php foreach ($request_voucher_types as $voucher_type): ?>
                             <?php
@@ -215,10 +211,12 @@ $furniture_category_hints = [
                     <input type="checkbox" name="deliveryRequired" id="svdpDeliveryRequired" value="1" hidden>
                     <div class="svdp-delivery-choice-grid">
                         <button type="button" class="svdp-choice-card is-selected" data-delivery-choice="none" aria-pressed="true">
+                            <span class="svdp-choice-card-icon" aria-hidden="true">🚫</span>
                             <strong>No delivery needed</strong>
                             <span>The neighbor will visit the store.</span>
                         </button>
                         <button type="button" class="svdp-choice-card" data-delivery-choice="needed" aria-pressed="false">
+                            <span class="svdp-choice-card-icon" aria-hidden="true">🚚</span>
                             <strong>Delivery needed</strong>
                             <span id="svdpDeliveryFeeChoice">Delivery: $<?php echo esc_html(number_format((float) SVDP_Voucher_Type_Settings::get_delivery_fee(), 2)); ?></span>
                         </button>
@@ -255,7 +253,7 @@ $furniture_category_hints = [
                 </section>
 
                 <section class="svdp-builder-step" data-step-panel="requestor" hidden>
-                    <h3>Requestor / Organization</h3>
+                    <h3><?php echo esc_html($requestor_entity_label); ?> Requestor</h3>
                     <?php if (empty($conference)): ?>
                     <div class="svdp-form-group">
                         <label for="svdpConference">Conference or Partner Organization *</label>
@@ -268,6 +266,7 @@ $furniture_category_hints = [
                                 <option
                                     value="<?php echo esc_attr($conf->slug); ?>"
                                     data-allowed-voucher-types="<?php echo esc_attr(wp_json_encode($allowed_types)); ?>"
+                                    data-organization-type="<?php echo esc_attr($conf->organization_type ?? 'conference'); ?>"
                                 >
                                     <?php echo esc_html($conf->name); ?>
                                 </option>
@@ -283,16 +282,17 @@ $furniture_category_hints = [
                             name="conference"
                             value="<?php echo esc_attr($conference->slug); ?>"
                             data-allowed-voucher-types="<?php echo esc_attr(wp_json_encode($conference_allowed_types)); ?>"
+                            data-organization-type="<?php echo esc_attr($organization_type); ?>"
                         >
                         <p><strong>Organization:</strong> <?php echo esc_html($conference->name); ?></p>
                     <?php endif; ?>
 
                     <div class="svdp-form-group">
-                        <label for="svdpVincentianName">Requestor Name *</label>
+                        <label for="svdpVincentianName" id="svdpRequestorNameLabel"><?php echo esc_html($requestor_name_label); ?> *</label>
                         <input id="svdpVincentianName" type="text" name="vincentianName">
                     </div>
                     <div class="svdp-form-group">
-                        <label for="svdpVincentianEmail">Requestor Email *</label>
+                        <label for="svdpVincentianEmail" id="svdpRequestorEmailLabel"><?php echo esc_html($requestor_email_label); ?> *</label>
                         <input id="svdpVincentianEmail" type="email" name="vincentianEmail">
                     </div>
                     <div class="svdp-inline-error" data-error-for="requestor"></div>
@@ -330,7 +330,7 @@ $furniture_category_hints = [
                     <strong id="svdpSummaryHouseholdGoodsUnits">0</strong>
                 </div>
                 <div class="svdp-summary-row">
-                    <span>Estimated Conference / Partner Cost</span>
+                    <span>Estimated <span id="svdpSummaryEntityLabel"><?php echo esc_html($requestor_entity_label); ?></span> Cost</span>
                     <strong id="svdpSummaryEstimatedCost">$0.00</strong>
                 </div>
                 <div class="svdp-summary-row">

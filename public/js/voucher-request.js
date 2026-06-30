@@ -37,6 +37,15 @@
       form.attr("data-delivery-capabilities"),
       {},
     );
+    const defaultRequestorLabels = {
+      entity: form.attr("data-requestor-entity-label") || "Conference",
+      name:
+        form.attr("data-requestor-name-label") ||
+        "Conference Member / Vincentian Name",
+      email:
+        form.attr("data-requestor-email-label") ||
+        "Conference Member / Vincentian Email",
+    };
 
     const state = {
       stepIndex: 0,
@@ -382,6 +391,7 @@
         "Step " + (state.stepIndex + 1) + " of " + state.visibleSteps.length,
       );
       $("#svdpStepTitle").text(STEP_LABELS[currentStep] || "");
+      syncRequestorLabels();
       renderStepper(currentStep);
       renderAssistanceCards();
       syncConferenceTypeAvailability();
@@ -418,15 +428,15 @@
                 : index < state.stepIndex
                   ? " is-complete"
                   : "";
+            const label = STEP_LABELS[step] || "";
             return (
               '<li class="' +
               stateClass +
+              '" aria-label="' +
+              escapeHtml(label) +
               '">' +
               '<span class="svdp-step-number">' +
               (index + 1) +
-              "</span>" +
-              "<span>" +
-              escapeHtml(STEP_LABELS[step]) +
               "</span>" +
               "</li>"
             );
@@ -794,14 +804,14 @@
         if (!$.trim(form.find('[name="vincentianName"]').val())) {
           return showInlineError(
             "requestor",
-            "Enter the requestor name.",
+            "Enter the " + getRequestorLabels().name + ".",
             form.find('[name="vincentianName"]'),
           );
         }
         if (!$.trim(form.find('[name="vincentianEmail"]').val())) {
           return showInlineError(
             "requestor",
-            "Enter the requestor email.",
+            "Enter the " + getRequestorLabels().email + ".",
             form.find('[name="vincentianEmail"]'),
           );
         }
@@ -1076,7 +1086,7 @@
         '<div class="svdp-catalog-price"><span class="svdp-catalog-price-label">Furniture price</span><strong>' +
         escapeHtml(item.priceDisplay || "") +
         "</strong></div>" +
-        '<div class="svdp-catalog-price svdp-catalog-price-conference"><span class="svdp-catalog-price-label">Estimated Conference / Partner Cost</span><strong>' +
+        '<div class="svdp-catalog-price svdp-catalog-price-conference"><span class="svdp-catalog-price-label">Estimated Cost</span><strong>' +
         escapeHtml(formatMoney(estimate)) +
         "</strong></div>" +
         "</div>" +
@@ -1267,7 +1277,9 @@
             getHouseholdGoodsUnitCount(),
         );
         categories.push(
-          "Estimated Conference / Partner Cost: " +
+          "Estimated " +
+            getRequestorLabels().entity +
+            " Cost: " +
             formatMoney(getHouseholdGoodsEstimate()),
         );
         categories.push(
@@ -1595,6 +1607,43 @@
         state.selectedTypes = fallback ? [fallback] : [availableTypes[0]];
       }
       sortSelectedTypes();
+    }
+
+    function getSelectedOrganizationType() {
+      const select = form.find('select[name="conference"]');
+      const hidden = form.find('input[type="hidden"][name="conference"]');
+
+      if (select.length) {
+        return (
+          select.find("option:selected").attr("data-organization-type") ||
+          "conference"
+        );
+      }
+
+      return hidden.attr("data-organization-type") || "conference";
+    }
+
+    function getRequestorLabels() {
+      const type = getSelectedOrganizationType();
+
+      if (type === "partner") {
+        return {
+          entity: "Partner",
+          name: "Partner Representative Name",
+          email: "Partner Representative Email",
+        };
+      }
+
+      return defaultRequestorLabels;
+    }
+
+    function syncRequestorLabels() {
+      const labels = getRequestorLabels();
+
+      $("#svdpRequestorNameLabel").text(labels.name + " *");
+      $("#svdpRequestorEmailLabel").text(labels.email + " *");
+      $("#svdpSummaryEntityLabel").text(labels.entity);
+      STEP_LABELS.requestor = labels.entity + " Requestor";
     }
 
     function selectedTypesAllowedByConference() {
