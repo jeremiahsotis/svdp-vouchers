@@ -1,8 +1,8 @@
 # SVdP Voucher System - Release C
 
-**Authority:** `release-c-product-contract.md` is the product contract for Release C.  
-**Rule:** Do not implement behavior that contradicts the contract. When code and contract appear to conflict, stop and ask for direction.  
-**Repository:** WordPress plugin, `svdp-vouchers`.  
+**Authority:** `release-c-product-contract.md` is the product contract for Release C.
+**Rule:** Do not implement behavior that contradicts the contract. When code and contract appear to conflict, stop and ask for direction.
+**Repository:** WordPress plugin, `svdp-vouchers`.
 **Execution model:** Slice-based implementation with explicit checkpoints before proceeding.
 
 ## Codepack - Slice C4 - Three-Voucher Assisted Builder UI and Request Submission
@@ -103,3 +103,14 @@ Stop and ask for direction if:
 - A migration would rewrite historical voucher or delivery data.
 - Any change would introduce POS, inventory, SKU, dispatch, routing, delivery attempts, or unrestricted notes.
 - The slice cannot be completed without implementing scope reserved for a later slice.
+
+## Governance File Map
+
+- svdp-vouchers.php
+- public/css/voucher-forms.css
+- includes/class-admin.php
+- includes/class-conference.php
+- includes/class-settings.php
+- includes/class-voucher-request-group.php
+- public/js/voucher-request.js
+- public/templates/voucher-request-form.php

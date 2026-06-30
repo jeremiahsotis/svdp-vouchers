@@ -1,8 +1,8 @@
 # SVdP Voucher System - Release C
 
-**Authority:** `release-c-product-contract.md` is the product contract for Release C.  
-**Rule:** Do not implement behavior that contradicts the contract. When code and contract appear to conflict, stop and ask for direction.  
-**Repository:** WordPress plugin, `svdp-vouchers`.  
+**Authority:** `release-c-product-contract.md` is the product contract for Release C.
+**Rule:** Do not implement behavior that contradicts the contract. When code and contract appear to conflict, stop and ask for direction.
+**Repository:** WordPress plugin, `svdp-vouchers`.
 **Execution model:** Slice-based implementation with explicit checkpoints before proceeding.
 
 ## Slice C4 - Three-Voucher Assisted Builder UI and Request Submission
@@ -71,6 +71,11 @@ These are expected targets. Confirm exact paths against the current repo before 
 - includes/class-household-goods-catalog.php
 - includes/class-voucher-request-group.php
 - includes/class-voucher-type-settings.php
+- includes/class-conference.php
+- includes/class-settings.php
+- includes/class-voucher-request-group.php
+- public/js/voucher-request.js
+- public/templates/voucher-request-form.php
 - public/templates/partials/assisted-builder/\* (new if template decomposition is used)
 - contracts/protected-contracts.json
 
