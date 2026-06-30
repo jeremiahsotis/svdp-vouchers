@@ -101,6 +101,23 @@
 
       $("#svdpBuilderBack").on("click", goBack);
       $("#svdpBuilderNext").on("click", goNext);
+      $("#svdpSummaryAction").on("click", function () {
+        const currentStep = state.visibleSteps[state.stepIndex];
+        if (currentStep === "review") {
+          form.trigger("submit");
+          return;
+        }
+        goNext();
+      });
+
+      $("#svdpMobileSummaryAction").on("click", function () {
+        const currentStep = state.visibleSteps[state.stepIndex];
+        if (currentStep === "review") {
+          form.trigger("submit");
+          return;
+        }
+        goNext();
+      });
 
       form.on("submit", function (event) {
         event.preventDefault();
@@ -414,6 +431,10 @@
       $("#svdpBuilderBack").prop("disabled", state.stepIndex === 0);
       $("#svdpBuilderNext").prop("hidden", currentStep === "review");
       $("#svdpBuilderSubmit").prop("hidden", currentStep !== "review");
+      $("#svdpSummaryAction").text(
+        currentStep === "review" ? "Submit" : "Continue",
+      );
+      form.attr("data-current-step", currentStep);
       updateSummary();
       window.setTimeout(updateAllPillArrows, 0);
     }
@@ -1544,9 +1565,75 @@
       $("#svdpConfirmationContent").html(rows.join(""));
     }
 
+    function updateMobileSummaryBar(showSummary, currentStep) {
+      const mobileBar = $("#svdpMobileSummaryBar");
+      const mobileAction = $("#svdpMobileSummaryAction");
+      const isMobile = window.matchMedia("(max-width: 960px)").matches;
+      const shouldShowMobileBar = showSummary && isMobile;
+
+      mobileBar.prop("hidden", !shouldShowMobileBar);
+      $("body").toggleClass("svdp-mobile-summary-visible", shouldShowMobileBar);
+
+      if (!shouldShowMobileBar) {
+        return;
+      }
+
+      const types = state.selectedTypes
+        .filter(function (type) {
+          return type === "furniture" || type === "household_goods";
+        })
+        .map(typeShortLabel);
+
+      const furnitureCount = getFurnitureItemCount();
+      const householdGoodsCount = getHouseholdGoodsUnitCount();
+      const totalCount = furnitureCount + householdGoodsCount;
+      const estimate =
+        getFurnitureEstimateTotal() + getHouseholdGoodsEstimate();
+      const deliveryText =
+        state.deliveryRequested && state.visibleSteps.indexOf("delivery") !== -1
+          ? "Delivery " + formatMoney(deliveryFee)
+          : "Delivery not selected";
+
+      $("#svdpMobileSummaryTypes").text(formatTypeList(types));
+      $("#svdpMobileSummaryTotal").text(
+        totalCount +
+          " " +
+          (totalCount === 1 ? "item" : "items") +
+          " • Up to " +
+          formatMoney(estimate),
+      );
+      $("#svdpMobileSummaryDelivery").text(deliveryText);
+
+      mobileAction.text(currentStep === "review" ? "Submit" : "Continue");
+      mobileAction.prop(
+        "disabled",
+        currentStep !== "review" && $("#svdpBuilderNext").prop("disabled"),
+      );
+    }
+
     function updateSummary() {
+      const currentStep = state.visibleSteps[state.stepIndex] || "";
+      const showSummary = shouldShowSummary(currentStep);
+      const furnitureSelected = isSelected("furniture");
+      const householdGoodsSelected = isSelected("household_goods");
+      const hasDeliveryStep = state.visibleSteps.indexOf("delivery") !== -1;
+
+      $(".svdp-builder-summary").prop("hidden", !showSummary);
+      form.toggleClass("svdp-summary-is-visible", showSummary);
+      updateMobileSummaryBar(showSummary, currentStep);
+
+      $('[data-summary-row="furniture"]').prop("hidden", !furnitureSelected);
+      $('[data-summary-row="household_goods"]').prop(
+        "hidden",
+        !householdGoodsSelected,
+      );
+      $('[data-summary-row="delivery"]').prop("hidden", !hasDeliveryStep);
+
       $("#svdpSelectedTypesSummary").html(
         state.selectedTypes
+          .filter(function (type) {
+            return type === "furniture" || type === "household_goods";
+          })
           .map(function (type) {
             return (
               '<span class="svdp-summary-chip">' +
@@ -1556,17 +1643,37 @@
           })
           .join(""),
       );
+
       $("#svdpSummaryFurnitureCount").text(getFurnitureItemCount());
       $("#svdpSummaryHouseholdGoodsUnits").text(getHouseholdGoodsUnitCount());
+
       $("#svdpSummaryEstimatedCost").text(
         formatMoney(getFurnitureEstimateTotal() + getHouseholdGoodsEstimate()),
       );
+
       $("#svdpSummaryDelivery").text(
-        state.deliveryRequested && state.visibleSteps.indexOf("delivery") !== -1
+        state.deliveryRequested && hasDeliveryStep
           ? formatMoney(deliveryFee)
           : "Not selected",
       );
+
       updateHouseholdGoodsCounts();
+    }
+
+    function shouldShowSummary(step) {
+      if (!isSelected("furniture") && !isSelected("household_goods")) {
+        return false;
+      }
+
+      return (
+        [
+          "furniture",
+          "household_goods",
+          "delivery",
+          "requestor",
+          "review",
+        ].indexOf(step) !== -1
+      );
     }
 
     function updateHouseholdCount() {

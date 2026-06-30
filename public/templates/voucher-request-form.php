@@ -318,27 +318,39 @@ $requestor_email_label = $organization_type === 'partner' ? 'Partner Representat
                 </div>
             </main>
 
-            <aside class="svdp-builder-summary" aria-label="Current request summary">
-                <h4>Request Summary</h4>
-                <div id="svdpSelectedTypesSummary" class="svdp-summary-chip-list"></div>
-                <div class="svdp-summary-row">
-                    <span>Furniture items</span>
-                    <strong id="svdpSummaryFurnitureCount">0</strong>
+            <aside class="svdp-builder-summary" aria-label="Current request summary" hidden>
+                <div class="svdp-summary-card">
+                    <h4>Request Summary</h4>
+                    <div id="svdpSelectedTypesSummary" class="svdp-summary-chip-list"></div>
+                    <div class="svdp-summary-row" data-summary-row="furniture">
+                        <span>Furniture items</span>
+                        <strong id="svdpSummaryFurnitureCount">0</strong>
+                    </div>
+                    <div class="svdp-summary-row" data-summary-row="household_goods">
+                        <span>Household Goods units</span>
+                        <strong id="svdpSummaryHouseholdGoodsUnits">0</strong>
+                    </div>
+                    <div class="svdp-summary-row">
+                        <span>Estimated <span id="svdpSummaryEntityLabel"><?php echo esc_html($requestor_entity_label); ?></span> Cost</span>
+                        <strong id="svdpSummaryEstimatedCost">$0.00</strong>
+                    </div>
+                    <div class="svdp-summary-row" data-summary-row="delivery">
+                        <span>Delivery</span>
+                        <strong id="svdpSummaryDelivery">Not selected</strong>
+                    </div>
+                    <p class="svdp-summary-policy-note">Estimate based on current catalog settings. Actual fulfillment details and final redemption totals are recorded when the voucher is redeemed.</p>
+                    <button type="button" id="svdpSummaryAction" class="svdp-summary-action">Continue</button>
                 </div>
-                <div class="svdp-summary-row">
-                    <span>Household Goods units</span>
-                    <strong id="svdpSummaryHouseholdGoodsUnits">0</strong>
-                </div>
-                <div class="svdp-summary-row">
-                    <span>Estimated <span id="svdpSummaryEntityLabel"><?php echo esc_html($requestor_entity_label); ?></span> Cost</span>
-                    <strong id="svdpSummaryEstimatedCost">$0.00</strong>
-                </div>
-                <div class="svdp-summary-row">
-                    <span>Delivery</span>
-                    <strong id="svdpSummaryDelivery">Not selected</strong>
-                </div>
-                <p class="svdp-summary-policy-note">Estimate based on current catalog settings. Actual fulfillment details and final redemption totals are recorded when the voucher is redeemed.</p>
             </aside>
+        </div>
+
+        <div id="svdpMobileSummaryBar" class="svdp-mobile-summary-bar" hidden>
+            <div class="svdp-mobile-summary-copy">
+                <div id="svdpMobileSummaryTypes" class="svdp-mobile-summary-types">Furniture</div>
+                <div id="svdpMobileSummaryTotal" class="svdp-mobile-summary-total">0 items • Up to $0</div>
+                <div id="svdpMobileSummaryDelivery" class="svdp-mobile-summary-delivery">Delivery not selected</div>
+            </div>
+            <button type="button" id="svdpMobileSummaryAction" class="svdp-mobile-summary-action">Continue</button>
         </div>
     </form>
 </div>
