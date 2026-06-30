@@ -111,6 +111,7 @@ class SVDP_Voucher_Request_Group {
             'success' => true,
             'request_group_id' => $group_id,
             'voucher_ids' => $voucher_ids,
+            'voucher_info' => self::build_voucher_response_info($voucher_ids, $conference_obj),
             'selected_voucher_types' => $child_types,
             'delivery_eligible_voucher_types' => SVDP_Voucher_Type_Settings::get_delivery_eligible_types($child_types),
             'delivery_requested' => self::is_truthy($params['deliveryRequested'] ?? $params['deliveryRequired'] ?? $params['delivery_requested'] ?? false),
@@ -118,6 +119,36 @@ class SVDP_Voucher_Request_Group {
                 ? SVDP_Voucher_Type_Settings::get_delivery_fee()
                 : 0.0,
         ];
+    }
+
+    /**
+     * Build post-submit voucher metadata for the public confirmation screen.
+     */
+    private static function build_voucher_response_info($voucher_ids, $conference_obj) {
+        $created = new DateTime(current_time('Y-m-d'));
+        $expires = clone $created;
+        $expires->modify('+30 days');
+
+        $eligibility_days = isset($conference_obj->eligibility_days)
+            ? intval($conference_obj->eligibility_days)
+            : 90;
+
+        $next_eligible = clone $created;
+        $next_eligible->modify('+' . $eligibility_days . ' days');
+
+        $info = [];
+
+        foreach ((array) $voucher_ids as $voucher_type => $voucher_id) {
+            $info[$voucher_type] = [
+                'voucher_id' => (int) $voucher_id,
+                'voucher_type' => $voucher_type,
+                'voucher_created_date' => $created->format('Y-m-d'),
+                'expiration_date' => $expires->format('Y-m-d'),
+                'next_eligible_date' => $next_eligible->format('Y-m-d'),
+            ];
+        }
+
+        return $info;
     }
 
     /**

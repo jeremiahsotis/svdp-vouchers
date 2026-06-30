@@ -119,6 +119,15 @@
         goNext();
       });
 
+      $("#svdpMaxCostConfirm").on("click", function () {
+        $("#svdpMaxCostModal").prop("hidden", true);
+        submitRequest(true);
+      });
+
+      form.on("click", "[data-max-cost-cancel]", function () {
+        $("#svdpMaxCostModal").prop("hidden", true);
+      });
+
       form.on("submit", function (event) {
         event.preventDefault();
         submitRequest();
@@ -1249,8 +1258,11 @@
 
     function renderReview() {
       const sections = [];
+      const entityLabel = getRequestorLabels().entity;
+      const maxCost = getMaximumCostTotal();
+
       sections.push(
-        renderReviewSection("Household Information", "household", [
+        renderReviewSection("Household", "household", [
           escapeHtml(getHouseholdName()),
           "Date of Birth: " + escapeHtml(getFormattedDob()),
           "Household size: " +
@@ -1263,24 +1275,26 @@
       if (isSelected("clothing")) {
         sections.push(
           renderReviewSection("Clothing Voucher", "clothing", [
-            "Clothing Voucher selected",
-            "The voucher expires 30 days after it is created.",
-            "The voucher is redeemed in one visit.",
+            "Redeem in one visit within 30 days of issue date.",
           ]),
         );
       }
 
       if (isSelected("furniture")) {
         const items = getSelectedFurnitureItems().map(function (item) {
-          return escapeHtml(item.name) + ": " + item.quantity;
+          return (
+            escapeHtml(item.name) +
+            " × " +
+            item.quantity +
+            " · " +
+            formatMoney(getFurnitureEstimate(item) * item.quantity)
+          );
         });
         items.push(
-          escapeHtml(
-            (svdpVouchers.copy &&
-              svdpVouchers.copy.pricing &&
-              svdpVouchers.copy.pricing.pricingExplanation) ||
-              "All furniture prices shown have already been discounted by 50%.",
-          ),
+          "Estimated " +
+            entityLabel +
+            " Furniture Cost: " +
+            formatMoney(getFurnitureEstimateTotal()),
         );
         sections.push(
           renderReviewSection("Furniture Voucher", "furniture", items),
@@ -1290,21 +1304,23 @@
       if (isSelected("household_goods")) {
         const categories = getSelectedHouseholdGoodsCategories().map(
           function (category) {
-            return escapeHtml(category.name) + ": " + category.quantity;
+            return (
+              escapeHtml(category.name) +
+              " × " +
+              category.quantity +
+              " · " +
+              formatMoney(
+                Number(category.estimatedConferencePartnerCostPerUnit || 0) *
+                  category.quantity,
+              )
+            );
           },
         );
         categories.push(
-          "Total requested Household Goods units: " +
-            getHouseholdGoodsUnitCount(),
-        );
-        categories.push(
           "Estimated " +
-            getRequestorLabels().entity +
-            " Cost: " +
+            entityLabel +
+            " Household Goods Cost: " +
             formatMoney(getHouseholdGoodsEstimate()),
-        );
-        categories.push(
-          "Estimate based on current catalog settings. Actual fulfillment details and final redemption totals are recorded when the voucher is redeemed.",
         );
         sections.push(
           renderReviewSection(
@@ -1318,14 +1334,12 @@
       if (state.visibleSteps.indexOf("delivery") !== -1) {
         const deliveryRows = [
           state.deliveryRequested
-            ? "Delivery: " + formatMoney(deliveryFee)
+            ? "Delivery Fee: " + formatMoney(deliveryFee)
             : "Delivery: Not selected",
-          "Eligible voucher types: " +
-            formatTypeList(getDeliveryEligibleTypes().map(typeShortLabel)),
         ];
         if (state.deliveryRequested) {
           deliveryRows.push(
-            "Address: " + escapeHtml(getDeliveryAddressDisplay()),
+            "Delivery Address: " + escapeHtml(getDeliveryAddressDisplay()),
           );
         }
         sections.push(
@@ -1334,20 +1348,34 @@
       }
 
       sections.push(
-        renderReviewSection("Requestor / Organization", "requestor", [
-          "Organization: " + escapeHtml(getSelectedConferenceLabel()),
-          "Requestor: " +
-            escapeHtml($.trim(form.find('[name="vincentianName"]').val())),
-          "Email: " +
-            escapeHtml($.trim(form.find('[name="vincentianEmail"]').val())),
-        ]),
+        renderReviewSection(
+          getRequestorLabels().entity + " Requestor",
+          "requestor",
+          [
+            "Organization: " + escapeHtml(getSelectedConferenceLabel()),
+            getRequestorLabels().name +
+              ": " +
+              escapeHtml($.trim(form.find('[name="vincentianName"]').val())),
+            getRequestorLabels().email +
+              ": " +
+              escapeHtml($.trim(form.find('[name="vincentianEmail"]').val())),
+          ],
+        ),
       );
 
       if (isSelected("furniture") || isSelected("household_goods")) {
         sections.push(
-          '<div class="svdp-stock-message">' +
-            escapeHtml(STOCK_MESSAGE) +
-            "</div>",
+          '<section class="svdp-review-section svdp-review-total-section">' +
+            "<h4>Maximum " +
+            escapeHtml(entityLabel) +
+            " Cost</h4>" +
+            "<p>The maximum amount the " +
+            escapeHtml(entityLabel) +
+            " may pay for this request is:</p>" +
+            '<strong class="svdp-review-grand-total">' +
+            escapeHtml(formatMoney(maxCost)) +
+            "</strong>" +
+            "</section>",
         );
       }
 
@@ -1373,7 +1401,7 @@
       );
     }
 
-    function submitRequest() {
+    function submitRequest(confirmedMaxCost) {
       clearAllInlineErrors();
       for (let i = 0; i < state.visibleSteps.length; i += 1) {
         if (!validateStep(state.visibleSteps[i])) {
@@ -1383,8 +1411,17 @@
         }
       }
 
+      if (
+        !confirmedMaxCost &&
+        (isSelected("furniture") || isSelected("household_goods"))
+      ) {
+        showMaxCostConfirmation();
+        return;
+      }
+
       const submitBtn = $("#svdpBuilderSubmit");
       submitBtn.prop("disabled", true).text("Submitting...");
+      $("#svdpMobileSummaryAction, #svdpSummaryAction").prop("disabled", true);
       $.ajax({
         url: svdpVouchers.restUrl + "svdp/v1/vouchers/request-group",
         method: "POST",
@@ -1401,6 +1438,10 @@
             "hidden",
             true,
           );
+          $(".svdp-builder-summary").prop("hidden", true);
+          $("#svdpMobileSummaryBar").prop("hidden", true);
+          $("body").removeClass("svdp-mobile-summary-visible");
+          form.removeClass("svdp-summary-is-visible");
           $("html, body").animate({ scrollTop: form.offset().top - 20 }, 300);
         })
         .catch(function (xhr) {
@@ -1413,6 +1454,10 @@
         })
         .always(function () {
           submitBtn.prop("disabled", false).text("Submit Request");
+          $("#svdpMobileSummaryAction, #svdpSummaryAction").prop(
+            "disabled",
+            false,
+          );
         });
     }
 
@@ -1449,6 +1494,76 @@
         });
       });
       return chain;
+    }
+
+    function getMaximumCostTotal() {
+      const deliveryTotal =
+        state.deliveryRequested && state.visibleSteps.indexOf("delivery") !== -1
+          ? deliveryFee
+          : 0;
+
+      return (
+        getFurnitureEstimateTotal() +
+        getHouseholdGoodsEstimate() +
+        deliveryTotal
+      );
+    }
+
+    function showMaxCostConfirmation() {
+      const entityLabel = getRequestorLabels().entity;
+      const furnitureTotal = getFurnitureEstimateTotal();
+      const householdGoodsTotal = getHouseholdGoodsEstimate();
+      const deliveryTotal =
+        state.deliveryRequested && state.visibleSteps.indexOf("delivery") !== -1
+          ? deliveryFee
+          : 0;
+      const maxTotal = furnitureTotal + householdGoodsTotal + deliveryTotal;
+
+      const rows = [
+        "<p>Please confirm that the " +
+          escapeHtml(entityLabel) +
+          " understands the maximum possible cost for this voucher request.</p>",
+        '<div class="svdp-modal-cost-rows">',
+      ];
+
+      if (isSelected("furniture")) {
+        rows.push(
+          '<div class="svdp-modal-cost-row"><span>Furniture</span><strong>' +
+            escapeHtml(formatMoney(furnitureTotal)) +
+            "</strong></div>",
+        );
+      }
+
+      if (isSelected("household_goods")) {
+        rows.push(
+          '<div class="svdp-modal-cost-row"><span>Household Goods</span><strong>' +
+            escapeHtml(formatMoney(householdGoodsTotal)) +
+            "</strong></div>",
+        );
+      }
+
+      if (deliveryTotal > 0) {
+        rows.push(
+          '<div class="svdp-modal-cost-row"><span>Delivery</span><strong>' +
+            escapeHtml(formatMoney(deliveryTotal)) +
+            "</strong></div>",
+        );
+      }
+
+      rows.push(
+        '<div class="svdp-modal-cost-row svdp-modal-cost-total"><span>Maximum ' +
+          escapeHtml(entityLabel) +
+          " Cost</span><strong>" +
+          escapeHtml(formatMoney(maxTotal)) +
+          "</strong></div>",
+        "</div>",
+        "<p>This is the maximum amount the " +
+          escapeHtml(entityLabel) +
+          " may be responsible for based on the current request selections.</p>",
+      );
+
+      $("#svdpMaxCostContent").html(rows.join(""));
+      $("#svdpMaxCostModal").prop("hidden", false);
     }
 
     function buildSubmissionPayload() {
@@ -1505,55 +1620,65 @@
     }
 
     function renderConfirmation(response) {
-      const rows = [
-        '<section class="svdp-review-section"><h4>Request Group</h4><ul>' +
-          "<li>Request group #" +
+      const rows = [];
+      const voucherInfo = response.voucher_info || {};
+      const storeHours = form.attr("data-store-hours") || "";
+      const redemptionInstructions =
+        form.attr("data-redemption-instructions") || "";
+
+      rows.push(
+        '<section class="svdp-review-section svdp-success-panel">' +
+          "<h4>Voucher Request Submitted</h4>" +
+          "<p>Request group #" +
           escapeHtml(String(response.request_group_id || "")) +
-          " was submitted.</li>" +
-          "<li>Created voucher types: " +
-          escapeHtml(formatTypeList(state.selectedTypes.map(typeShortLabel))) +
-          "</li>" +
-          "<li>Organization: " +
+          " was submitted.</p>" +
+          "<p>Organization: " +
           escapeHtml(getSelectedConferenceLabel()) +
-          "</li>" +
-          "<li>Delivery: " +
-          (state.deliveryRequested
-            ? escapeHtml(formatMoney(deliveryFee))
-            : "Not selected") +
-          "</li>" +
+          "</p>" +
+          "</section>",
+      );
+
+      rows.push(
+        '<section class="svdp-review-section"><h4>Voucher Information</h4><ul>' +
+          state.selectedTypes
+            .map(function (type) {
+              const info = voucherInfo[type] || {};
+              return (
+                "<li><strong>" +
+                escapeHtml(typeShortLabel(type)) +
+                "</strong>" +
+                "<br>Voucher ID: #" +
+                escapeHtml(
+                  String(info.voucher_id || response.voucher_ids?.[type] || ""),
+                ) +
+                "<br>Redeem by: " +
+                escapeHtml(formatDateForDisplay(info.expiration_date)) +
+                "<br>Next eligible date: " +
+                escapeHtml(formatDateForDisplay(info.next_eligible_date)) +
+                "</li>"
+              );
+            })
+            .join("") +
           "</ul></section>",
-      ];
+      );
 
-      if (response.voucher_ids) {
+      if (storeHours || redemptionInstructions) {
         rows.push(
-          '<section class="svdp-review-section"><h4>Voucher Identifiers</h4><ul>' +
-            Object.keys(response.voucher_ids)
-              .map(function (type) {
-                return (
-                  "<li>" +
-                  escapeHtml(typeShortLabel(type)) +
-                  ": #" +
-                  escapeHtml(String(response.voucher_ids[type])) +
-                  "</li>"
-                );
-              })
-              .join("") +
-            "</ul></section>",
+          '<section class="svdp-review-section"><h4>Store Hours and Neighbor Instructions</h4>' +
+            (storeHours
+              ? "<p><strong>Store Hours:</strong> " +
+                escapeHtml(storeHours) +
+                "</p>"
+              : "") +
+            (redemptionInstructions
+              ? "<p><strong>Instructions for the Neighbor:</strong> " +
+                escapeHtml(redemptionInstructions) +
+                "</p>"
+              : "") +
+            "</section>",
         );
       }
 
-      if (isSelected("furniture")) {
-        rows.push(
-          '<p class="svdp-summary-policy-note svdp-light-policy">' +
-            escapeHtml(
-              (svdpVouchers.copy &&
-                svdpVouchers.copy.pricing &&
-                svdpVouchers.copy.pricing.pricingExplanation) ||
-                "All furniture prices shown have already been discounted by 50%.",
-            ) +
-            "</p>",
-        );
-      }
       if (isSelected("furniture") || isSelected("household_goods")) {
         rows.push(
           '<div class="svdp-stock-message">' +

@@ -3764,3 +3764,110 @@
     display: block;
   }
 }
+
+/* C4 Batch 4 submit confirmation and post-submit screen */
+.svdp-confirmation-modal[hidden] {
+  display: none !important;
+}
+
+.svdp-confirmation-modal {
+  position: fixed;
+  z-index: 2147483647;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.svdp-confirmation-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.58);
+}
+
+.svdp-confirmation-modal-card {
+  position: relative;
+  width: min(100%, 560px);
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  padding: 24px;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+}
+
+.svdp-confirmation-modal-card h3 {
+  margin: 0 0 16px;
+  color: #172033;
+}
+
+.svdp-confirmation-modal-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.svdp-confirmation-modal-actions .svdp-btn {
+  flex: 1;
+}
+
+.svdp-modal-cost-rows {
+  display: grid;
+  gap: 0;
+  margin: 16px 0;
+  border: 1px solid #d8e2ec;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.svdp-modal-cost-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 13px 16px;
+  border-bottom: 1px solid #d8e2ec;
+}
+
+.svdp-modal-cost-row:last-child {
+  border-bottom: 0;
+}
+
+.svdp-modal-cost-row span {
+  color: #5a6677;
+}
+
+.svdp-modal-cost-row strong {
+  color: #172033;
+}
+
+.svdp-modal-cost-total {
+  background: #eef4ff;
+}
+
+.svdp-review-total-section {
+  border: 2px solid #2167c7;
+}
+
+.svdp-review-total-section p {
+  margin: 0 0 8px;
+}
+
+.svdp-review-grand-total {
+  display: block;
+  color: #172033;
+  font-size: clamp(1.8rem, 5vw, 2.6rem);
+  line-height: 1;
+}
+
+.svdp-success-panel {
+  border-left: 6px solid #218838;
+}
+
+.svdp-stock-message {
+  padding: 16px 18px;
+  border-left: 5px solid #2167c7;
+  border-radius: 14px;
+  background: #eef4ff;
+  color: #173b73;
+  line-height: 1.5;
+}

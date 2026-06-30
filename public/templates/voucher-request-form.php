@@ -309,6 +309,18 @@ $requestor_email_label = $organization_type === 'partner' ? 'Partner Representat
                     <div id="svdpConfirmationContent" class="svdp-review-sections"></div>
                 </section>
 
+                <div id="svdpMaxCostModal" class="svdp-confirmation-modal" hidden>
+                    <div class="svdp-confirmation-modal-backdrop" data-max-cost-cancel="true"></div>
+                    <div class="svdp-confirmation-modal-card" role="dialog" aria-modal="true" aria-labelledby="svdpMaxCostTitle">
+                        <h3 id="svdpMaxCostTitle">Confirm maximum cost</h3>
+                        <div id="svdpMaxCostContent"></div>
+                        <div class="svdp-confirmation-modal-actions">
+                            <button type="button" class="svdp-btn svdp-btn-secondary" data-max-cost-cancel="true">Go Back</button>
+                            <button type="button" class="svdp-btn svdp-btn-primary" id="svdpMaxCostConfirm">Confirm and Submit</button>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="svdpFormMessage" class="svdp-message" style="display: none;"></div>
 
                 <div class="svdp-builder-actions">
