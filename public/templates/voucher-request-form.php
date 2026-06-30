@@ -29,11 +29,13 @@ $voucher_type_labels = [
     'furniture' => 'Furniture Voucher',
     'household_goods' => 'Household Goods Voucher',
 ];
-$voucher_type_descriptions = [
-    'clothing' => 'Clothing assistance for the household.',
-    'furniture' => 'Select needed furniture items.',
-    'household_goods' => 'Select up to 10 household-goods categories and enter the quantity needed for each.',
-];
+$voucher_type_descriptions = class_exists('SVDP_Voucher_Type_Settings')
+    ? SVDP_Voucher_Type_Settings::get_descriptions()
+    : [
+        'clothing' => 'Must redeem in one visit within 30 days of issue date.',
+        'furniture' => 'Choose needed furniture items and delivery, if needed. Must redeem in one visit within 30 days of issue date.',
+        'household_goods' => 'Choose needed household items. Must redeem in one visit within 30 days of issue date.',
+    ];
 $delivery_capability_flags = [];
 foreach ($root_voucher_types as $voucher_type) {
     $delivery_capability_flags[$voucher_type] = !empty($delivery_capabilities[$voucher_type]['delivery_available']);
@@ -101,9 +103,6 @@ $furniture_category_hints = [
                             <?php
                             $delivery_available = !empty($delivery_capability_flags[$voucher_type]);
                             $description = $voucher_type_descriptions[$voucher_type] ?? '';
-                            if ($delivery_available && $voucher_type !== 'clothing') {
-                                $description .= ' Delivery may be available.';
-                            }
                             ?>
                             <button
                                 type="button"

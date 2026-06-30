@@ -112,7 +112,7 @@
                         $is_store = $conference->organization_type === 'store';
                         $allowed_types = SVDP_Settings::normalize_voucher_types(
                             $conference->allowed_voucher_types,
-                            $is_store ? ['clothing'] : ['clothing', 'furniture']
+                            $is_store ? ['clothing'] : ['clothing', 'furniture', 'household_goods']
                         );
                 ?>
                 <tr data-id="<?php echo $conference->id; ?>"

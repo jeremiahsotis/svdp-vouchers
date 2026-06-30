@@ -2,6 +2,7 @@
 ABCDEFGHJKLMNPQRSTUVWXYZ
 ABSPATH
 ACMR
+ajaxurl
 Besancon
 bloginfo
 Borromeo

@@ -203,24 +203,51 @@ class SVDP_Admin {
         }
 
         $available_voucher_types = SVDP_Settings::serialize_voucher_types(
-            sanitize_text_field($_POST['available_voucher_types']),
-            ['clothing', 'furniture']
+            sanitize_text_field(wp_unslash($_POST['available_voucher_types'] ?? '')),
+            ['clothing', 'furniture', 'household_goods']
         );
 
         // Sanitize and save each setting
         $settings = [
-            'adult_item_value' => ['value' => sanitize_text_field($_POST['adult_item_value']), 'type' => 'decimal'],
-            'child_item_value' => ['value' => sanitize_text_field($_POST['child_item_value']), 'type' => 'decimal'],
-            'store_hours' => ['value' => sanitize_text_field($_POST['store_hours']), 'type' => 'text'],
-            'redemption_instructions' => ['value' => sanitize_textarea_field($_POST['redemption_instructions']), 'type' => 'textarea'],
+            'adult_item_value' => ['value' => sanitize_text_field(wp_unslash($_POST['adult_item_value'] ?? '5.00')), 'type' => 'decimal'],
+            'child_item_value' => ['value' => sanitize_text_field(wp_unslash($_POST['child_item_value'] ?? '3.00')), 'type' => 'decimal'],
+            'store_hours' => ['value' => sanitize_text_field(wp_unslash($_POST['store_hours'] ?? '')), 'type' => 'text'],
+            'redemption_instructions' => ['value' => sanitize_textarea_field(wp_unslash($_POST['redemption_instructions'] ?? '')), 'type' => 'textarea'],
             'available_voucher_types' => ['value' => $available_voucher_types, 'type' => 'text'],
         ];
+
+        if (class_exists('SVDP_Voucher_Type_Settings')) {
+            foreach (SVDP_Voucher_Type_Settings::get_root_voucher_types() as $voucher_type) {
+                $description_key = SVDP_Voucher_Type_Settings::get_description_setting_key($voucher_type);
+                $posted_description_key = 'voucher_type_description_' . $voucher_type;
+                $settings[$description_key] = [
+                    'value' => sanitize_textarea_field(wp_unslash($_POST[$posted_description_key] ?? SVDP_Voucher_Type_Settings::get_default_description($voucher_type))),
+                    'type' => 'textarea',
+                ];
+            }
+        }
 
         $success = true;
         foreach ($settings as $key => $setting) {
             if (!SVDP_Settings::update_setting($key, $setting['value'], $setting['type'])) {
                 $success = false;
                 break;
+            }
+        }
+
+        if ($success && class_exists('SVDP_Voucher_Type_Settings')) {
+            foreach (SVDP_Voucher_Type_Settings::get_root_voucher_types() as $voucher_type) {
+                $posted_delivery_key = 'voucher_type_delivery_' . $voucher_type;
+                $result = SVDP_Voucher_Type_Settings::update_delivery_available(
+                    $voucher_type,
+                    !empty($_POST[$posted_delivery_key]),
+                    get_current_user_id()
+                );
+
+                if (is_wp_error($result)) {
+                    $success = false;
+                    break;
+                }
             }
         }
 
