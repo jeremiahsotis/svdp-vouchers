@@ -8,7 +8,7 @@
     }
 
     const STOCK_MESSAGE =
-      "Stock fluctuates. Items are not guaranteed to be in stock. The neighbor will need to visit the store to see what is currently available.";
+      "Stock fluctuates. Items are NOT guaranteed to be in stock. The neighbor will need to visit the store to see what is currently available. Staff are not able to verify availability.";
     const TYPE_LABELS = {
       clothing: "Clothing Voucher",
       furniture: "Furniture Voucher",
@@ -117,6 +117,13 @@
           return;
         }
         goNext();
+      });
+
+      $("#svdpBuilderSubmit").on("click", function (event) {
+        if ($(this).attr("data-confirmation-action") === "request-another") {
+          event.preventDefault();
+          window.location.reload();
+        }
       });
 
       $("#svdpMaxCostConfirm").on("click", function () {
@@ -1116,7 +1123,9 @@
         '<div class="svdp-catalog-price"><span class="svdp-catalog-price-label">Furniture price</span><strong>' +
         escapeHtml(item.priceDisplay || "") +
         "</strong></div>" +
-        '<div class="svdp-catalog-price svdp-catalog-price-conference"><span class="svdp-catalog-price-label">Estimated Cost</span><strong>' +
+        '<div class="svdp-catalog-price svdp-catalog-price-conference"><span class="svdp-catalog-price-label">Maximum ' +
+        escapeHtml(getRequestorLabels().entity) +
+        " Cost</span><strong>" +
         escapeHtml(formatMoney(estimate)) +
         "</strong></div>" +
         "</div>" +
@@ -1260,10 +1269,13 @@
       const sections = [];
       const entityLabel = getRequestorLabels().entity;
       const maxCost = getMaximumCostTotal();
+      const hasDeliveryAvailable = getDeliveryEligibleTypes().length > 0;
 
       sections.push(
-        renderReviewSection("Household", "household", [
-          escapeHtml(getHouseholdName()),
+        renderReviewSection("Neighbor", "household", [
+          '<strong class="svdp-review-primary-line">' +
+            escapeHtml(getHouseholdName()) +
+            "</strong>",
           "Date of Birth: " + escapeHtml(getFormattedDob()),
           "Household size: " +
             getHouseholdSize() +
@@ -1272,95 +1284,116 @@
         ]),
       );
 
+      const voucherRows = [];
+
       if (isSelected("clothing")) {
-        sections.push(
-          renderReviewSection("Clothing Voucher", "clothing", [
-            "Redeem in one visit within 30 days of issue date.",
-          ]),
+        voucherRows.push(
+          '<div class="svdp-review-voucher-card">' +
+            "<h5>Clothing Voucher</h5>" +
+            "<p>Redeem in one visit within 30 days of issue date.</p>" +
+            "</div>",
         );
       }
 
       if (isSelected("furniture")) {
-        const items = getSelectedFurnitureItems().map(function (item) {
-          return (
-            escapeHtml(item.name) +
-            " × " +
-            item.quantity +
-            " · " +
-            formatMoney(getFurnitureEstimate(item) * item.quantity)
-          );
-        });
-        items.push(
-          "Estimated " +
-            entityLabel +
+        voucherRows.push(
+          '<div class="svdp-review-voucher-card">' +
+            "<h5>Furniture Voucher</h5>" +
+            '<ul class="svdp-review-compact-list">' +
+            getSelectedFurnitureItems()
+              .map(function (item) {
+                return (
+                  "<li>" +
+                  escapeHtml(item.name) +
+                  " × " +
+                  item.quantity +
+                  " · " +
+                  escapeHtml(
+                    formatMoney(getFurnitureEstimate(item) * item.quantity),
+                  ) +
+                  "</li>"
+                );
+              })
+              .join("") +
+            "</ul>" +
+            "<p><strong>Maximum " +
+            escapeHtml(entityLabel) +
             " Furniture Cost: " +
-            formatMoney(getFurnitureEstimateTotal()),
-        );
-        sections.push(
-          renderReviewSection("Furniture Voucher", "furniture", items),
+            escapeHtml(formatMoney(getFurnitureEstimateTotal())) +
+            "</strong></p>" +
+            "</div>",
         );
       }
 
       if (isSelected("household_goods")) {
-        const categories = getSelectedHouseholdGoodsCategories().map(
-          function (category) {
-            return (
-              escapeHtml(category.name) +
-              " × " +
-              category.quantity +
-              " · " +
-              formatMoney(
-                Number(category.estimatedConferencePartnerCostPerUnit || 0) *
-                  category.quantity,
-              )
-            );
-          },
-        );
-        categories.push(
-          "Estimated " +
-            entityLabel +
+        voucherRows.push(
+          '<div class="svdp-review-voucher-card">' +
+            "<h5>Household Goods Voucher</h5>" +
+            '<ul class="svdp-review-compact-list">' +
+            getSelectedHouseholdGoodsCategories()
+              .map(function (category) {
+                return (
+                  "<li>" +
+                  escapeHtml(category.name) +
+                  " × " +
+                  category.quantity +
+                  " · " +
+                  escapeHtml(
+                    formatMoney(
+                      Number(
+                        category.estimatedConferencePartnerCostPerUnit || 0,
+                      ) * category.quantity,
+                    ),
+                  ) +
+                  "</li>"
+                );
+              })
+              .join("") +
+            "</ul>" +
+            "<p><strong>Maximum " +
+            escapeHtml(entityLabel) +
             " Household Goods Cost: " +
-            formatMoney(getHouseholdGoodsEstimate()),
-        );
-        sections.push(
-          renderReviewSection(
-            "Household Goods Voucher",
-            "household_goods",
-            categories,
-          ),
+            escapeHtml(formatMoney(getHouseholdGoodsEstimate())) +
+            "</strong></p>" +
+            "</div>",
         );
       }
 
-      if (state.visibleSteps.indexOf("delivery") !== -1) {
+      sections.push(
+        renderReviewSection("Vouchers to Create", "assistance", voucherRows),
+      );
+
+      if (hasDeliveryAvailable) {
         const deliveryRows = [
           state.deliveryRequested
-            ? "Delivery Fee: " + formatMoney(deliveryFee)
-            : "Delivery: Not selected",
+            ? "Delivery requested."
+            : "No delivery requested.",
         ];
+
         if (state.deliveryRequested) {
           deliveryRows.push(
             "Delivery Address: " + escapeHtml(getDeliveryAddressDisplay()),
           );
+          deliveryRows.push(
+            "Delivery Fee: " + escapeHtml(formatMoney(deliveryFee)),
+          );
         }
+
         sections.push(
           renderReviewSection("Delivery", "delivery", deliveryRows),
         );
       }
 
       sections.push(
-        renderReviewSection(
-          getRequestorLabels().entity + " Requestor",
-          "requestor",
-          [
-            "Organization: " + escapeHtml(getSelectedConferenceLabel()),
-            getRequestorLabels().name +
-              ": " +
-              escapeHtml($.trim(form.find('[name="vincentianName"]').val())),
-            getRequestorLabels().email +
-              ": " +
-              escapeHtml($.trim(form.find('[name="vincentianEmail"]').val())),
-          ],
-        ),
+        renderReviewSection(entityLabel + " Requestor", "requestor", [
+          "Organization: " + escapeHtml(getSelectedConferenceLabel()),
+          getRequestorLabels().name +
+            ": " +
+            escapeHtml($.trim(form.find('[name="vincentianName"]').val())),
+          getRequestorLabels().email +
+            ": " +
+            escapeHtml($.trim(form.find('[name="vincentianEmail"]').val())),
+        ]),
       );
 
       if (isSelected("furniture") || isSelected("household_goods")) {
@@ -1369,9 +1402,13 @@
             "<h4>Maximum " +
             escapeHtml(entityLabel) +
             " Cost</h4>" +
-            "<p>The maximum amount the " +
+            "<p>This is the maximum amount the " +
             escapeHtml(entityLabel) +
-            " may pay for this request is:</p>" +
+            " may be responsible for based on the selected voucher items" +
+            (state.deliveryRequested && hasDeliveryAvailable
+              ? " and delivery."
+              : ".") +
+            "</p>" +
             '<strong class="svdp-review-grand-total">' +
             escapeHtml(formatMoney(maxCost)) +
             "</strong>" +
@@ -1434,10 +1471,14 @@
           renderConfirmation(response);
           $("[data-step-panel]").prop("hidden", true);
           $('[data-step-panel="confirmation"]').prop("hidden", false);
-          $(".svdp-builder-progress, .svdp-builder-actions").prop(
-            "hidden",
-            true,
-          );
+          $(".svdp-builder-progress").prop("hidden", true);
+          $(".svdp-builder-actions").prop("hidden", false);
+          $("#svdpBuilderBack, #svdpBuilderNext").prop("hidden", true);
+          $("#svdpBuilderSubmit")
+            .prop("hidden", false)
+            .prop("disabled", false)
+            .attr("data-confirmation-action", "request-another")
+            .text("Request Another Voucher");
           $(".svdp-builder-summary").prop("hidden", true);
           $("#svdpMobileSummaryBar").prop("hidden", true);
           $("body").removeClass("svdp-mobile-summary-visible");
@@ -1453,7 +1494,11 @@
           showMessage(message, "error");
         })
         .always(function () {
-          submitBtn.prop("disabled", false).text("Submit Request");
+          if (
+            submitBtn.attr("data-confirmation-action") !== "request-another"
+          ) {
+            submitBtn.prop("disabled", false).text("Submit Request");
+          }
           $("#svdpMobileSummaryAction, #svdpSummaryAction").prop(
             "disabled",
             false,
@@ -1520,9 +1565,9 @@
       const maxTotal = furnitureTotal + householdGoodsTotal + deliveryTotal;
 
       const rows = [
-        "<p>Please confirm that the " +
+        "<p>Please confirm the maximum " +
           escapeHtml(entityLabel) +
-          " understands the maximum possible cost for this voucher request.</p>",
+          " cost before submitting this voucher request.</p>",
         '<div class="svdp-modal-cost-rows">',
       ];
 
@@ -1557,9 +1602,7 @@
           escapeHtml(formatMoney(maxTotal)) +
           "</strong></div>",
         "</div>",
-        "<p>This is the maximum amount the " +
-          escapeHtml(entityLabel) +
-          " may be responsible for based on the current request selections.</p>",
+        "<p>By submitting this request, you are creating the selected voucher or vouchers. The neighbor will still need to visit the store to see what is available.</p>",
       );
 
       $("#svdpMaxCostContent").html(rows.join(""));
@@ -1625,69 +1668,116 @@
       const storeHours = form.attr("data-store-hours") || "";
       const redemptionInstructions =
         form.attr("data-redemption-instructions") || "";
+      const hasDeliveryAvailable = getDeliveryEligibleTypes().length > 0;
 
       rows.push(
         '<section class="svdp-review-section svdp-success-panel">' +
           "<h4>Voucher Request Submitted</h4>" +
-          "<p>Request group #" +
-          escapeHtml(String(response.request_group_id || "")) +
-          " was submitted.</p>" +
-          "<p>Organization: " +
-          escapeHtml(getSelectedConferenceLabel()) +
-          "</p>" +
+          "<p>The voucher request was created successfully.</p>" +
           "</section>",
       );
 
       rows.push(
-        '<section class="svdp-review-section"><h4>Voucher Information</h4><ul>' +
+        renderReceiptSection("Neighbor", [
+          '<strong class="svdp-review-primary-line">' +
+            escapeHtml(getHouseholdName()) +
+            "</strong>",
+          "Date of Birth: " + escapeHtml(getFormattedDob()),
+          "Household size: " +
+            getHouseholdSize() +
+            " " +
+            (getHouseholdSize() === 1 ? "person" : "people"),
+          "Organization: " + escapeHtml(getSelectedConferenceLabel()),
+        ]),
+      );
+
+      rows.push(
+        '<section class="svdp-review-section svdp-created-vouchers-section">' +
+          "<h4>Created Vouchers</h4>" +
           state.selectedTypes
             .map(function (type) {
               const info = voucherInfo[type] || {};
+              const voucherId =
+                info.voucher_id || response.voucher_ids?.[type] || "";
+
               return (
-                "<li><strong>" +
+                '<div class="svdp-created-voucher-card">' +
+                "<h5>" +
                 escapeHtml(typeShortLabel(type)) +
-                "</strong>" +
-                "<br>Voucher ID: #" +
-                escapeHtml(
-                  String(info.voucher_id || response.voucher_ids?.[type] || ""),
-                ) +
-                "<br>Redeem by: " +
+                "</h5>" +
+                '<div class="svdp-receipt-row"><span>Voucher #</span><strong>' +
+                escapeHtml(String(voucherId)) +
+                "</strong></div>" +
+                '<div class="svdp-receipt-row"><span>Redeem by</span><strong>' +
                 escapeHtml(formatDateForDisplay(info.expiration_date)) +
-                "<br>Next eligible date: " +
+                "</strong></div>" +
+                '<div class="svdp-receipt-row"><span>Next eligible</span><strong>' +
                 escapeHtml(formatDateForDisplay(info.next_eligible_date)) +
-                "</li>"
+                "</strong></div>" +
+                "</div>"
               );
             })
             .join("") +
-          "</ul></section>",
+          "</section>",
       );
 
-      if (storeHours || redemptionInstructions) {
+      const instructionRows = [];
+
+      if (storeHours) {
+        instructionRows.push(
+          "<strong>Store Hours</strong><br>" + escapeHtml(storeHours),
+        );
+      }
+
+      if (redemptionInstructions) {
+        instructionRows.push(
+          "<strong>Instructions for the Neighbor</strong><br>" +
+            escapeHtml(redemptionInstructions),
+        );
+      }
+
+      if (hasDeliveryAvailable && state.deliveryRequested) {
+        instructionRows.push(
+          "<strong>Delivery</strong><br>Delivery was requested for:<br>" +
+            escapeHtml(getDeliveryAddressDisplay()) +
+            "<br>Delivery fee: " +
+            escapeHtml(formatMoney(deliveryFee)),
+        );
+      }
+
+      if (instructionRows.length > 0) {
         rows.push(
-          '<section class="svdp-review-section"><h4>Store Hours and Neighbor Instructions</h4>' +
-            (storeHours
-              ? "<p><strong>Store Hours:</strong> " +
-                escapeHtml(storeHours) +
-                "</p>"
-              : "") +
-            (redemptionInstructions
-              ? "<p><strong>Instructions for the Neighbor:</strong> " +
-                escapeHtml(redemptionInstructions) +
-                "</p>"
-              : "") +
-            "</section>",
+          renderReceiptSection("What to Tell the Neighbor", instructionRows),
         );
       }
 
       if (isSelected("furniture") || isSelected("household_goods")) {
         rows.push(
-          '<div class="svdp-stock-message">' +
+          '<section class="svdp-review-section svdp-stock-message">' +
+            "<h4>Item Availability</h4>" +
+            "<p>" +
             escapeHtml(STOCK_MESSAGE) +
-            "</div>",
+            "</p>" +
+            "</section>",
         );
       }
 
       $("#svdpConfirmationContent").html(rows.join(""));
+    }
+
+    function renderReceiptSection(title, rows) {
+      return (
+        '<section class="svdp-review-section svdp-receipt-section">' +
+        "<h4>" +
+        escapeHtml(title) +
+        "</h4>" +
+        rows
+          .map(function (row) {
+            return '<p class="svdp-receipt-line">' + row + "</p>";
+          })
+          .join("") +
+        "</section>"
+      );
     }
 
     function updateMobileSummaryBar(showSummary, currentStep) {
@@ -1714,20 +1804,23 @@
       const totalCount = furnitureCount + householdGoodsCount;
       const estimate =
         getFurnitureEstimateTotal() + getHouseholdGoodsEstimate();
+      const hasDeliveryAvailable = getDeliveryEligibleTypes().length > 0;
       const deliveryText =
-        state.deliveryRequested && state.visibleSteps.indexOf("delivery") !== -1
+        hasDeliveryAvailable && state.deliveryRequested
           ? "Delivery " + formatMoney(deliveryFee)
-          : "Delivery not selected";
+          : "No delivery requested";
 
       $("#svdpMobileSummaryTypes").text(formatTypeList(types));
       $("#svdpMobileSummaryTotal").text(
         totalCount +
           " " +
           (totalCount === 1 ? "item" : "items") +
-          " • Up to " +
+          " • Maximum " +
           formatMoney(estimate),
       );
-      $("#svdpMobileSummaryDelivery").text(deliveryText);
+      $("#svdpMobileSummaryDelivery")
+        .prop("hidden", !hasDeliveryAvailable)
+        .text(deliveryText);
 
       mobileAction.text(currentStep === "review" ? "Submit" : "Continue");
       mobileAction.prop(
@@ -1742,6 +1835,7 @@
       const furnitureSelected = isSelected("furniture");
       const householdGoodsSelected = isSelected("household_goods");
       const hasDeliveryStep = state.visibleSteps.indexOf("delivery") !== -1;
+      const hasDeliveryAvailable = getDeliveryEligibleTypes().length > 0;
 
       $(".svdp-builder-summary").prop("hidden", !showSummary);
       form.toggleClass("svdp-summary-is-visible", showSummary);
@@ -1752,7 +1846,7 @@
         "hidden",
         !householdGoodsSelected,
       );
-      $('[data-summary-row="delivery"]').prop("hidden", !hasDeliveryStep);
+      $('[data-summary-row="delivery"]').prop("hidden", !hasDeliveryAvailable);
 
       $("#svdpSelectedTypesSummary").html(
         state.selectedTypes
@@ -1777,9 +1871,9 @@
       );
 
       $("#svdpSummaryDelivery").text(
-        state.deliveryRequested && hasDeliveryStep
+        state.deliveryRequested && hasDeliveryAvailable
           ? formatMoney(deliveryFee)
-          : "Not selected",
+          : "No delivery requested",
       );
 
       updateHouseholdGoodsCounts();

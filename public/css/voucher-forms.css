@@ -3871,3 +3871,122 @@
   color: #173b73;
   line-height: 1.5;
 }
+
+/* C4 Batch 4B review and receipt UX cleanup */
+.svdp-step-intro {
+  margin: -4px 0 20px;
+  color: #5a6677;
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+.svdp-review-primary-line {
+  display: block;
+  color: #172033;
+  font-size: 1.1rem;
+  line-height: 1.25;
+}
+
+.svdp-review-voucher-card,
+.svdp-created-voucher-card {
+  padding: 16px;
+  border: 1px solid #d8e2ec;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.svdp-review-voucher-card + .svdp-review-voucher-card,
+.svdp-created-voucher-card + .svdp-created-voucher-card {
+  margin-top: 12px;
+}
+
+.svdp-review-voucher-card h5,
+.svdp-created-voucher-card h5 {
+  margin: 0 0 10px;
+  color: #172033;
+  font-size: 1.05rem;
+}
+
+.svdp-review-voucher-card p {
+  margin: 8px 0 0;
+}
+
+.svdp-review-compact-list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.svdp-review-compact-list li {
+  margin-bottom: 6px;
+}
+
+.svdp-receipt-section .svdp-receipt-line {
+  margin: 0 0 12px;
+  color: #384455;
+  line-height: 1.5;
+}
+
+.svdp-receipt-section .svdp-receipt-line:last-child {
+  margin-bottom: 0;
+}
+
+.svdp-created-vouchers-section {
+  display: grid;
+  gap: 12px;
+}
+
+.svdp-created-vouchers-section h4 {
+  margin-bottom: 4px;
+}
+
+.svdp-receipt-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 9px 0;
+  border-bottom: 1px solid #edf2f7;
+}
+
+.svdp-receipt-row:last-child {
+  border-bottom: 0;
+}
+
+.svdp-receipt-row span {
+  color: #5a6677;
+}
+
+.svdp-receipt-row strong {
+  color: #172033;
+  text-align: right;
+}
+
+.svdp-success-panel {
+  background: #f1f8f3;
+  border: 1px solid #cfead6;
+  border-left: 6px solid #218838;
+}
+
+.svdp-success-panel p {
+  margin: 0;
+}
+
+.svdp-stock-message h4 {
+  margin: 0 0 8px;
+  color: #173b73;
+}
+
+.svdp-stock-message p {
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .svdp-receipt-row {
+    display: block;
+  }
+
+  .svdp-receipt-row strong {
+    display: block;
+    margin-top: 2px;
+    text-align: left;
+  }
+}

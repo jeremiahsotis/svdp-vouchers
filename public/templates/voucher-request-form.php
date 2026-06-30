@@ -299,7 +299,8 @@ $requestor_email_label = $organization_type === 'partner' ? 'Partner Representat
                 </section>
 
                 <section class="svdp-builder-step" data-step-panel="review" hidden>
-                    <h3>Review Request</h3>
+                    <h3>Review and Submit</h3>
+                    <p class="svdp-step-intro">Review the information below before submitting. Use Edit if anything needs changed.</p>
                     <div id="svdpReviewContent" class="svdp-review-sections"></div>
                     <div class="svdp-inline-error" data-error-for="review"></div>
                 </section>
@@ -343,14 +344,14 @@ $requestor_email_label = $organization_type === 'partner' ? 'Partner Representat
                         <strong id="svdpSummaryHouseholdGoodsUnits">0</strong>
                     </div>
                     <div class="svdp-summary-row">
-                        <span>Estimated <span id="svdpSummaryEntityLabel"><?php echo esc_html($requestor_entity_label); ?></span> Cost</span>
+                        <span>Maximum <span id="svdpSummaryEntityLabel"><?php echo esc_html($requestor_entity_label); ?></span> Cost</span>
                         <strong id="svdpSummaryEstimatedCost">$0.00</strong>
                     </div>
                     <div class="svdp-summary-row" data-summary-row="delivery">
                         <span>Delivery</span>
                         <strong id="svdpSummaryDelivery">Not selected</strong>
                     </div>
-                    <p class="svdp-summary-policy-note">Estimate based on current catalog settings. Actual fulfillment details and final redemption totals are recorded when the voucher is redeemed.</p>
+                    <p class="svdp-summary-policy-note">Maximum cost based on current catalog settings. Actual fulfillment details and final redemption totals are recorded when the voucher is redeemed.</p>
                     <button type="button" id="svdpSummaryAction" class="svdp-summary-action">Continue</button>
                 </div>
             </aside>
@@ -359,7 +360,7 @@ $requestor_email_label = $organization_type === 'partner' ? 'Partner Representat
         <div id="svdpMobileSummaryBar" class="svdp-mobile-summary-bar" hidden>
             <div class="svdp-mobile-summary-copy">
                 <div id="svdpMobileSummaryTypes" class="svdp-mobile-summary-types">Furniture</div>
-                <div id="svdpMobileSummaryTotal" class="svdp-mobile-summary-total">0 items • Up to $0</div>
+                <div id="svdpMobileSummaryTotal" class="svdp-mobile-summary-total">0 items • Maximum $0</div>
                 <div id="svdpMobileSummaryDelivery" class="svdp-mobile-summary-delivery">Delivery not selected</div>
             </div>
             <button type="button" id="svdpMobileSummaryAction" class="svdp-mobile-summary-action">Continue</button>
