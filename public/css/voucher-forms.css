@@ -2,6 +2,7 @@
    VOUCHER FORMS - PUBLIC STYLES
    ================================ */
 
+
 /* Container */
 .svdp-voucher-form,
 .svdp-cashier-container {
@@ -1353,24 +1354,13 @@
   padding: 18px 18px 18px 24px;
   text-align: left;
   border: 1px solid #d6e1e8;
-  border-left: 6px solid #006ba8;
+  border-left: 10px solid;
   border-radius: 16px;
-  background: #fff;
   cursor: pointer;
   transition:
     transform 0.2s ease,
     box-shadow 0.2s ease,
     border-color 0.2s ease;
-}
-
-.svdp-card-status-rail {
-  position: absolute;
-  top: 14px;
-  bottom: 14px;
-  left: 8px;
-  width: 6px;
-  border-radius: 999px;
-  background: #005f8f;
 }
 
 .svdp-cashier-list-card:hover,
@@ -1390,32 +1380,13 @@
 }
 
 .svdp-cashier-list-card.svdp-card-redeemed {
-  border-left-color: #28a745;
-}
-
-.svdp-cashier-list-card.svdp-card-redeemed .svdp-card-status-rail {
-  background: repeating-linear-gradient(
-    180deg,
-    #196b3d 0,
-    #196b3d 8px,
-    #dff4e7 8px,
-    #dff4e7 12px
-  );
+  border-left-color: var(--svdp-status-redeemed-border);
+  background: var(--svdp-status-ready-bg);
 }
 
 .svdp-cashier-list-card.svdp-card-expired {
-  border-left-color: #7c8791;
-}
-
-.svdp-cashier-list-card.svdp-card-expired .svdp-card-status-rail {
-  background: repeating-linear-gradient(
-    180deg,
-    #343a40 0,
-    #343a40 6px,
-    #ffffff 6px,
-    #ffffff 10px
-  );
-  border: 1px solid #343a40;
+  border-left-color: var(--svdp-status-expired-border);
+  background: var(--svdp-status-expired-bg);
 }
 
 .svdp-card-status-line,
@@ -3415,4 +3386,154 @@
     margin-top: 2px;
     text-align: left;
   }
+}
+
+
+/* Cashier Station status-only color system */
+.svdp-cashier-shell {
+  --svdp-cashier-expired-bg: #fff1f2;
+  --svdp-cashier-expired-border: #dc2626;
+  --svdp-cashier-expired-text: #7f1d1d;
+  --svdp-cashier-expired-hover: #ffe4e6;
+  --svdp-cashier-expired-selected: rgba(220, 38, 38, 0.22);
+
+  --svdp-cashier-redeemed-bg: #fef9c3;
+  --svdp-cashier-redeemed-border: #ca8a04;
+  --svdp-cashier-redeemed-text: #713f12;
+  --svdp-cashier-redeemed-hover: #fef08a;
+  --svdp-cashier-redeemed-selected: rgba(202, 138, 4, 0.24);
+
+  --svdp-cashier-ready-bg: #ecfdf5;
+  --svdp-cashier-ready-border: #16a34a;
+  --svdp-cashier-ready-text: #14532d;
+  --svdp-cashier-ready-hover: #dcfce7;
+  --svdp-cashier-ready-selected: rgba(22, 163, 74, 0.22);
+}
+
+/* Base cashier card */
+.svdp-cashier-shell .svdp-cashier-list-card {
+  background: #fff;
+  border: 1px solid #d6e1e8;
+  border-left: 10px solid #d6e1e8;
+}
+
+/* Remove old striped/dotted status treatment */
+.svdp-cashier-shell .svdp-cashier-list-card.svdp-card-expired,
+.svdp-cashier-shell .svdp-cashier-list-card.svdp-card-redeemed,
+.svdp-cashier-shell .svdp-cashier-list-card.svdp-card-ready {
+  background-image: none;
+}
+
+/* Ready / Available */
+.svdp-cashier-shell .svdp-cashier-list-card.svdp-card-ready {
+  background-color: var(--svdp-cashier-ready-bg);
+  border-color: var(--svdp-cashier-ready-border);
+  color: var(--svdp-cashier-ready-text);
+}
+
+.svdp-cashier-shell .svdp-cashier-list-card.svdp-card-ready:hover,
+.svdp-cashier-shell .svdp-cashier-list-card.svdp-card-ready:focus {
+  background-color: var(--svdp-cashier-ready-hover);
+  border-color: var(--svdp-cashier-ready-border);
+  box-shadow: 0 14px 30px rgba(22, 163, 74, 0.16);
+}
+
+/* Redeemed */
+.svdp-cashier-shell .svdp-cashier-list-card.svdp-card-redeemed {
+  background-color: var(--svdp-cashier-redeemed-bg);
+  border-color: var(--svdp-cashier-redeemed-border);
+  color: var(--svdp-cashier-redeemed-text);
+}
+
+.svdp-cashier-shell .svdp-cashier-list-card.svdp-card-redeemed:hover,
+.svdp-cashier-shell .svdp-cashier-list-card.svdp-card-redeemed:focus {
+  background-color: var(--svdp-cashier-redeemed-hover);
+  border-color: var(--svdp-cashier-redeemed-border);
+  box-shadow: 0 14px 30px rgba(202, 138, 4, 0.18);
+}
+
+/* Expired */
+.svdp-cashier-shell .svdp-cashier-list-card.svdp-card-expired {
+  background-color: var(--svdp-cashier-expired-bg);
+  border-color: var(--svdp-cashier-expired-border);
+  color: var(--svdp-cashier-expired-text);
+}
+
+.svdp-cashier-shell .svdp-cashier-list-card.svdp-card-expired:hover,
+.svdp-cashier-shell .svdp-cashier-list-card.svdp-card-expired:focus {
+  background-color: var(--svdp-cashier-expired-hover);
+  border-color: var(--svdp-cashier-expired-border);
+  box-shadow: 0 14px 30px rgba(220, 38, 38, 0.16);
+}
+
+/* Selected state stays status-colored, not blue */
+.svdp-cashier-shell .svdp-cashier-list-card.svdp-card-ready.is-selected {
+  border-color: var(--svdp-cashier-ready-border);
+  box-shadow:
+    0 0 0 4px var(--svdp-cashier-ready-selected),
+    0 18px 36px rgba(22, 163, 74, 0.18);
+}
+
+.svdp-cashier-shell .svdp-cashier-list-card.svdp-card-redeemed.is-selected {
+  border-color: var(--svdp-cashier-redeemed-border);
+  box-shadow:
+    0 0 0 4px var(--svdp-cashier-redeemed-selected),
+    0 18px 36px rgba(202, 138, 4, 0.2);
+}
+
+.svdp-cashier-shell .svdp-cashier-list-card.svdp-card-expired.is-selected {
+  border-color: var(--svdp-cashier-expired-border);
+  box-shadow:
+    0 0 0 4px var(--svdp-cashier-expired-selected),
+    0 18px 36px rgba(220, 38, 38, 0.18);
+}
+
+/* Status text follows card status */
+.svdp-cashier-shell .svdp-card-ready .svdp-card-status-label,
+.svdp-cashier-shell .svdp-card-ready .svdp-card-status-date,
+.svdp-cashier-shell .svdp-card-ready .svdp-card-name {
+  color: var(--svdp-cashier-ready-text);
+}
+
+.svdp-cashier-shell .svdp-card-redeemed .svdp-card-status-label,
+.svdp-cashier-shell .svdp-card-redeemed .svdp-card-status-date,
+.svdp-cashier-shell .svdp-card-redeemed .svdp-card-name {
+  color: var(--svdp-cashier-redeemed-text);
+}
+
+.svdp-cashier-shell .svdp-card-expired .svdp-card-status-label,
+.svdp-cashier-shell .svdp-card-expired .svdp-card-status-date,
+.svdp-cashier-shell .svdp-card-expired .svdp-card-name {
+  color: var(--svdp-cashier-expired-text);
+}
+
+/* Card subtitles/details should remain readable, not blue */
+.svdp-cashier-shell .svdp-card-subtitle,
+.svdp-cashier-shell .svdp-detail-label,
+.svdp-cashier-shell .svdp-detail-value {
+  color: #2f3a45;
+}
+
+/* Voucher type badge larger and neutral inside cashier cards */
+.svdp-cashier-shell .svdp-cashier-list-card .svdp-type-badge {
+  padding: 8px 16px;
+  font-size: 0.95rem;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+  background: rgba(255, 255, 255, 0.72);
+  color: currentColor;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+/* Prevent voucher type from reintroducing blue on cashier cards */
+.svdp-cashier-shell .svdp-cashier-list-card .svdp-type-clothing,
+.svdp-cashier-shell .svdp-cashier-list-card .svdp-type-household_goods,
+.svdp-cashier-shell .svdp-cashier-list-card .svdp-type-furniture {
+  background: rgba(255, 255, 255, 0.72);
+  color: currentColor;
+}
+
+/* Stats should not stay blue */
+.svdp-cashier-shell .svdp-stat-value {
+  color: #1f2933;
 }
