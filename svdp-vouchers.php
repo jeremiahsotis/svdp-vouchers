@@ -18,6 +18,7 @@ if (!defined('ABSPATH')) {
 define('SVDP_VOUCHERS_VERSION', '2.0.0');
 define('SVDP_VOUCHERS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SVDP_VOUCHERS_PLUGIN_URL', plugin_dir_url(__FILE__));
+define('SVDP_VOUCHERS_ADMIN_CAP', 'manage_svdp_vouchers');
 
 // Include required files
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-database.php';
@@ -465,7 +466,7 @@ class SVDP_Vouchers_Plugin {
      * @return bool
      */
     public function user_can_manage_admin() {
-        return current_user_can('manage_options');
+        return current_user_can(SVDP_VOUCHERS_ADMIN_CAP);
     }
 
     /**

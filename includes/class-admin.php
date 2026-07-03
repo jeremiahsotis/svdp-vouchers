@@ -56,7 +56,7 @@ class SVDP_Admin {
         add_menu_page(
             __('SVdP Vouchers', 'svdp-vouchers'),
             __('SVdP Vouchers', 'svdp-vouchers'),
-            'manage_options',
+            SVDP_VOUCHERS_ADMIN_CAP,
             'svdp-vouchers',
             [$this, 'render_admin_page'],
             'dashicons-tickets-alt',
@@ -121,7 +121,7 @@ class SVDP_Admin {
     public function ajax_add_conference() {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
-        if (!current_user_can('manage_options')) {
+        if (!current_user_can(SVDP_VOUCHERS_ADMIN_CAP)) {
             wp_send_json_error('Permission denied');
         }
 
@@ -153,7 +153,7 @@ class SVDP_Admin {
     public function ajax_delete_conference() {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
         
-        if (!current_user_can('manage_options')) {
+        if (!current_user_can(SVDP_VOUCHERS_ADMIN_CAP)) {
             wp_send_json_error('Permission denied');
         }
         
@@ -172,7 +172,7 @@ class SVDP_Admin {
     public function ajax_update_conference() {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
         
-        if (!current_user_can('manage_options')) {
+        if (!current_user_can(SVDP_VOUCHERS_ADMIN_CAP)) {
             wp_send_json_error('Permission denied');
         }
         
@@ -198,7 +198,7 @@ class SVDP_Admin {
     public function ajax_save_settings() {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
-        if (!current_user_can('manage_options')) {
+        if (!current_user_can(SVDP_VOUCHERS_ADMIN_CAP)) {
             wp_send_json_error('Permission denied');
         }
 
@@ -264,7 +264,7 @@ class SVDP_Admin {
     public function ajax_update_voucher_types() {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
-        if (!current_user_can('manage_options')) {
+        if (!current_user_can(SVDP_VOUCHERS_ADMIN_CAP)) {
             wp_send_json_error('Permission denied');
         }
 
@@ -290,7 +290,7 @@ class SVDP_Admin {
     public function ajax_get_custom_text() {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
-        if (!current_user_can('manage_options')) {
+        if (!current_user_can(SVDP_VOUCHERS_ADMIN_CAP)) {
             wp_send_json_error('Permission denied');
         }
 
@@ -313,7 +313,7 @@ class SVDP_Admin {
     public function ajax_save_custom_text() {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
-        if (!current_user_can('manage_options')) {
+        if (!current_user_can(SVDP_VOUCHERS_ADMIN_CAP)) {
             wp_send_json_error('Permission denied');
         }
 
@@ -336,7 +336,7 @@ class SVDP_Admin {
     public function ajax_apply_analytics_filters() {
         check_ajax_referer('svdp_analytics_filters', 'nonce');
 
-        if (!current_user_can('manage_options')) {
+        if (!current_user_can(SVDP_VOUCHERS_ADMIN_CAP)) {
             wp_send_json_error('Permission denied');
         }
 
@@ -697,7 +697,7 @@ class SVDP_Admin {
     public function export_vouchers() {
         check_admin_referer('svdp_export', 'svdp_export_nonce');
         
-        if (!current_user_can('manage_options')) {
+        if (!current_user_can(SVDP_VOUCHERS_ADMIN_CAP)) {
             wp_die('Permission denied');
         }
         
@@ -872,7 +872,7 @@ class SVDP_Admin {
     public function ajax_add_manager() {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
-        if (!current_user_can('manage_options')) {
+        if (!current_user_can(SVDP_VOUCHERS_ADMIN_CAP)) {
             wp_send_json_error('Permission denied');
         }
 
@@ -898,7 +898,7 @@ class SVDP_Admin {
     public function ajax_get_managers() {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
-        if (!current_user_can('manage_options')) {
+        if (!current_user_can(SVDP_VOUCHERS_ADMIN_CAP)) {
             wp_send_json_error('Permission denied');
         }
 
@@ -912,7 +912,7 @@ class SVDP_Admin {
     public function ajax_deactivate_manager() {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
-        if (!current_user_can('manage_options')) {
+        if (!current_user_can(SVDP_VOUCHERS_ADMIN_CAP)) {
             wp_send_json_error('Permission denied');
         }
 
@@ -932,7 +932,7 @@ class SVDP_Admin {
     public function ajax_regenerate_code() {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
-        if (!current_user_can('manage_options')) {
+        if (!current_user_can(SVDP_VOUCHERS_ADMIN_CAP)) {
             wp_send_json_error('Permission denied');
         }
 
@@ -952,7 +952,7 @@ class SVDP_Admin {
     public function ajax_add_reason() {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
-        if (!current_user_can('manage_options')) {
+        if (!current_user_can(SVDP_VOUCHERS_ADMIN_CAP)) {
             wp_send_json_error('Permission denied');
         }
 
@@ -977,7 +977,7 @@ class SVDP_Admin {
     public function ajax_get_reasons() {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
-        if (!current_user_can('manage_options')) {
+        if (!current_user_can(SVDP_VOUCHERS_ADMIN_CAP)) {
             wp_send_json_error('Permission denied');
         }
 
@@ -991,7 +991,7 @@ class SVDP_Admin {
     public function ajax_update_reason() {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
-        if (!current_user_can('manage_options')) {
+        if (!current_user_can(SVDP_VOUCHERS_ADMIN_CAP)) {
             wp_send_json_error('Permission denied');
         }
 
@@ -1013,7 +1013,7 @@ class SVDP_Admin {
     public function ajax_delete_reason() {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
-        if (!current_user_can('manage_options')) {
+        if (!current_user_can(SVDP_VOUCHERS_ADMIN_CAP)) {
             wp_send_json_error('Permission denied');
         }
 
@@ -1033,7 +1033,7 @@ class SVDP_Admin {
     public function ajax_reorder_reasons() {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
-        if (!current_user_can('manage_options')) {
+        if (!current_user_can(SVDP_VOUCHERS_ADMIN_CAP)) {
             wp_send_json_error('Permission denied');
         }
 

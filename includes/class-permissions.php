@@ -8,25 +8,22 @@ class SVDP_Permissions {
      * Ensure roles and capabilities exist for cashier and furniture workflows.
      */
     public static function register_roles_and_capabilities() {
+        $admin_caps = self::get_admin_capabilities();
+
         add_role('svdp_cashier', 'SVdP Cashier', [
             'read' => true,
             'access_cashier_station' => true,
         ]);
+
+        add_role('svdp_voucher_manager', 'SVdP Voucher Manager', array_fill_keys($admin_caps, true));
 
         self::grant_caps_to_role('svdp_cashier', [
             'read',
             'access_cashier_station',
         ]);
 
-        self::grant_caps_to_role('administrator', [
-            'access_cashier_station',
-            'svdp_redeem_furniture_vouchers',
-            'svdp_manage_furniture_catalog',
-            'svdp_manage_household_goods_catalog',
-            'svdp_manage_household_goods_limits',
-            'svdp_view_voucher_configuration_audit',
-            'svdp_view_audit_log',
-        ]);
+        self::grant_caps_to_role('svdp_voucher_manager', $admin_caps);
+        self::grant_caps_to_role('administrator', $admin_caps);
     }
 
     /**
@@ -36,7 +33,7 @@ class SVDP_Permissions {
      * @return bool
      */
     public static function user_can_access_cashier($user = null) {
-        return self::user_has_capability($user, 'access_cashier_station') || self::user_has_capability($user, 'manage_options');
+        return self::user_has_capability($user, 'access_cashier_station') || self::user_can_manage_plugin($user);
     }
 
     /**
@@ -46,7 +43,7 @@ class SVDP_Permissions {
      * @return bool
      */
     public static function user_can_redeem_furniture_vouchers($user = null) {
-        return self::user_has_capability($user, 'svdp_redeem_furniture_vouchers') || self::user_has_capability($user, 'manage_options');
+        return self::user_has_capability($user, 'svdp_redeem_furniture_vouchers') || self::user_can_manage_plugin($user);
     }
 
     /**
@@ -56,7 +53,7 @@ class SVDP_Permissions {
      * @return bool
      */
     public static function user_can_manage_furniture_catalog($user = null) {
-        return self::user_has_capability($user, 'svdp_manage_furniture_catalog') || self::user_has_capability($user, 'manage_options');
+        return self::user_has_capability($user, 'svdp_manage_furniture_catalog') || self::user_can_manage_plugin($user);
     }
 
     /**
@@ -66,7 +63,7 @@ class SVDP_Permissions {
      * @return bool
      */
     public static function user_can_manage_household_goods_catalog($user = null) {
-        return self::user_has_capability($user, 'svdp_manage_household_goods_catalog') || self::user_has_capability($user, 'manage_options');
+        return self::user_has_capability($user, 'svdp_manage_household_goods_catalog') || self::user_can_manage_plugin($user);
     }
 
     /**
@@ -76,7 +73,7 @@ class SVDP_Permissions {
      * @return bool
      */
     public static function user_can_manage_household_goods_limits($user = null) {
-        return self::user_has_capability($user, 'svdp_manage_household_goods_limits') || self::user_has_capability($user, 'manage_options');
+        return self::user_has_capability($user, 'svdp_manage_household_goods_limits') || self::user_can_manage_plugin($user);
     }
 
     /**
@@ -86,7 +83,7 @@ class SVDP_Permissions {
      * @return bool
      */
     public static function user_can_view_voucher_configuration_audit($user = null) {
-        return self::user_has_capability($user, 'svdp_view_voucher_configuration_audit') || self::user_has_capability($user, 'manage_options');
+        return self::user_has_capability($user, 'svdp_view_voucher_configuration_audit') || self::user_can_manage_plugin($user);
     }
 
     /**
@@ -96,7 +93,36 @@ class SVDP_Permissions {
      * @return bool
      */
     public static function user_can_view_audit_log($user = null) {
-        return self::user_has_capability($user, 'svdp_view_audit_log') || self::user_has_capability($user, 'manage_options');
+        return self::user_has_capability($user, 'svdp_view_audit_log') || self::user_can_manage_plugin($user);
+    }
+
+    /**
+     * Return capabilities granted to plugin administrators.
+     *
+     * @return array
+     */
+    private static function get_admin_capabilities() {
+        return [
+            'read',
+            SVDP_VOUCHERS_ADMIN_CAP,
+            'access_cashier_station',
+            'svdp_redeem_furniture_vouchers',
+            'svdp_manage_furniture_catalog',
+            'svdp_manage_household_goods_catalog',
+            'svdp_manage_household_goods_limits',
+            'svdp_view_voucher_configuration_audit',
+            'svdp_view_audit_log',
+        ];
+    }
+
+    /**
+     * Check whether a user can manage the full SVdP Vouchers plugin surface.
+     *
+     * @param WP_User|int|null $user User object, user ID, or current user.
+     * @return bool
+     */
+    public static function user_can_manage_plugin($user = null) {
+        return self::user_has_capability($user, SVDP_VOUCHERS_ADMIN_CAP);
     }
 
     /**

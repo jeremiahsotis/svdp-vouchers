@@ -49,6 +49,7 @@ If project governance scripts differ in the current repo, use `docs/governance/c
 ## Expected Change Areas
 
 - public/templates/voucher-request-form.php
+- public/templates/cashier/partials/voucher-card.php
 - public/js/voucher-request.js
 - public/css/voucher-request.css or existing stylesheet
 - includes/class-voucher.php
@@ -56,6 +57,7 @@ If project governance scripts differ in the current repo, use `docs/governance/c
 - includes/class-household-goods-catalog.php
 - includes/class-voucher-request-group.php
 - includes/class-voucher-type-settings.php
+- includes/class-permissions.php
 - public/templates/partials/assisted-builder/\* (new if template decomposition is used)
 - contracts/protected-contracts.json
 
@@ -116,3 +118,4 @@ Stop and ask for direction if:
 - includes/class-voucher-request-group.php
 - public/js/voucher-request.js
 - public/templates/voucher-request-form.php
+- public/templates/cashier/partials/voucher-card.php
