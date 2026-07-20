@@ -1011,7 +1011,9 @@
         .attr("data-catalog-loaded", "true")
         .html(
           items.length
-            ? items.map(renderFurnitureItem).join("")
+            ? items.map(function (item) {
+                return renderFurnitureItem(item, !state.furniture.activeGroup || state.furniture.activeGroup === "all");
+              }).join("")
             : '<div class="svdp-empty-state">No furniture items match this search.</div>',
         );
       updateSummary();
@@ -1033,7 +1035,9 @@
         .attr("data-catalog-loaded", "true")
         .html(
           categories.length
-            ? categories.map(renderHouseholdGoodsCategory).join("")
+            ? categories.map(function (category) {
+                return renderHouseholdGoodsCategory(category, !state.householdGoods.activeGroup || state.householdGoods.activeGroup === "all");
+              }).join("")
             : '<div class="svdp-empty-state">No Household Goods categories match this search.</div>',
         );
       updateHouseholdGoodsCounts();
@@ -1111,31 +1115,23 @@
       }, []);
     }
 
-    function renderFurnitureItem(item) {
+    function renderFurnitureItem(item, showCategory) {
       const quantity = Number(state.furniture.selected[item.id] || 0);
       const estimate = getFurnitureEstimate(item);
+      const categoryLabel = item.categoryLabel || "";
+      const titleText = item.name + (showCategory && categoryLabel ? " (" + categoryLabel + ")" : "");
+      const pricingText = "Retail price: " + (item.priceDisplay || "") + " • " + getSelectedOrganizationName() + " pays up to " + formatMoney(estimate);
       return (
         '<article class="svdp-catalog-item' +
         (quantity > 0 ? " is-selected" : "") +
         '">' +
         '<div class="svdp-catalog-item-main">' +
         '<div class="svdp-catalog-item-copy">' +
-        "<h5>" +
+        '<h5 class="svdp-catalog-item-title" title="' + escapeHtml(titleText) + '">' +
         escapeHtml(item.name) +
+        (showCategory && categoryLabel ? ' <span class="svdp-catalog-item-category">(' + escapeHtml(categoryLabel) + ")</span>" : "") +
         "</h5>" +
-        "<p>" +
-        escapeHtml(item.categoryLabel || "") +
-        "</p>" +
-        "</div>" +
-        '<div class="svdp-catalog-pricing">' +
-        '<div class="svdp-catalog-price"><span class="svdp-catalog-price-label">Retail Price</span><strong>' +
-        escapeHtml(item.priceDisplay || "") +
-        "</strong></div>" +
-        '<div class="svdp-catalog-price svdp-catalog-price-conference"><span class="svdp-catalog-price-label">Maximum ' +
-        escapeHtml(getSelectedOrganizationName()) +
-        " Cost</span><strong>" +
-        escapeHtml(formatMoney(estimate)) +
-        "</strong></div>" +
+        '<p class="svdp-catalog-pricing-line" title="' + escapeHtml(pricingText) + '">' + escapeHtml(pricingText) + "</p>" +
         "</div>" +
         "</div>" +
         '<div class="svdp-catalog-item-controls">' +
@@ -1159,9 +1155,12 @@
       );
     }
 
-    function renderHouseholdGoodsCategory(category) {
+    function renderHouseholdGoodsCategory(category, showCategory) {
       const quantity = Number(state.householdGoods.selected[category.id] || 0);
       const estimate = Number(category.estimatedConferencePartnerCostPerUnit || 0);
+      const categoryLabel = category.browseGroupName || "Household Goods";
+      const titleText = category.name + (showCategory && categoryLabel ? " (" + categoryLabel + ")" : "");
+      const pricingText = "Retail price: " + (category.priceDisplay || "") + " • " + getSelectedOrganizationName() + " pays up to " + formatMoney(estimate);
 
       return (
         '<article class="svdp-catalog-item' +
@@ -1169,14 +1168,11 @@
         '">' +
         '<div class="svdp-catalog-item-main">' +
         '<div class="svdp-catalog-item-copy">' +
-        "<h5>" +
+        '<h5 class="svdp-catalog-item-title" title="' + escapeHtml(titleText) + '">' +
         escapeHtml(category.name) +
+        (showCategory && categoryLabel ? ' <span class="svdp-catalog-item-category">(' + escapeHtml(categoryLabel) + ")</span>" : "") +
         "</h5>" +
-        "<p>" + escapeHtml(category.browseGroupName || "Household Goods") + "</p>" +
-        "</div>" +
-        '<div class="svdp-catalog-pricing">' +
-        '<div class="svdp-catalog-price"><span class="svdp-catalog-price-label">Retail Price</span><strong>' + escapeHtml(category.priceDisplay || "") + "</strong></div>" +
-        '<div class="svdp-catalog-price svdp-catalog-price-conference"><span class="svdp-catalog-price-label">Maximum ' + escapeHtml(getSelectedOrganizationName()) + " Cost</span><strong>" + escapeHtml(formatMoney(estimate)) + "</strong></div>" +
+        '<p class="svdp-catalog-pricing-line" title="' + escapeHtml(pricingText) + '">' + escapeHtml(pricingText) + "</p>" +
         "</div>" +
         "</div>" +
         '<div class="svdp-catalog-item-controls">' +

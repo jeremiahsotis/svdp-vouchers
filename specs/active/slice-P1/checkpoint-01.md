@@ -7,7 +7,7 @@ Verify the approved unified pricing, configurable limits, and editable Furniture
 Database/catalog/request services, admin and public catalog UI, protected contracts, governance logs, and this P1 execution packet. See the final `git status --short` output.
 
 ## Code changes
-Implemented unified priced catalogs, configurable Household Goods limits, immutable snapshots, editable Furniture categories, audit events, and stale category-write rejection.
+Implemented unified priced catalogs, configurable Household Goods limits, immutable snapshots, editable Furniture categories, audit events, stale category-write rejection, and compact shared selection cards matching the approved desktop/mobile references.
 
 ## Data changes
 Schema 13 forward migration; no issued snapshot rewrites. Rollback retains additive columns/tables and can run older code against preserved compatibility fields.
@@ -43,7 +43,7 @@ PASS — DDEV schema upgrade completed against `https://test-site.ddev.site/`; W
 No new dependency expected.
 
 ## Testing
-PASS — PHP syntax for all plugin PHP; JavaScript syntax for all changed scripts; protected JSON parsing; required document sections; governance content validator; `git diff --check`; DDEV migration/database inspection; WordPress admin Furniture and Household Goods screens; limit save/restore and audit; public Furniture and Household Goods cards and quantity controls. Existing `.DS_Store` files were reported and not modified.
+PASS — DDEV browser verification covered Furniture and Household Goods at desktop and 390px mobile widths. `All` rendered the inline category, specific category/group filters omitted it, title text remained one line with full `title` text, pricing remained at no more than two lines with full `title` text, and the segmented quantity control remained fixed at the right. Quantity selection and Household Goods selected-category/requested-unit state continued to update. The desktop/mobile summary surfaces and surrounding builder controls were not changed. Browser console warnings/errors: none. Prior schema, admin, limit, audit, and public flow verification remains passing.
 
 ## Verification block
 `find includes public admin -name '*.php' ... php -l`: PASS. `node --check` changed JS: PASS. JSON validation: PASS. Governance validators: PASS. `git diff --check`: PASS. DDEV schema 13: PASS. Live browser console warnings/errors: none.
@@ -52,4 +52,4 @@ PASS — PHP syntax for all plugin PHP; JavaScript syntax for all changed script
 PASS — public labels use Retail Price and Maximum selected-organization-name Cost; zero-limit copy explicitly says no limit.
 
 ## Stop condition
-Complete only after all automated checks pass and manual Local by Flywheel scenarios are listed.
+Complete after all automated checks pass and the DDEV responsive scenarios above are recorded.

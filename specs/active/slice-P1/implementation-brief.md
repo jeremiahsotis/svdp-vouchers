@@ -3,6 +3,8 @@
 ## Objective
 Unify Furniture and Household Goods pricing and request-card behavior, make Household Goods selection limits configurable, and make Furniture categories editable.
 
+The final request-card presentation uses a compact three-line maximum: one ellipsized item/category title line, up to two pricing lines, and a unified three-segment quantity control. Search, filters/arrows, counters, progress, and desktop/mobile summaries remain unchanged.
+
 ## Scope / explicit non-scope
 Includes catalog schema, migrations, immutable request snapshots, public selection UI, catalog administration, permissions, auditing, and conflict guards. Clothing, historical voucher reinterpretation, receipts, dispatch, inventory, and POS behavior are excluded.
 
@@ -16,7 +18,7 @@ Database upgrade, Furniture and Household Goods catalog services, request-group 
 Schema version 13 adds Furniture categories, Household Goods retail/coverage fields, Household Goods pricing snapshots, and configurable selected-category limits. Migration is idempotent and preserves historical rows.
 
 ## Contracts
-Priced cards expose Retail Price and Maximum selected-organization-name Cost. Range display defaults to Up to. Clothing and legacy `household` behavior do not change.
+Priced cards expose `Retail price: … • [Organization] pays up to …`, show inline category context only under the All/unset filter, and use full-width decrement/increment touch targets. Range display defaults to Up to. Clothing and legacy `household` behavior do not change.
 
 ## Execution flow
 Upgrade schema and seed categories; normalize catalog data; administer future configuration; return normalized public catalog data; validate and snapshot selections atomically.

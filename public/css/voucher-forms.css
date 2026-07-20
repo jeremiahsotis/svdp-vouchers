@@ -438,37 +438,61 @@
 
 .svdp-catalog-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) 132px;
   align-items: center;
-  gap: 14px;
-  padding: 13px 0;
-  border-top: 1px solid #edf3f7;
+  gap: 16px;
+  min-height: 76px;
+  padding: 14px;
+  box-sizing: border-box;
+  border: 1px solid #d7e2eb;
+  border-radius: 14px;
+  background: #fff;
 }
 
 .svdp-furniture-category-section-body .svdp-catalog-item:first-child {
-  padding-top: 0;
-  border-top: none;
+  padding-top: 14px;
 }
 
 .svdp-furniture-category-section-body .svdp-catalog-item:last-child {
-  padding-bottom: 0;
+  padding-bottom: 14px;
 }
 
 .svdp-catalog-item.is-selected .svdp-catalog-item-copy h5 {
   color: #006ba8;
 }
 
+.svdp-catalog-item.is-selected {
+  border-color: #8fc4e2;
+  background: #f4faff;
+}
+
 .svdp-catalog-item-main {
-  display: grid;
-  gap: 8px;
+  display: block;
   min-width: 0;
 }
 
-.svdp-catalog-item-copy h5 {
+.svdp-catalog-item-copy {
+  min-width: 0;
+}
+
+.svdp-catalog-item-copy h5,
+.svdp-catalog-item-title {
   margin: 0;
   color: #12344d;
-  font-size: 16px;
-  line-height: 1.35;
+  font-size: 17px;
+  line-height: 1.3;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.svdp-catalog-item-category {
+  color: #587082;
+  font-size: 11px;
+  font-style: italic;
+  font-weight: 500;
+  vertical-align: baseline;
 }
 
 .svdp-catalog-pricing {
@@ -525,34 +549,73 @@
 
 .svdp-catalog-item-controls {
   display: grid;
-  grid-template-columns: 44px 30px 44px;
+  grid-template-columns: repeat(3, 44px);
   align-items: center;
-  gap: 8px;
+  gap: 0;
+  width: 132px;
+  height: 46px;
   justify-content: end;
+  overflow: hidden;
+  border: 1px solid #c8d7e3;
+  border-radius: 12px;
+  background: #fff;
 }
 
 .svdp-qty-btn {
   width: 44px;
-  height: 44px;
-  border: 1px solid #bdd3e1;
-  border-radius: 999px;
-  background: #fff;
+  height: 46px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: #f3f6f9;
   color: #12344d;
-  font-size: 20px;
+  font-size: 22px;
+  font-weight: 700;
   line-height: 1;
   cursor: pointer;
 }
 
+.svdp-qty-btn:first-child {
+  border-right: 1px solid #e1e8ee;
+}
+
+.svdp-qty-btn:last-child {
+  border-left: 1px solid #e1e8ee;
+}
+
+.svdp-qty-btn:hover:not(:disabled),
+.svdp-qty-btn:focus-visible {
+  background: #e7eef4;
+}
+
 .svdp-qty-btn:disabled {
-  opacity: 0.45;
+  color: #9aa9b5;
+  background: #f6f8fa;
   cursor: not-allowed;
 }
 
 .svdp-qty-value {
-  min-width: 30px;
+  display: grid;
+  width: 44px;
+  height: 46px;
+  place-items: center;
   text-align: center;
-  font-weight: 700;
+  font-size: 17px;
+  font-weight: 800;
   color: #12344d;
+}
+
+.svdp-catalog-pricing-line {
+  display: -webkit-box;
+  margin: 4px 0 0;
+  overflow: hidden;
+  color: #526777;
+  font-size: 14px;
+  line-height: 1.35;
+  overflow-wrap: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .svdp-furniture-category-placeholder {
@@ -2142,10 +2205,10 @@
   }
 
   .svdp-catalog-item {
-    grid-template-columns: 1fr;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 14px 0;
+    grid-template-columns: minmax(0, 1fr) 132px;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
   }
 
   .svdp-catalog-pricing {
@@ -2154,16 +2217,16 @@
   }
 
   .svdp-catalog-item-controls {
-    width: 100%;
-    grid-template-columns: 44px minmax(32px, 1fr) 44px;
-    justify-content: stretch;
-    max-width: 190px;
-    margin-left: auto;
+    width: 132px;
+    grid-template-columns: repeat(3, 44px);
+    justify-content: end;
+    max-width: none;
+    margin-left: 0;
   }
 
   .svdp-qty-btn {
     width: 44px;
-    height: 44px;
+    height: 46px;
   }
 }
 
@@ -2760,12 +2823,20 @@
   }
 
   .svdp-catalog-item {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) 132px;
   }
 
   .svdp-catalog-item-controls,
   .svdp-catalog-item-controls-input {
-    justify-content: start;
+    justify-content: end;
+  }
+}
+
+@media (max-width: 420px) {
+  .svdp-catalog-item {
+    grid-template-columns: minmax(0, 1fr) 132px;
+    gap: 8px;
+    padding: 10px;
   }
 }
 
