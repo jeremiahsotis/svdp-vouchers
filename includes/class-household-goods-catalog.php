@@ -10,7 +10,7 @@ if (!defined('ABSPATH')) {
 
 class SVDP_Household_Goods_Catalog {
 
-    const SELECTED_CATEGORY_LIMIT = 10;
+    const SELECTED_CATEGORY_LIMIT_SETTING = 'household_goods_selected_category_limit';
     const VOUCHER_QUANTITY_MAX_SETTING = 'household_goods_voucher_quantity_max';
 
     /**
@@ -301,6 +301,13 @@ class SVDP_Household_Goods_Catalog {
             'name' => 'name',
             'browse_group_id' => 'browse_group',
             'estimated_conference_partner_cost_per_unit' => 'estimated_conference_partner_cost_per_unit',
+            'pricing_type' => 'pricing_type',
+            'price_min' => 'retail_price_min',
+            'price_max' => 'retail_price_max',
+            'price_fixed' => 'retail_price_fixed',
+            'show_price_as_max' => 'show_price_as_max',
+            'discount_type' => 'coverage_type',
+            'discount_value' => 'coverage_value',
             'quantity_max' => 'quantity_max',
             'cashier_guidance' => 'cashier_guidance',
             'sort_order' => 'sort_order',
@@ -341,7 +348,7 @@ class SVDP_Household_Goods_Catalog {
      */
     public static function get_limits() {
         return [
-            'selected_category_limit' => self::SELECTED_CATEGORY_LIMIT,
+            'selected_category_limit' => self::get_selected_category_limit(),
             'voucher_quantity_max' => self::get_voucher_quantity_max(),
         ];
     }
@@ -353,6 +360,19 @@ class SVDP_Household_Goods_Catalog {
      */
     public static function get_voucher_quantity_max() {
         return max(0, intval(SVDP_Settings::get_setting(self::VOUCHER_QUANTITY_MAX_SETTING, '0')));
+    }
+
+    public static function get_selected_category_limit() {
+        return max(0, intval(SVDP_Settings::get_setting(self::SELECTED_CATEGORY_LIMIT_SETTING, '0')));
+    }
+
+    public static function update_selected_category_limit($value) {
+        $limit = self::sanitize_integer_field($value, 'Maximum selected categories');
+        if (is_wp_error($limit)) return $limit;
+        $before = self::get_selected_category_limit();
+        if (!SVDP_Settings::update_setting(self::SELECTED_CATEGORY_LIMIT_SETTING, (string) $limit, 'integer')) return new WP_Error('household_goods_limit_update_failed', 'Failed to update the selected-category limit.');
+        if ($before !== $limit) self::audit('household_goods', 'limit', self::SELECTED_CATEGORY_LIMIT_SETTING, 'Household Goods selected-category limit', 'selected_category_limit', $before, $limit, 'Household Goods maximum selected categories changed from ' . $before . ' to ' . $limit . '. Zero means no limit. The new value applies to future requests only.');
+        return true;
     }
 
     /**
@@ -390,8 +410,9 @@ class SVDP_Household_Goods_Catalog {
         $requested_categories = (array) $requested_categories;
         $category_ids = array_values(array_filter(array_map('intval', array_keys($requested_categories))));
 
-        if (count($category_ids) > self::SELECTED_CATEGORY_LIMIT) {
-            return new WP_Error('household_goods_selected_limit_exceeded', 'Selected categories must be 10 or fewer.');
+        $selected_category_limit = self::get_selected_category_limit();
+        if ($selected_category_limit > 0 && count($category_ids) > $selected_category_limit) {
+            return new WP_Error('household_goods_selected_limit_exceeded', 'Selected categories must be ' . $selected_category_limit . ' or fewer.');
         }
 
         if (empty($category_ids)) {
@@ -441,10 +462,18 @@ class SVDP_Household_Goods_Catalog {
                 'requested_name_snapshot' => $row->name,
                 'requested_group_snapshot' => $row->browse_group_name,
                 'estimated_conference_partner_cost_per_unit_snapshot' => number_format((float) $row->estimated_conference_partner_cost_per_unit, 2, '.', ''),
+                'requested_pricing_type_snapshot' => $row->pricing_type,
+                'requested_price_min_snapshot' => $row->price_min,
+                'requested_price_max_snapshot' => $row->price_max,
+                'requested_price_fixed_snapshot' => $row->price_fixed,
+                'show_price_as_max_snapshot' => (int) $row->show_price_as_max,
+                'discount_type_snapshot' => $row->discount_type,
+                'discount_value_snapshot' => $row->discount_value,
                 'quantity_max_snapshot' => (int) $row->quantity_max,
                 'cashier_guidance_snapshot' => $row->cashier_guidance,
                 'sort_order_snapshot' => (int) $row->sort_order,
                 'voucher_quantity_max_snapshot' => $voucher_quantity_max,
+                'selected_category_limit_snapshot' => $selected_category_limit,
             ];
         }
 
@@ -507,10 +536,21 @@ class SVDP_Household_Goods_Catalog {
             return new WP_Error('household_goods_group_required', 'Choose an active browse group.');
         }
 
-        $cost = self::sanitize_decimal_field($data['estimated_conference_partner_cost_per_unit'] ?? ($existing->estimated_conference_partner_cost_per_unit ?? ''), 'Estimated Conference / Partner cost per unit');
-        if (is_wp_error($cost)) {
-            return $cost;
-        }
+        $pricing_type = sanitize_key($data['pricing_type'] ?? ($existing->pricing_type ?? 'fixed'));
+        if (!in_array($pricing_type, ['fixed', 'range'], true)) return new WP_Error('household_goods_pricing_type_invalid', 'Choose Fixed or Range pricing.');
+        $price_fixed = $pricing_type === 'fixed' ? self::sanitize_decimal_field($data['price_fixed'] ?? ($existing->price_fixed ?? ''), 'Fixed retail price') : null;
+        $price_min = $pricing_type === 'range' ? self::sanitize_decimal_field($data['price_min'] ?? ($existing->price_min ?? ''), 'Minimum retail price') : null;
+        $price_max = $pricing_type === 'range' ? self::sanitize_decimal_field($data['price_max'] ?? ($existing->price_max ?? ''), 'Maximum retail price') : null;
+        foreach ([$price_fixed, $price_min, $price_max] as $price) if (is_wp_error($price)) return $price;
+        if ($pricing_type === 'range' && (float) $price_max < (float) $price_min) return new WP_Error('household_goods_price_range_invalid', 'Maximum retail price must be at least the minimum retail price.');
+        $discount_type = sanitize_key($data['discount_type'] ?? ($existing->discount_type ?? 'percent'));
+        if (!in_array($discount_type, ['percent', 'fixed'], true)) return new WP_Error('household_goods_discount_type_invalid', 'Choose Percent or Fixed Dollar Amount coverage.');
+        $discount_value = self::sanitize_decimal_field($data['discount_value'] ?? ($existing->discount_value ?? '50'), 'Organization coverage');
+        if (is_wp_error($discount_value)) return $discount_value;
+        if ($discount_type === 'percent' && (float) $discount_value > 100) return new WP_Error('household_goods_discount_percent_invalid', 'Percentage coverage cannot exceed 100.');
+        $retail_max = $pricing_type === 'fixed' ? (float) $price_fixed : (float) $price_max;
+        if ($discount_type === 'fixed' && (float) $discount_value > $retail_max) return new WP_Error('household_goods_discount_fixed_invalid', 'Fixed coverage cannot exceed the maximum retail price.');
+        $cost = $discount_type === 'percent' ? $retail_max * ((float) $discount_value / 100) : (float) $discount_value;
 
         $quantity_max = self::sanitize_integer_field($data['quantity_max'] ?? ($existing->quantity_max ?? 0), 'Quantity maximum');
         if (is_wp_error($quantity_max)) {
@@ -527,6 +567,13 @@ class SVDP_Household_Goods_Catalog {
             'name' => $name,
             'slug' => $existing ? $existing->slug : sanitize_title($name),
             'estimated_conference_partner_cost_per_unit' => $cost,
+            'pricing_type' => $pricing_type,
+            'price_min' => $price_min,
+            'price_max' => $price_max,
+            'price_fixed' => $price_fixed,
+            'show_price_as_max' => $pricing_type === 'range' && array_key_exists('show_price_as_max', $data) ? (!empty($data['show_price_as_max']) ? 1 : 0) : ($pricing_type === 'range' ? (int) ($existing->show_price_as_max ?? 1) : 0),
+            'discount_type' => $discount_type,
+            'discount_value' => $discount_value,
             'quantity_max' => $quantity_max,
             'cashier_guidance' => sanitize_textarea_field($data['cashier_guidance'] ?? ($existing->cashier_guidance ?? '')),
             'sort_order' => $sort_order,
@@ -612,9 +659,18 @@ class SVDP_Household_Goods_Catalog {
         return [
             'id' => (int) $category->id,
             'browseGroupId' => (int) $category->browse_group_id,
+            'browseGroupName' => $category->browse_group_name,
             'name' => $category->name,
             'slug' => $category->slug,
             'estimatedConferencePartnerCostPerUnit' => (float) $category->estimated_conference_partner_cost_per_unit,
+            'pricingType' => $category->pricing_type,
+            'priceMin' => $category->price_min === null ? null : (float) $category->price_min,
+            'priceMax' => $category->price_max === null ? null : (float) $category->price_max,
+            'priceFixed' => $category->price_fixed === null ? null : (float) $category->price_fixed,
+            'showPriceAsMax' => !empty($category->show_price_as_max),
+            'discountType' => $category->discount_type,
+            'discountValue' => (float) $category->discount_value,
+            'priceDisplay' => $category->pricing_type === 'fixed' ? '$' . number_format((float) $category->price_fixed, 2) : (!empty($category->show_price_as_max) ? 'Up to $' . number_format((float) $category->price_max, 2) : '$' . number_format((float) $category->price_min, 2) . '–$' . number_format((float) $category->price_max, 2)),
             'quantityMax' => (int) $category->quantity_max,
             'sortOrder' => (int) $category->sort_order,
         ];

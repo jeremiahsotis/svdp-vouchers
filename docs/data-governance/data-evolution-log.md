@@ -1,5 +1,13 @@
 # Data Evolution Log
 
+## 2026-07-20 - Slice P1 Unified Priced Catalogs
+
+Change: Schema version 13 adds editable Furniture categories, Furniture range-display default migration, Household Goods retail/coverage fields, pricing and limit request-line snapshots, and a configurable Household Goods selected-category limit defaulting to zero/unlimited.
+Impact: Future Furniture and Household Goods requests share fixed/range pricing semantics and immutable pricing snapshots. Furniture category changes and Household Goods pricing/limit changes are audited.
+Backfill required: Yes. Stable Furniture categories are seeded; the legacy Furniture Household Goods category is archived only if empty; Furniture ranges are set to Up to; existing Household Goods estimated values become fixed Retail Prices with 50% coverage. Issued request lines are not changed.
+Risk: Downgrading code will not understand the additive category/pricing fields.
+Mitigation: Existing catalog slugs and compatibility estimated-cost fields remain present. Rollback leaves additive tables/columns intact and restores prior code without deleting data.
+
 ## YYYY-MM-DD
 
 Change:

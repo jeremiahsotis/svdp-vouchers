@@ -283,6 +283,7 @@ $requestor_email_label = $organization_type === 'partner' ? 'Partner Representat
                             value="<?php echo esc_attr($conference->slug); ?>"
                             data-allowed-voucher-types="<?php echo esc_attr(wp_json_encode($conference_allowed_types)); ?>"
                             data-organization-type="<?php echo esc_attr($organization_type); ?>"
+                            data-organization-name="<?php echo esc_attr($conference->name); ?>"
                         >
                         <p><strong>Organization:</strong> <?php echo esc_html($conference->name); ?></p>
                     <?php endif; ?>

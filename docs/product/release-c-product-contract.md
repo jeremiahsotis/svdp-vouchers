@@ -4049,3 +4049,6 @@ Release C is not complete until:
 18. Fulfillment actions are audited.
 19. Receipt and invoice behavior is verified.
 20. Accessibility and visual acceptance checks are completed.
+# 2026-07-20 P1 Product Amendment
+
+The approved P1 unified-priced-catalog plan supersedes earlier Household Goods statements that limited selection to 10 categories or prohibited retail/maximum-organization-cost display. Household Goods now uses the Furniture fixed/range retail and organization-coverage model; its selected-category and total-quantity limits are administrator-configurable non-negative integers where zero means unlimited. Furniture categories are editable, archive-safe, conflict-guarded, and audited. Historical issued snapshots, Clothing, and legacy `household` interpretation remain unchanged.

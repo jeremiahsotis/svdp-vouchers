@@ -171,3 +171,13 @@ Public grouped submissions now use `POST /svdp/v1/vouchers/request-group`. New F
 Governance impact:
 
 No schema migration was introduced. Data governance records no backfill/no reinterpretation of historical records. Concurrency records atomic grouped submission, and access audit records that the public builder does not grant cashier or admin authority.
+
+## 2026-07-20 - Slice P1 Unified Priced Catalogs
+
+Changed surfaces: schema/upgrade, Furniture and Household Goods catalog services and administration, request-line issuance, and Assisted Builder catalog cards.
+
+Impact summary: Furniture and Household Goods share priced selection cards; Household Goods limits are configurable; Furniture categories are editable, archive-safe, conflict-guarded, and audited.
+
+Runtime impact: Schema 13 performs additive catalog migration while preserving issued snapshots, Clothing, legacy `household`, receipts, and invoices.
+
+Governance impact: P1 includes an implementation brief, bootstrap, checkpoint, migration record, concurrency rule, and access-audit rule.

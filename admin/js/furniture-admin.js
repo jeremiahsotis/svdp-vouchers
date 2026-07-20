@@ -17,6 +17,25 @@
             return;
         }
 
+        $('#svdp-add-furniture-category').on('click', function() {
+            const form = $('#svdp-furniture-category-form');
+            saveFurnitureCategory({action: 'svdp_add_furniture_category', name: form.find('[name="name"]').val(), sort_order: form.find('[name="sort_order"]').val()});
+        });
+        $(document).on('click', '.svdp-edit-furniture-category', function() {
+            const button = $(this);
+            const name = window.prompt('Category name', button.attr('data-name'));
+            if (name === null) return;
+            const sortOrder = window.prompt('Sort order', button.attr('data-sort-order'));
+            if (sortOrder === null) return;
+            saveFurnitureCategory({action: 'svdp_update_furniture_category', id: button.data('id'), name: name, sort_order: sortOrder, active: button.attr('data-active'), updated_at: button.attr('data-updated-at')});
+        });
+        $(document).on('click', '.svdp-toggle-furniture-category', function() {
+            const button = $(this);
+            const active = Number(button.attr('data-active')) === 1 ? 0 : 1;
+            if (!window.confirm((active ? 'Restore' : 'Archive') + ' this Furniture category?')) return;
+            saveFurnitureCategory({action: 'svdp_update_furniture_category', id: button.data('id'), name: button.attr('data-name'), sort_order: button.attr('data-sort-order'), active: active, updated_at: button.attr('data-updated-at')});
+        });
+
         syncPricingFields(addForm);
         syncCoverageFields(addForm);
 
@@ -97,6 +116,11 @@
                 }
             });
         });
+    }
+
+    function saveFurnitureCategory(data) {
+        data.nonce = svdpAdmin.nonce;
+        $.ajax({url: svdpAdmin.ajaxUrl, method: 'POST', data: data, success: function(response) { if (response.success) window.location.reload(); else window.alert('Error: ' + response.data); }, error: function() { window.alert('Failed to save the Furniture category.'); }});
     }
 
     function initializeFurnitureReasonsTab() {

@@ -72,7 +72,7 @@
         groups: [],
         byId: {},
         limits: {
-          selected_category_limit: 10,
+          selected_category_limit: 0,
           voucher_quantity_max: 0,
         },
         activeGroup: "all",
@@ -876,7 +876,7 @@
 
       const selected = getSelectedHouseholdGoodsCategories();
       const limits = state.householdGoods.limits;
-      const categoryLimit = Number(limits.selected_category_limit || 10);
+      const categoryLimit = Number(limits.selected_category_limit || 0);
       const voucherMax = Number(limits.voucher_quantity_max || 0);
       const totalUnits = selected.reduce(function (sum, category) {
         return sum + Number(category.quantity || 0);
@@ -888,7 +888,7 @@
           "Select at least one Household Goods category.",
         );
       }
-      if (selected.length > categoryLimit) {
+      if (categoryLimit > 0 && selected.length > categoryLimit) {
         return showInlineError(
           "household_goods",
           "Select no more than " +
@@ -1128,11 +1128,11 @@
         "</p>" +
         "</div>" +
         '<div class="svdp-catalog-pricing">' +
-        '<div class="svdp-catalog-price"><span class="svdp-catalog-price-label">Furniture price</span><strong>' +
+        '<div class="svdp-catalog-price"><span class="svdp-catalog-price-label">Retail Price</span><strong>' +
         escapeHtml(item.priceDisplay || "") +
         "</strong></div>" +
         '<div class="svdp-catalog-price svdp-catalog-price-conference"><span class="svdp-catalog-price-label">Maximum ' +
-        escapeHtml(getRequestorLabels().entity) +
+        escapeHtml(getSelectedOrganizationName()) +
         " Cost</span><strong>" +
         escapeHtml(formatMoney(estimate)) +
         "</strong></div>" +
@@ -1161,15 +1161,10 @@
 
     function renderHouseholdGoodsCategory(category) {
       const quantity = Number(state.householdGoods.selected[category.id] || 0);
-      const limitText =
-        Number(category.quantityMax || 0) > 0
-          ? '<p class="svdp-limit-text">Maximum quantity: ' +
-            Number(category.quantityMax) +
-            "</p>"
-          : "";
+      const estimate = Number(category.estimatedConferencePartnerCostPerUnit || 0);
 
       return (
-        '<article class="svdp-catalog-item svdp-household-goods-card' +
+        '<article class="svdp-catalog-item' +
         (quantity > 0 ? " is-selected" : "") +
         '">' +
         '<div class="svdp-catalog-item-main">' +
@@ -1177,10 +1172,14 @@
         "<h5>" +
         escapeHtml(category.name) +
         "</h5>" +
-        limitText +
+        "<p>" + escapeHtml(category.browseGroupName || "Household Goods") + "</p>" +
+        "</div>" +
+        '<div class="svdp-catalog-pricing">' +
+        '<div class="svdp-catalog-price"><span class="svdp-catalog-price-label">Retail Price</span><strong>' + escapeHtml(category.priceDisplay || "") + "</strong></div>" +
+        '<div class="svdp-catalog-price svdp-catalog-price-conference"><span class="svdp-catalog-price-label">Maximum ' + escapeHtml(getSelectedOrganizationName()) + " Cost</span><strong>" + escapeHtml(formatMoney(estimate)) + "</strong></div>" +
         "</div>" +
         "</div>" +
-        '<div class="svdp-catalog-item-controls svdp-catalog-item-controls-input">' +
+        '<div class="svdp-catalog-item-controls">' +
         '<button type="button" class="svdp-qty-btn" data-household-goods-adjust="decrement" data-category-id="' +
         category.id +
         '"' +
@@ -1188,16 +1187,12 @@
         ' aria-label="Remove one ' +
         escapeHtml(category.name) +
         '">-</button>' +
-        '<input type="number" min="0" class="svdp-qty-input" data-household-goods-quantity="' +
-        category.id +
-        '" value="' +
-        quantity +
-        '" aria-label="' +
-        escapeHtml(category.name) +
-        ' quantity">' +
+        '<span class="svdp-qty-value">' + quantity + "</span>" +
         '<button type="button" class="svdp-qty-btn" data-household-goods-adjust="increment" data-category-id="' +
         category.id +
-        '" aria-label="Add one ' +
+        '"' +
+        (Number(category.quantityMax || 0) > 0 && quantity >= Number(category.quantityMax) ? " disabled" : "") +
+        ' aria-label="Add one ' +
         escapeHtml(category.name) +
         '">+</button>' +
         "</div>" +
@@ -1223,12 +1218,18 @@
 
     function setHouseholdGoodsQuantity(categoryId, quantity) {
       quantity = Math.max(0, Math.floor(Number(quantity || 0)));
+      const category = state.householdGoods.byId[Number(categoryId)];
+      const categoryMax = category ? Number(category.quantityMax || 0) : 0;
+      if (categoryMax > 0 && quantity > categoryMax) {
+        showInlineError("household_goods", (category.name || "This category") + " is limited to " + categoryMax + ".");
+        quantity = categoryMax;
+      }
       if (quantity > 0 && !state.householdGoods.selected[categoryId]) {
         const selectedCount = Object.keys(state.householdGoods.selected).length;
         const limit = Number(
-          state.householdGoods.limits.selected_category_limit || 10,
+          state.householdGoods.limits.selected_category_limit || 0,
         );
-        if (selectedCount >= limit) {
+        if (limit > 0 && selectedCount >= limit) {
           showInlineError(
             "household_goods",
             "Select no more than " + limit + " Household Goods categories.",
@@ -1947,14 +1948,14 @@
     function updateHouseholdGoodsCounts() {
       const selected = getSelectedHouseholdGoodsCategories();
       const categoryLimit = Number(
-        state.householdGoods.limits.selected_category_limit || 10,
+        state.householdGoods.limits.selected_category_limit || 0,
       );
       const unitCount = getHouseholdGoodsUnitCount();
       const voucherMax = Number(
         state.householdGoods.limits.voucher_quantity_max || 0,
       );
       $("#svdpHouseholdGoodsCategoryCount").text(
-        "Selected categories: " + selected.length + " of " + categoryLimit,
+        categoryLimit > 0 ? "Selected categories: " + selected.length + " of " + categoryLimit : "Selected categories: " + selected.length,
       );
       $("#svdpHouseholdGoodsUnitCount").text(
         voucherMax > 0
@@ -2003,6 +2004,16 @@
       }
 
       return defaultRequestorLabels;
+    }
+
+    function getSelectedOrganizationName() {
+      const select = form.find('select[name="conference"]');
+      if (select.length) {
+        const option = select.find("option:selected");
+        return option.val() ? ($.trim(option.text()) || "Organization") : "Organization";
+      }
+      const hidden = form.find('input[type="hidden"][name="conference"]');
+      return hidden.attr("data-organization-name") || defaultRequestorLabels.entity || "Organization";
     }
 
     function syncRequestorLabels() {

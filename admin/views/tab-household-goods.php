@@ -83,7 +83,7 @@ $audit_rows = $can_view_audit ? SVDP_Household_Goods_Catalog::get_configuration_
 
         <div class="svdp-card">
             <h2>Household Goods Catalog</h2>
-            <p>Catalog categories are requestable Household Goods needs. Estimated Conference / Partner cost is for projected internal exposure and is not a shopper-facing price.</p>
+            <p>Catalog categories are requestable Household Goods needs. Configure retail pricing and the maximum organization coverage for future requests.</p>
 
             <div id="svdp-household-goods-category-form" class="svdp-furniture-form">
                 <div class="svdp-admin-grid">
@@ -99,10 +99,13 @@ $audit_rows = $can_view_audit ? SVDP_Household_Goods_Catalog::get_configuration_
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="svdp-admin-field">
-                        <label for="svdp-hg-category-cost"><strong>Estimated Conference / Partner Cost Per Unit</strong></label>
-                        <input type="number" id="svdp-hg-category-cost" name="estimated_conference_partner_cost_per_unit" min="0" step="0.01" value="0.00" class="small-text">
-                    </div>
+                    <div class="svdp-admin-field"><label><strong>Pricing Type</strong></label><select name="pricing_type"><option value="fixed">Fixed</option><option value="range">Range</option></select></div>
+                    <div class="svdp-admin-field"><label><strong>Fixed Retail Price</strong></label><input type="number" name="price_fixed" min="0" step="0.01" value="0.00" class="small-text"></div>
+                    <div class="svdp-admin-field"><label><strong>Minimum Retail Price</strong></label><input type="number" name="price_min" min="0" step="0.01" class="small-text"></div>
+                    <div class="svdp-admin-field"><label><strong>Maximum Retail Price</strong></label><input type="number" name="price_max" min="0" step="0.01" class="small-text"></div>
+                    <div class="svdp-admin-field"><label><input type="checkbox" name="show_price_as_max" value="1" checked> Show public catalog pricing as “Up to” the maximum amount</label></div>
+                    <div class="svdp-admin-field"><label><strong>Organization Coverage Type</strong></label><select name="discount_type"><option value="percent">Percent</option><option value="fixed">Fixed Dollar Amount</option></select></div>
+                    <div class="svdp-admin-field"><label><strong>Organization Coverage</strong></label><input type="number" name="discount_value" min="0" step="0.01" value="50.00" class="small-text"></div>
                     <div class="svdp-admin-field">
                         <label for="svdp-hg-category-quantity-max"><strong>Quantity Maximum</strong></label>
                         <input type="number" id="svdp-hg-category-quantity-max" name="quantity_max" min="0" step="1" value="0" class="small-text">
@@ -126,7 +129,7 @@ $audit_rows = $can_view_audit ? SVDP_Household_Goods_Catalog::get_configuration_
                     <tr>
                         <th>Category Name</th>
                         <th>Browse Group</th>
-                        <th>Estimated Cost</th>
+                        <th>Maximum Organization Cost</th>
                         <th>Quantity Maximum</th>
                         <th>Status</th>
                         <th>Sort Order</th>
@@ -160,7 +163,13 @@ $audit_rows = $can_view_audit ? SVDP_Household_Goods_Catalog::get_configuration_
                                             data-id="<?php echo esc_attr($category->id); ?>"
                                             data-name="<?php echo esc_attr($category->name); ?>"
                                             data-browse-group-id="<?php echo esc_attr($category->browse_group_id); ?>"
-                                            data-cost="<?php echo esc_attr($category->estimated_conference_partner_cost_per_unit); ?>"
+                                            data-pricing-type="<?php echo esc_attr($category->pricing_type); ?>"
+                                            data-price-min="<?php echo esc_attr($category->price_min); ?>"
+                                            data-price-max="<?php echo esc_attr($category->price_max); ?>"
+                                            data-price-fixed="<?php echo esc_attr($category->price_fixed); ?>"
+                                            data-show-price-as-max="<?php echo esc_attr($category->show_price_as_max); ?>"
+                                            data-discount-type="<?php echo esc_attr($category->discount_type); ?>"
+                                            data-discount-value="<?php echo esc_attr($category->discount_value); ?>"
                                             data-quantity-max="<?php echo esc_attr($category->quantity_max); ?>"
                                             data-guidance="<?php echo esc_attr($category->cashier_guidance); ?>"
                                             data-sort-order="<?php echo esc_attr($category->sort_order); ?>"
@@ -185,12 +194,13 @@ $audit_rows = $can_view_audit ? SVDP_Household_Goods_Catalog::get_configuration_
     <?php if ($can_manage_limits) : ?>
         <div class="svdp-card">
             <h2>Household Goods Limits</h2>
-            <p>The selected-category limit is fixed at 10. Voucher-wide quantity maximum applies to future Household Goods vouchers only.</p>
+            <p>Both limits apply to future Household Goods requests only. Use 0 for no limit.</p>
             <div id="svdp-household-goods-limits-form" class="svdp-furniture-form">
                 <div class="svdp-admin-grid">
                     <div class="svdp-admin-field">
                         <label><strong>Maximum Selected Categories</strong></label>
-                        <input type="number" value="<?php echo esc_attr($limits['selected_category_limit']); ?>" class="small-text" disabled>
+                        <input type="number" id="svdp-hg-selected-category-limit" value="<?php echo esc_attr($limits['selected_category_limit']); ?>" min="0" step="1" class="small-text">
+                        <p class="description">Use 0 for no selected-category limit.</p>
                     </div>
                     <div class="svdp-admin-field">
                         <label for="svdp-hg-voucher-quantity-max"><strong>Maximum Total Requested Quantity</strong></label>
@@ -283,9 +293,14 @@ $audit_rows = $can_view_audit ? SVDP_Household_Goods_Catalog::get_configuration_
                     </select>
                 </div>
                 <div class="svdp-admin-field">
-                    <label for="svdp-edit-hg-category-cost"><strong>Estimated Conference / Partner Cost Per Unit</strong></label>
-                    <input type="number" id="svdp-edit-hg-category-cost" name="estimated_conference_partner_cost_per_unit" min="0" step="0.01" class="small-text">
+                    <label><strong>Pricing Type</strong></label><select name="pricing_type"><option value="fixed">Fixed</option><option value="range">Range</option></select>
                 </div>
+                <div class="svdp-admin-field"><label><strong>Fixed Retail Price</strong></label><input type="number" name="price_fixed" min="0" step="0.01" class="small-text"></div>
+                <div class="svdp-admin-field"><label><strong>Minimum Retail Price</strong></label><input type="number" name="price_min" min="0" step="0.01" class="small-text"></div>
+                <div class="svdp-admin-field"><label><strong>Maximum Retail Price</strong></label><input type="number" name="price_max" min="0" step="0.01" class="small-text"></div>
+                <div class="svdp-admin-field"><label><input type="checkbox" name="show_price_as_max" value="1"> Show public catalog pricing as “Up to” the maximum amount</label></div>
+                <div class="svdp-admin-field"><label><strong>Organization Coverage Type</strong></label><select name="discount_type"><option value="percent">Percent</option><option value="fixed">Fixed Dollar Amount</option></select></div>
+                <div class="svdp-admin-field"><label><strong>Organization Coverage</strong></label><input type="number" name="discount_value" min="0" step="0.01" class="small-text"></div>
                 <div class="svdp-admin-field">
                     <label for="svdp-edit-hg-category-quantity-max"><strong>Quantity Maximum</strong></label>
                     <input type="number" id="svdp-edit-hg-category-quantity-max" name="quantity_max" min="0" step="1" class="small-text">

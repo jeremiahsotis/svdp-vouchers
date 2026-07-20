@@ -1,5 +1,6 @@
 <?php
 $catalog_items = SVDP_Furniture_Catalog::get_all();
+$furniture_categories = SVDP_Furniture_Catalog::get_all_categories();
 $categories = SVDP_Furniture_Catalog::get_categories();
 $pricing_types = SVDP_Furniture_Catalog::get_pricing_types();
 $discount_types = SVDP_Furniture_Catalog::get_discount_types();
@@ -8,6 +9,14 @@ $default_discount_value = SVDP_Furniture_Catalog::DEFAULT_DISCOUNT_VALUE;
 ?>
 
 <div class="svdp-furniture-admin-section">
+    <div class="svdp-card">
+        <h2>Furniture Categories</h2>
+        <p>Categories control the Furniture catalog filters. Archive is blocked while active items remain in a category.</p>
+        <div id="svdp-furniture-category-form" class="svdp-furniture-form"><input name="name" type="text" placeholder="Category name" class="regular-text"> <input name="sort_order" type="number" min="0" value="0" class="small-text"> <button type="button" id="svdp-add-furniture-category" class="button button-primary">Add Category</button></div>
+        <table class="wp-list-table widefat striped"><thead><tr><th>Name</th><th>Slug</th><th>Status</th><th>Active Items</th><th>Actions</th></tr></thead><tbody>
+        <?php foreach ($furniture_categories as $category): ?><tr><td><?php echo esc_html($category->name); ?></td><td><?php echo esc_html($category->slug); ?></td><td><?php echo esc_html($category->active ? 'Active' : 'Archived'); ?></td><td><?php echo esc_html((int) $category->active_item_count); ?></td><td><button type="button" class="button button-small svdp-edit-furniture-category" data-id="<?php echo esc_attr($category->id); ?>" data-name="<?php echo esc_attr($category->name); ?>" data-sort-order="<?php echo esc_attr($category->sort_order); ?>" data-active="<?php echo esc_attr($category->active); ?>" data-updated-at="<?php echo esc_attr($category->updated_at); ?>">Edit</button> <button type="button" class="button button-small svdp-toggle-furniture-category" data-id="<?php echo esc_attr($category->id); ?>" data-name="<?php echo esc_attr($category->name); ?>" data-sort-order="<?php echo esc_attr($category->sort_order); ?>" data-active="<?php echo esc_attr($category->active); ?>" data-updated-at="<?php echo esc_attr($category->updated_at); ?>"><?php echo esc_html($category->active ? 'Archive' : 'Restore'); ?></button></td></tr><?php endforeach; ?>
+        </tbody></table>
+    </div>
     <div class="svdp-card">
         <h2>Furniture Catalog</h2>
         <p>Manage the catalog rows that will power later furniture request and fulfillment flows. Archive items instead of deleting them so historical voucher snapshots can remain stable.</p>
@@ -54,7 +63,7 @@ $default_discount_value = SVDP_Furniture_Catalog::DEFAULT_DISCOUNT_VALUE;
             <div class="svdp-admin-grid svdp-pricing-fields" data-pricing-fields="range">
                 <div class="svdp-admin-field">
                     <label for="svdp-catalog-show-price-as-max">
-                        <input type="checkbox" id="svdp-catalog-show-price-as-max" name="show_price_as_max" value="1">
+                        <input type="checkbox" id="svdp-catalog-show-price-as-max" name="show_price_as_max" value="1" checked>
                         Show public catalog pricing as "Up to" the maximum amount
                     </label>
                     <p class="description">When checked, range-priced catalog cards show "Up to $X" instead of the full min-to-max range.</p>

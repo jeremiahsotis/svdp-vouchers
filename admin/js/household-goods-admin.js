@@ -63,7 +63,14 @@
       $("#svdp-edit-hg-category-group").val(
         button.attr("data-browse-group-id"),
       );
-      $("#svdp-edit-hg-category-cost").val(button.attr("data-cost"));
+      const editForm = $("#svdp-edit-household-goods-category-form");
+      editForm.find('[name="pricing_type"]').val(button.attr("data-pricing-type"));
+      editForm.find('[name="price_min"]').val(button.attr("data-price-min"));
+      editForm.find('[name="price_max"]').val(button.attr("data-price-max"));
+      editForm.find('[name="price_fixed"]').val(button.attr("data-price-fixed"));
+      editForm.find('[name="show_price_as_max"]').prop("checked", Number(button.attr("data-show-price-as-max")) === 1);
+      editForm.find('[name="discount_type"]').val(button.attr("data-discount-type"));
+      editForm.find('[name="discount_value"]').val(button.attr("data-discount-value"));
       $("#svdp-edit-hg-category-quantity-max").val(
         button.attr("data-quantity-max"),
       );
@@ -102,6 +109,7 @@
         data: {
           action: "svdp_update_household_goods_limits",
           nonce: svdpAdmin.nonce,
+          selected_category_limit: $("#svdp-hg-selected-category-limit").val(),
           voucher_quantity_max: $("#svdp-hg-voucher-quantity-max").val(),
         },
         success: reloadOrAlert,
@@ -141,9 +149,13 @@
         nonce: svdpAdmin.nonce,
         name: form.find('[name="name"]').val().trim(),
         browse_group_id: form.find('[name="browse_group_id"]').val(),
-        estimated_conference_partner_cost_per_unit: form
-          .find('[name="estimated_conference_partner_cost_per_unit"]')
-          .val(),
+        pricing_type: form.find('[name="pricing_type"]').val(),
+        price_min: form.find('[name="price_min"]').val(),
+        price_max: form.find('[name="price_max"]').val(),
+        price_fixed: form.find('[name="price_fixed"]').val(),
+        show_price_as_max: form.find('[name="show_price_as_max"]').is(':checked') ? 1 : 0,
+        discount_type: form.find('[name="discount_type"]').val(),
+        discount_value: form.find('[name="discount_value"]').val(),
         quantity_max: form.find('[name="quantity_max"]').val(),
         cashier_guidance: form.find('[name="cashier_guidance"]').val(),
         sort_order: form.find('[name="sort_order"]').val(),

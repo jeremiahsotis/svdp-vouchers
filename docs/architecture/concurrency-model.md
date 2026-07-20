@@ -47,6 +47,10 @@ Shared fulfillment Save Progress uses last-write-wins replacement of unfinalized
 
 Retries after successful finalization are guarded by the redeemed status and existing invoice uniqueness. C3 does not add asynchronous processing, dispatch, inventory, POS, or delivery-attempt behavior.
 
+## Slice P1 Implementation Note
+
+Furniture category updates carry the last observed `updated_at` value and reject stale writes. Household Goods configuration retains last-write-wins updates with validation immediately before writes. Issued request snapshots isolate committed requests from later catalog changes.
+
 ## Slice C4 Implementation Note
 
 Public Assisted Builder submission calls the Release C request-group service, which validates selected voucher types, duplicate eligibility, type-specific selections, requested-line snapshots, and group-level delivery before committing. Request-group rows, child voucher rows, Furniture/Household Goods requested lines, and the delivery snapshot are written in one transaction.

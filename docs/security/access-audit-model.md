@@ -20,6 +20,10 @@ Future Release C protected mutations must preserve auditability for request grou
 
 Vincentians must not receive cashier or administrator authority through the Assisted Builder.
 
+## Slice P1 Implementation Note
+
+Furniture category mutations require `svdp_manage_furniture_catalog`; Household Goods catalog and limit mutations retain their dedicated capabilities. Category, pricing, coverage, archive, and limit changes write human-readable configuration audit rows with before/after values, actor, and timestamp.
+
 ## Slice C1 Implementation Note
 
 The C1 request-group service is backend-only and is not exposed through a public REST route or UI. Request-group rows snapshot requestor, household, Conference, submitted timestamp, and created-by source. Voucher-type capability rows preserve the last updater and update timestamp for future configuration changes.

@@ -151,6 +151,8 @@
       "rules": [
         "Household Goods is a distinct root voucher type, not Furniture and not a Furniture catalog category.",
         "Household Goods browse groups and catalog categories must be administratively editable by authorized users.",
+        "Furniture and Household Goods priced catalog entries support fixed or range retail pricing and maximum organization coverage.",
+        "Household Goods selected-category and total-quantity limits are configurable non-negative integers where zero means unlimited.",
         "Issued Household Goods request lines must snapshot catalog values needed for historical display, reporting, receipts, invoices, and audit.",
         "Household Goods catalog behavior must not add unrestricted request Notes or item-level fulfillment Notes."
       ]

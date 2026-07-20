@@ -4,13 +4,14 @@
  */
 class SVDP_Database {
 
-    const SCHEMA_VERSION = '12';
+    const SCHEMA_VERSION = '13';
 
     /**
      * Run idempotent schema upgrades for the plugin.
      */
     public static function maybe_upgrade() {
         $current_version = get_option('svdp_vouchers_schema_version', '');
+        $needs_v13_backfill = version_compare((string) $current_version, '13', '<');
         if ($current_version === self::SCHEMA_VERSION && self::has_current_schema()) {
             return;
         }
@@ -27,6 +28,7 @@ class SVDP_Database {
 
         self::normalize_slice_two_data();
         self::normalize_furniture_coverage_data();
+        self::normalize_unified_priced_catalog_data($needs_v13_backfill);
 
         update_option('svdp_vouchers_schema_version', self::SCHEMA_VERSION);
     }
@@ -44,6 +46,7 @@ class SVDP_Database {
 
         $vouchers_table = $wpdb->prefix . 'svdp_vouchers';
         $catalog_items_table = $wpdb->prefix . 'svdp_catalog_items';
+        $furniture_categories_table = $wpdb->prefix . 'svdp_furniture_categories';
         $voucher_items_table = $wpdb->prefix . 'svdp_voucher_items';
         $managers_table = $wpdb->prefix . 'svdp_managers';
         $override_audit_table = $wpdb->prefix . 'svdp_override_audit';
@@ -59,7 +62,7 @@ class SVDP_Database {
         $unavailable_reasons_table = $wpdb->prefix . 'svdp_unavailable_reasons';
         $fulfillment_audit_table = $wpdb->prefix . 'svdp_voucher_fulfillment_audit';
 
-        if (!self::table_exists($vouchers_table) || !self::table_exists($catalog_items_table) || !self::table_exists($voucher_items_table) || !self::table_exists($managers_table) || !self::table_exists($override_audit_table) || !self::table_exists($voucher_corrections_table) || !self::table_exists($request_groups_table) || !self::table_exists($request_group_delivery_table) || !self::table_exists($voucher_type_capabilities_table) || !self::table_exists($household_goods_browse_groups_table) || !self::table_exists($household_goods_catalog_table) || !self::table_exists($configuration_audit_table) || !self::table_exists($requested_lines_table) || !self::table_exists($fulfillment_entries_table) || !self::table_exists($unavailable_reasons_table) || !self::table_exists($fulfillment_audit_table)) {
+        if (!self::table_exists($vouchers_table) || !self::table_exists($catalog_items_table) || !self::table_exists($furniture_categories_table) || !self::table_exists($voucher_items_table) || !self::table_exists($managers_table) || !self::table_exists($override_audit_table) || !self::table_exists($voucher_corrections_table) || !self::table_exists($request_groups_table) || !self::table_exists($request_group_delivery_table) || !self::table_exists($voucher_type_capabilities_table) || !self::table_exists($household_goods_browse_groups_table) || !self::table_exists($household_goods_catalog_table) || !self::table_exists($configuration_audit_table) || !self::table_exists($requested_lines_table) || !self::table_exists($fulfillment_entries_table) || !self::table_exists($unavailable_reasons_table) || !self::table_exists($fulfillment_audit_table)) {
             return false;
         }
 
@@ -90,6 +93,10 @@ class SVDP_Database {
             && self::column_exists($request_group_delivery_table, 'selected_voucher_types_snapshot')
             && self::column_exists($household_goods_browse_groups_table, 'updated_by_user_id')
             && self::column_exists($household_goods_catalog_table, 'cashier_guidance')
+            && self::column_exists($household_goods_catalog_table, 'pricing_type')
+            && self::column_exists($household_goods_catalog_table, 'show_price_as_max')
+            && self::column_exists($requested_lines_table, 'requested_pricing_type_snapshot')
+            && self::column_exists($requested_lines_table, 'selected_category_limit_snapshot')
             && self::column_exists($configuration_audit_table, 'human_summary');
     }
 
@@ -334,6 +341,22 @@ class SVDP_Database {
 
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
 
+        $furniture_categories_table = $wpdb->prefix . 'svdp_furniture_categories';
+        $furniture_categories_sql = "CREATE TABLE $furniture_categories_table (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            slug varchar(50) NOT NULL,
+            name varchar(255) NOT NULL,
+            sort_order int(11) NOT NULL DEFAULT 0,
+            active tinyint(1) NOT NULL DEFAULT 1,
+            updated_by_user_id bigint(20) DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY slug (slug),
+            KEY idx_svdp_furniture_category_active (active),
+            KEY idx_svdp_furniture_category_sort (sort_order)
+        ) $charset_collate;";
+
         $catalog_items_table = $wpdb->prefix . 'svdp_catalog_items';
         $catalog_items_sql = "CREATE TABLE $catalog_items_table (
             id bigint(20) NOT NULL AUTO_INCREMENT,
@@ -343,7 +366,7 @@ class SVDP_Database {
             price_min decimal(10,2) DEFAULT NULL,
             price_max decimal(10,2) DEFAULT NULL,
             price_fixed decimal(10,2) DEFAULT NULL,
-            show_price_as_max tinyint(1) NOT NULL DEFAULT 0,
+            show_price_as_max tinyint(1) NOT NULL DEFAULT 1,
             discount_type varchar(20) NOT NULL DEFAULT 'percent',
             discount_value decimal(10,2) NOT NULL DEFAULT 50.00,
             sort_order int(11) NOT NULL DEFAULT 0,
@@ -484,6 +507,7 @@ class SVDP_Database {
             KEY idx_svdp_statement_period (period_start, period_end)
         ) $charset_collate;";
 
+        dbDelta($furniture_categories_sql);
         dbDelta($catalog_items_sql);
         dbDelta($furniture_meta_sql);
         dbDelta($voucher_items_sql);
@@ -659,6 +683,13 @@ class SVDP_Database {
             name varchar(255) NOT NULL,
             slug varchar(255) NOT NULL,
             estimated_conference_partner_cost_per_unit decimal(10,2) NOT NULL DEFAULT 0.00,
+            pricing_type varchar(20) NOT NULL DEFAULT 'fixed',
+            price_min decimal(10,2) DEFAULT NULL,
+            price_max decimal(10,2) DEFAULT NULL,
+            price_fixed decimal(10,2) DEFAULT NULL,
+            show_price_as_max tinyint(1) NOT NULL DEFAULT 1,
+            discount_type varchar(20) NOT NULL DEFAULT 'percent',
+            discount_value decimal(10,2) NOT NULL DEFAULT 50.00,
             quantity_max int(11) NOT NULL DEFAULT 0,
             cashier_guidance text DEFAULT NULL,
             sort_order int(11) NOT NULL DEFAULT 0,
@@ -714,6 +745,16 @@ class SVDP_Database {
             requested_group_snapshot varchar(255) DEFAULT NULL,
             requested_quantity int(11) NOT NULL DEFAULT 1,
             estimated_conference_partner_cost_per_unit_snapshot decimal(10,2) DEFAULT NULL,
+            requested_pricing_type_snapshot varchar(20) DEFAULT NULL,
+            requested_price_min_snapshot decimal(10,2) DEFAULT NULL,
+            requested_price_max_snapshot decimal(10,2) DEFAULT NULL,
+            requested_price_fixed_snapshot decimal(10,2) DEFAULT NULL,
+            show_price_as_max_snapshot tinyint(1) DEFAULT NULL,
+            discount_type_snapshot varchar(20) DEFAULT NULL,
+            discount_value_snapshot decimal(10,2) DEFAULT NULL,
+            quantity_max_snapshot int(11) DEFAULT NULL,
+            selected_category_limit_snapshot int(11) DEFAULT NULL,
+            voucher_quantity_max_snapshot int(11) DEFAULT NULL,
             cashier_guidance_snapshot text DEFAULT NULL,
             sort_order_snapshot int(11) NOT NULL DEFAULT 0,
             unavailable_quantity int(11) NOT NULL DEFAULT 0,
@@ -1000,7 +1041,7 @@ class SVDP_Database {
         $catalog_items_table = $wpdb->prefix . 'svdp_catalog_items';
         if (self::table_exists($catalog_items_table)) {
             if (!self::column_exists($catalog_items_table, 'show_price_as_max')) {
-                $wpdb->query("ALTER TABLE $catalog_items_table ADD COLUMN show_price_as_max tinyint(1) NOT NULL DEFAULT 0 AFTER price_fixed");
+                $wpdb->query("ALTER TABLE $catalog_items_table ADD COLUMN show_price_as_max tinyint(1) NOT NULL DEFAULT 1 AFTER price_fixed");
             }
 
             if (!self::column_exists($catalog_items_table, 'discount_type')) {
@@ -1011,7 +1052,7 @@ class SVDP_Database {
                 $wpdb->query("ALTER TABLE $catalog_items_table ADD COLUMN discount_value decimal(10,2) NOT NULL DEFAULT 50.00 AFTER discount_type");
             }
 
-            $wpdb->query("ALTER TABLE $catalog_items_table MODIFY COLUMN show_price_as_max tinyint(1) NOT NULL DEFAULT 0");
+            $wpdb->query("ALTER TABLE $catalog_items_table MODIFY COLUMN show_price_as_max tinyint(1) NOT NULL DEFAULT 1");
             $wpdb->query("ALTER TABLE $catalog_items_table MODIFY COLUMN discount_type varchar(20) NOT NULL DEFAULT 'percent'");
             $wpdb->query("ALTER TABLE $catalog_items_table MODIFY COLUMN discount_value decimal(10,2) NOT NULL DEFAULT 50.00");
             $wpdb->query("UPDATE $catalog_items_table SET show_price_as_max = 0 WHERE show_price_as_max IS NULL");
@@ -1049,6 +1090,45 @@ class SVDP_Database {
         $wpdb->query("UPDATE $voucher_items_table SET discount_type_snapshot = 'percent' WHERE discount_type_snapshot IS NULL OR discount_type_snapshot = '' OR discount_type_snapshot NOT IN ('percent', 'fixed')");
         $wpdb->query("UPDATE $voucher_items_table SET discount_value_snapshot = 50.00 WHERE discount_value_snapshot IS NULL OR discount_value_snapshot < 0");
         $wpdb->query("UPDATE $voucher_items_table SET discount_value_snapshot = 50.00 WHERE discount_type_snapshot = 'percent' AND discount_value_snapshot > 100");
+    }
+
+    /** Normalize additive schema-13 catalog data without rewriting issued snapshots. */
+    private static function normalize_unified_priced_catalog_data($run_v13_backfill = false) {
+        global $wpdb;
+
+        $categories = $wpdb->prefix . 'svdp_furniture_categories';
+        $items = $wpdb->prefix . 'svdp_catalog_items';
+        if (self::table_exists($categories)) {
+            $seed = [
+                ['used_furniture', 'Used Furniture', 10],
+                ['handmade_furniture', 'Handmade Furniture', 20],
+                ['mattresses_frames', 'Mattresses & Frames', 30],
+                ['household_goods', 'Household Goods', 40],
+            ];
+            foreach ($seed as $category) {
+                if (!$wpdb->get_var($wpdb->prepare("SELECT id FROM $categories WHERE slug = %s", $category[0]))) {
+                    $active = 1;
+                    if ($category[0] === 'household_goods') {
+                        $active = (int) $wpdb->get_var("SELECT COUNT(*) FROM $items WHERE category = 'household_goods' AND active = 1") > 0 ? 1 : 0;
+                    }
+                    $wpdb->insert($categories, ['slug' => $category[0], 'name' => $category[1], 'sort_order' => $category[2], 'active' => $active]);
+                }
+            }
+        }
+
+        if ($run_v13_backfill && self::table_exists($items)) {
+            $wpdb->query("UPDATE $items SET show_price_as_max = 1 WHERE pricing_type = 'range'");
+        }
+
+        $hg = $wpdb->prefix . 'svdp_household_goods_catalog';
+        if (self::table_exists($hg)) {
+            $wpdb->query("UPDATE $hg SET pricing_type = 'fixed', price_fixed = estimated_conference_partner_cost_per_unit, show_price_as_max = 1, discount_type = 'percent', discount_value = 50.00 WHERE price_fixed IS NULL AND price_min IS NULL AND price_max IS NULL");
+            $wpdb->query("UPDATE $hg SET estimated_conference_partner_cost_per_unit = ROUND(price_fixed * 0.50, 2) WHERE pricing_type = 'fixed' AND price_fixed IS NOT NULL AND discount_type = 'percent' AND discount_value = 50.00");
+        }
+
+        if (SVDP_Settings::get_setting('household_goods_selected_category_limit', null) === null) {
+            SVDP_Settings::update_setting('household_goods_selected_category_limit', '0', 'integer');
+        }
     }
 
     /**
