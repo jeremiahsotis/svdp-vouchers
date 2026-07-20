@@ -18,7 +18,7 @@ Database upgrade, Furniture and Household Goods catalog services, request-group 
 Schema version 13 adds Furniture categories, Household Goods retail/coverage fields, Household Goods pricing snapshots, and configurable selected-category limits. Migration is idempotent and preserves historical rows.
 
 ## Contracts
-Priced cards expose `Retail price: … • [Organization] pays up to …`, show inline category context only under the All/unset filter, and use full-width decrement/increment touch targets. The public builder uses a scoped system-font boundary and an outer maximum width of 1180px with 14px viewport gutters. Range display defaults to Up to. Clothing and legacy `household` behavior do not change.
+Priced cards expose `Retail price: … • [Organization Type] pays up to …`, using the friendly Conference, Partner, or Store type instead of the potentially long organization name and falling back to Organization when unresolved. Cards show inline category context only under the All/unset filter and use full-width decrement/increment touch targets. The public builder uses a scoped system-font boundary and an outer maximum width of 1180px with 14px viewport gutters. Range display defaults to Up to. Clothing and legacy `household` behavior do not change.
 
 ## Execution flow
 Upgrade schema and seed categories; normalize catalog data; administer future configuration; return normalized public catalog data; validate and snapshot selections atomically.

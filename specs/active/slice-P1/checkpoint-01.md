@@ -7,7 +7,7 @@ Verify the approved unified pricing, configurable limits, and editable Furniture
 Database/catalog/request services, admin and public catalog UI, protected contracts, governance logs, and this P1 execution packet. See the final `git status --short` output.
 
 ## Code changes
-Implemented unified priced catalogs, configurable Household Goods limits, immutable snapshots, editable Furniture categories, audit events, stale category-write rejection, compact shared selection cards, and a theme-isolated public builder width/typography boundary matching the approved desktop/mobile references.
+Implemented unified priced catalogs, configurable Household Goods limits, immutable snapshots, editable Furniture categories, audit events, stale category-write rejection, compact shared selection cards, friendly organization-type pricing labels, and a theme-isolated public builder width/typography boundary matching the approved desktop/mobile references.
 
 ## Data changes
 Schema 13 forward migration; no issued snapshot rewrites. Rollback retains additive columns/tables and can run older code against preserved compatibility fields.
@@ -43,7 +43,7 @@ PASS — DDEV schema upgrade completed against `https://test-site.ddev.site/`; W
 No new dependency expected.
 
 ## Testing
-PASS — DDEV verification against Twenty Twenty-Five confirmed the builder computes to the scoped system font at 18px/400 with normal letter spacing and 1.45 line height. Catalog values compute to 18px/800 title, 11px/500 italic category, 14px/400 pricing, 24px quantity buttons, and 18px/800 quantity value. At 1280px the centered builder is 1180px wide with the existing 748px main/360px summary layout; at 390px it is 362px wide with 14px gutters and no horizontal overflow. Titles remain one line, pricing remains at no more than two lines, quantity/selected state still updates, and browser console warnings/errors are absent. Prior Furniture/Household Goods card behavior, schema, admin, limit, audit, and public flow verification remains passing.
+PASS — DDEV verified that a shortcode-preselected Conference renders `Conference pays up to …` on both Furniture and Household Goods cards instead of the organization’s long proper name. Static branch verification confirms `partner` → `Partner`, `store` → `Store`, and an empty selection, missing type, or unknown type → `Organization`. No organization identity, selector option text, summary, requestor label, or stored data changed. Browser console warnings/errors: none. Prior responsive theme-isolation, Furniture/Household Goods card behavior, schema, admin, limit, audit, and public flow verification remains passing.
 
 ## Verification block
 `find includes public admin -name '*.php' ... php -l`: PASS. `node --check` changed JS: PASS. JSON validation: PASS. Governance validators: PASS. `git diff --check`: PASS. DDEV schema 13: PASS. Live browser console warnings/errors: none.

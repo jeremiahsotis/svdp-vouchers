@@ -160,7 +160,7 @@
     },
     {
       "path": "public/js/voucher-request.js",
-      "reason": "Slice P1 unifies priced catalog cards, conditionally renders inline category context, supplies compact pricing copy, and enforces zero-as-unlimited Household Goods limits."
+      "reason": "Slice P1 unifies priced catalog cards, conditionally renders inline category context, supplies compact organization-type pricing copy, and enforces zero-as-unlimited Household Goods limits."
     },
     {
       "path": "public/css/voucher-forms.css",

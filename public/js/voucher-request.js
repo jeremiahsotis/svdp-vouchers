@@ -2003,13 +2003,21 @@
     }
 
     function getSelectedOrganizationName() {
+      const typeLabels = {
+        conference: "Conference",
+        partner: "Partner",
+        store: "Store",
+      };
       const select = form.find('select[name="conference"]');
       if (select.length) {
         const option = select.find("option:selected");
-        return option.val() ? ($.trim(option.text()) || "Organization") : "Organization";
+        if (!option.val()) {
+          return "Organization";
+        }
+        return typeLabels[option.attr("data-organization-type")] || "Organization";
       }
       const hidden = form.find('input[type="hidden"][name="conference"]');
-      return hidden.attr("data-organization-name") || defaultRequestorLabels.entity || "Organization";
+      return typeLabels[hidden.attr("data-organization-type")] || "Organization";
     }
 
     function syncRequestorLabels() {
