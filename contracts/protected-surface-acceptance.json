@@ -164,7 +164,7 @@
     },
     {
       "path": "public/css/voucher-forms.css",
-      "reason": "Slice P1 implements the shared responsive three-line catalog card and segmented quantity-control presentation without changing surrounding builder surfaces."
+      "reason": "Slice P1 implements the shared responsive three-line catalog card, segmented quantity-control presentation, and theme-isolated public builder width and typography boundary."
     },
     {
       "path": "admin/views/tab-furniture-catalog.php",
