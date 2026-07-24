@@ -27,6 +27,7 @@ $document_copy = SVDP_Voucher_Copy::get_document_copy();
     hx-target="this"
     hx-swap="outerHTML"
 >
+    <p><a class="svdp-btn svdp-btn-secondary" target="_blank" rel="noopener" href="<?php echo esc_url(SVDP_Neighbor_Voucher_Print::url($voucher['id'])); ?>">Print Neighbor Voucher</a></p>
     <div class="svdp-cashier-detail-header">
         <div>
             <div class="svdp-detail-status-line">

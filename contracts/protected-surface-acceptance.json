@@ -181,6 +181,30 @@
     {
       "path": "admin/js/household-goods-admin.js",
       "reason": "Slice P1 implements the Household Goods pricing and limit administration interactions for the protected catalog surface."
+    },
+    {
+      "path": "includes/class-accounting.php",
+      "reason": "Slice A1 adds idempotent monthly reconciliation, statement delivery, QuickBooks IIF/manifest packages, bookkeeping email, and accounting audit."
+    },
+    {
+      "path": "includes/class-neighbor-voucher-print.php",
+      "reason": "Slice A1 builds an allowlisted, price-free approved-voucher DTO and protects on-demand print access."
+    },
+    {
+      "path": "includes/class-database.php",
+      "reason": "Slice A1 adds schema 14 organization billing mappings, statement delivery/export metadata, accounting batches, and accounting audit."
+    },
+    {
+      "path": "includes/class-permissions.php",
+      "reason": "Slice A1 adds the limited SVdP Bookkeeper role and svdp_manage_accounting capability."
+    },
+    {
+      "path": "svdp-vouchers.php",
+      "reason": "Slice A1 loads accounting/print services, schedules reconciliation, and registers protected handlers."
+    },
+    {
+      "path": "public/templates/documents/neighbor-voucher.php",
+      "reason": "Slice A1 renders a cashier-authorized neighbor copy containing approved quantities and no pricing or accounting data."
     }
   ]
 }

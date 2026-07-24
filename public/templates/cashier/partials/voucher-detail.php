@@ -43,6 +43,7 @@ $correction_reasons = SVDP_Override_Reason::get_active();
             <?php echo esc_html($voucher['cashier_status_label'] ?? $voucher['status']); ?>
         </span>
     </div>
+    <p><a class="svdp-btn svdp-btn-secondary" target="_blank" rel="noopener" href="<?php echo esc_url(SVDP_Neighbor_Voucher_Print::url($voucher['id'])); ?>">Print Neighbor Voucher</a></p>
 
     <div class="svdp-cashier-detail-grid">
         <div class="svdp-detail-item">

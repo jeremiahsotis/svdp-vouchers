@@ -1,6 +1,21 @@
 {
   "protected_surfaces": [
     {
+      "path": "includes/class-accounting.php",
+      "type": "php",
+      "reason": "Monthly statement delivery, QuickBooks export integrity, retries, batching, email, and accounting audit."
+    },
+    {
+      "path": "includes/class-neighbor-voucher-print.php",
+      "type": "auth_boundary",
+      "reason": "Cashier-authorized price-free neighbor voucher print DTO and delivery."
+    },
+    {
+      "path": "public/templates/documents/neighbor-voucher.php",
+      "type": "php-template",
+      "reason": "Neighbor-facing approved voucher contract that must never expose pricing or internal accounting data."
+    },
+    {
       "path": "includes/class-voucher.php",
       "type": "php",
       "reason": "Core voucher creation, duplicate detection, eligibility, expiration, notification, furniture request persistence, and cashier voucher formatting."

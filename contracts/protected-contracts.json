@@ -251,6 +251,38 @@
         "Cashier card status precedence must keep redeemed status above expired status.",
         "Cashier status display changes must preserve existing card architecture and must not convert the cashier station into a table."
       ]
+    },
+    {
+      "name": "monthly_accounting_exports",
+      "surfaces": [
+        "includes/class-accounting.php",
+        "includes/class-statement.php",
+        "includes/class-database.php",
+        "includes/class-permissions.php",
+        "svdp-vouchers.php"
+      ],
+      "rules": [
+        "Monthly statement and export retries must not duplicate invoice assignments, export ownership, or successful deliveries.",
+        "QuickBooks exports must reuse stored invoice identity and totals.",
+        "Accounting mutations require svdp_manage_accounting and readable audit history.",
+        "Existing statements and invoices must remain preserved through additive migration."
+      ]
+    },
+    {
+      "name": "neighbor_voucher_print",
+      "surfaces": [
+        "includes/class-neighbor-voucher-print.php",
+        "public/templates/documents/neighbor-voucher.php",
+        "public/templates/cashier/partials/voucher-detail.php",
+        "public/templates/cashier/partials/voucher-detail-furniture.php",
+        "public/templates/cashier/partials/voucher-detail-shared-fulfillment.php"
+      ],
+      "rules": [
+        "Neighbor voucher printing requires authenticated cashier authority and a valid nonce.",
+        "Printed approved items use issued request snapshots rather than current catalogs or fulfillment outcomes.",
+        "The print DTO and template must omit all pricing, invoice, fee, coverage, override, and internal-note fields.",
+        "Printing must be auditable without retaining rendered neighbor contact information."
+      ]
     }
   ]
 }

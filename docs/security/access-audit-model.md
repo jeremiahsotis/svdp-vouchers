@@ -49,3 +49,7 @@ Save Progress and Finalize Voucher write `wp_svdp_voucher_fulfillment_audit` row
 The Assisted Builder exposes public request-group submission with the same public request posture as the existing Vincentian voucher creation endpoints. It does not grant cashier, fulfillment, catalog administration, unavailable-reason, finalization, receipt, invoice, or configuration authority to Vincentians.
 
 Request-group creation snapshots household, requestor, Conference/Organization, selected voucher types, delivery choice, delivery fee, address verification data, and requested Furniture/Household Goods lines. C4 does not introduce unrestricted Vincentian notes or item-level cashier notes.
+
+## Slice A1 Implementation Note
+
+Accounting views and mutations require `svdp_manage_accounting`, granted to administrators, voucher managers, and the limited `svdp_bookkeeper` role. Neighbor voucher printing requires existing cashier access plus a per-voucher nonce. Accounting, delivery, download, configuration, denial, and print events write actor/source, resource, decision, timestamp, error, and human-readable audit context; rendered neighbor contact data is not retained in the print audit.

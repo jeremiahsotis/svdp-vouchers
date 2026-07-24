@@ -5,6 +5,7 @@
         <a href="?page=svdp-vouchers&tab=analytics" class="nav-tab <?php echo $active_tab === 'analytics' ? 'nav-tab-active' : ''; ?>">
             Analytics
         </a>
+        <?php if (SVDP_Permissions::user_can_manage_plugin()): ?>
         <a href="?page=svdp-vouchers&tab=conferences" class="nav-tab <?php echo $active_tab === 'conferences' ? 'nav-tab-active' : ''; ?>">
             Conferences
         </a>
@@ -14,6 +15,7 @@
         <a href="?page=svdp-vouchers&tab=furniture-settings" class="nav-tab <?php echo $active_tab === 'furniture-settings' ? 'nav-tab-active' : ''; ?>">
             Furniture Reasons
         </a>
+        <?php endif; ?>
         <?php if (SVDP_Permissions::user_can_manage_household_goods_catalog() || SVDP_Permissions::user_can_manage_household_goods_limits() || SVDP_Permissions::user_can_view_voucher_configuration_audit()) : ?>
             <a href="?page=svdp-vouchers&tab=household-goods" class="nav-tab <?php echo $active_tab === 'household-goods' ? 'nav-tab-active' : ''; ?>">
                 Household Goods
@@ -25,6 +27,8 @@
         <a href="?page=svdp-vouchers&tab=statements" class="nav-tab <?php echo $active_tab === 'statements' ? 'nav-tab-active' : ''; ?>">
             Statements
         </a>
+        <a href="?page=svdp-vouchers&tab=accounting" class="nav-tab <?php echo $active_tab === 'accounting' ? 'nav-tab-active' : ''; ?>">Accounting</a>
+        <?php if (SVDP_Permissions::user_can_manage_plugin()): ?>
         <a href="?page=svdp-vouchers&tab=managers" class="nav-tab <?php echo $active_tab === 'managers' ? 'nav-tab-active' : ''; ?>">
             Managers
         </a>
@@ -39,6 +43,7 @@
         <a href="?page=svdp-vouchers&tab=settings" class="nav-tab <?php echo $active_tab === 'settings' ? 'nav-tab-active' : ''; ?>">
             Settings
         </a>
+        <?php endif; ?>
     </h2>
 
     <div class="svdp-admin-content">
@@ -67,6 +72,9 @@
                 break;
             case 'statements':
                 include 'tab-statements.php';
+                break;
+            case 'accounting':
+                include 'tab-accounting.php';
                 break;
             case 'managers':
                 include 'managers-tab.php';

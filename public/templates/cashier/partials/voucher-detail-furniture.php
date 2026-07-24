@@ -47,6 +47,7 @@ $detail_refresh_trigger = $can_mutate_furniture
             <p><?php echo esc_html($voucher['conference_name']); ?> • DOB <?php echo esc_html(date('m/d/Y', strtotime($voucher['dob']))); ?></p>
         </div>
     </div>
+    <p><a class="svdp-btn svdp-btn-secondary" target="_blank" rel="noopener" href="<?php echo esc_url(SVDP_Neighbor_Voucher_Print::url($voucher['id'])); ?>">Print Neighbor Voucher</a></p>
 
     <div class="svdp-cashier-detail-grid">
         <div class="svdp-detail-item">

@@ -49,6 +49,11 @@ class SVDP_Admin {
 
         // Export handler
         add_action('admin_post_svdp_export_vouchers', [$this, 'export_vouchers']);
+        add_action('admin_post_svdp_save_accounting_settings', [$this, 'save_accounting_settings']);
+        add_action('admin_post_svdp_save_accounting_organization', [$this, 'save_accounting_organization']);
+        add_action('admin_post_svdp_run_accounting_cycle', [$this, 'run_accounting_cycle']);
+        add_action('admin_post_svdp_email_accounting_batch', [$this, 'email_accounting_batch']);
+        add_action('admin_post_svdp_download_accounting_file', [$this, 'download_accounting_file']);
     }
     
     /**
@@ -58,7 +63,7 @@ class SVDP_Admin {
         add_menu_page(
             __('SVdP Vouchers', 'svdp-vouchers'),
             __('SVdP Vouchers', 'svdp-vouchers'),
-            SVDP_VOUCHERS_ADMIN_CAP,
+            SVDP_VOUCHERS_ACCOUNTING_CAP,
             'svdp-vouchers',
             [$this, 'render_admin_page'],
             'dashicons-tickets-alt',
@@ -113,8 +118,84 @@ class SVDP_Admin {
      * Render admin page
      */
     public function render_admin_page() {
-        $active_tab = isset($_GET['tab']) ? sanitize_key(wp_unslash($_GET['tab'])) : 'conferences';
+        if (!SVDP_Permissions::user_can_manage_accounting()) {
+            wp_die(esc_html__('You do not have permission to access SVdP accounting.', 'svdp-vouchers'));
+        }
+        $active_tab = isset($_GET['tab']) ? sanitize_key(wp_unslash($_GET['tab'])) : 'analytics';
+        if (!SVDP_Permissions::user_can_manage_plugin() && !in_array($active_tab, ['analytics', 'invoices', 'statements', 'accounting'], true)) {
+            $active_tab = 'analytics';
+        }
         include SVDP_VOUCHERS_PLUGIN_DIR . 'admin/views/admin-page.php';
+    }
+
+    public function save_accounting_settings() {
+        $this->require_accounting_post('svdp_save_accounting_settings');
+        $keys = ['bookkeeping_email', 'quickbooks_ar_account', 'quickbooks_income_account', 'quickbooks_voucher_item', 'quickbooks_delivery_item'];
+        foreach ($keys as $key) {
+            $before = SVDP_Settings::get_setting($key, '');
+            $value = $key === 'bookkeeping_email' ? sanitize_email($_POST[$key] ?? '') : sanitize_text_field($_POST[$key] ?? '');
+            SVDP_Settings::update_setting($key, $value);
+            SVDP_Accounting::audit('accounting_setting_changed', 'setting', null, sprintf('Accounting setting %s was updated.', $key), $before, $value);
+        }
+        wp_safe_redirect(admin_url('admin.php?page=svdp-vouchers&tab=accounting&updated=1'));
+        exit;
+    }
+
+    public function save_accounting_organization() {
+        $this->require_accounting_post('svdp_save_accounting_organization');
+        $id = absint($_POST['conference_id'] ?? 0);
+        $before = SVDP_Conference::get_by_id($id);
+        SVDP_Conference::update($id, [
+            'billing_email' => sanitize_email($_POST['billing_email'] ?? ''),
+            'quickbooks_customer_name' => sanitize_text_field($_POST['quickbooks_customer_name'] ?? ''),
+        ]);
+        SVDP_Accounting::audit('organization_accounting_changed', 'organization', $id, sprintf('Billing and QuickBooks mappings were updated for organization #%d.', $id), $before, SVDP_Conference::get_by_id($id));
+        wp_safe_redirect(admin_url('admin.php?page=svdp-vouchers&tab=accounting&updated=1'));
+        exit;
+    }
+
+    public function run_accounting_cycle() {
+        $this->require_accounting_post('svdp_run_accounting_cycle');
+        SVDP_Accounting::run_monthly('manual', get_current_user_id());
+        wp_safe_redirect(admin_url('admin.php?page=svdp-vouchers&tab=accounting&ran=1'));
+        exit;
+    }
+
+    public function email_accounting_batch() {
+        $this->require_accounting_post('svdp_email_accounting_batch');
+        SVDP_Accounting::email_export(absint($_POST['batch_id'] ?? 0));
+        wp_safe_redirect(admin_url('admin.php?page=svdp-vouchers&tab=accounting'));
+        exit;
+    }
+
+    public function download_accounting_file() {
+        if (!SVDP_Permissions::user_can_manage_accounting()) {
+            wp_die('Permission denied.', 403);
+        }
+        $batch_id = absint($_GET['batch_id'] ?? 0);
+        $type = sanitize_key($_GET['type'] ?? '');
+        check_admin_referer('svdp_download_accounting_file_' . $batch_id . '_' . $type);
+        global $wpdb;
+        $column = $type === 'manifest' ? 'manifest_file_path' : 'iif_file_path';
+        $relative = $wpdb->get_var($wpdb->prepare("SELECT $column FROM {$wpdb->prefix}svdp_accounting_batches WHERE id=%d", $batch_id));
+        $uploads = wp_upload_dir();
+        $absolute = $relative ? trailingslashit($uploads['basedir']) . ltrim($relative, '/') : '';
+        if (!$absolute || !file_exists($absolute)) {
+            wp_die('Accounting file not found.', 404);
+        }
+        SVDP_Accounting::audit('accounting_file_downloaded', 'batch', $batch_id, sprintf('An authorized user downloaded the %s file for accounting batch #%d.', $type, $batch_id));
+        nocache_headers();
+        header('Content-Type: application/octet-stream');
+        header('Content-Disposition: attachment; filename="' . basename($absolute) . '"');
+        readfile($absolute);
+        exit;
+    }
+
+    private function require_accounting_post($nonce_action) {
+        if (!SVDP_Permissions::user_can_manage_accounting()) {
+            wp_die('Permission denied.', 403);
+        }
+        check_admin_referer($nonce_action);
     }
     
     /**
@@ -338,7 +419,7 @@ class SVDP_Admin {
     public function ajax_apply_analytics_filters() {
         check_ajax_referer('svdp_analytics_filters', 'nonce');
 
-        if (!current_user_can(SVDP_VOUCHERS_ADMIN_CAP)) {
+        if (!SVDP_Permissions::user_can_manage_accounting()) {
             wp_send_json_error('Permission denied');
         }
 
@@ -719,7 +800,7 @@ class SVDP_Admin {
     public function export_vouchers() {
         check_admin_referer('svdp_export', 'svdp_export_nonce');
         
-        if (!current_user_can(SVDP_VOUCHERS_ADMIN_CAP)) {
+        if (!SVDP_Permissions::user_can_manage_accounting()) {
             wp_die('Permission denied');
         }
         

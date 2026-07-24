@@ -4,7 +4,7 @@
  */
 class SVDP_Database {
 
-    const SCHEMA_VERSION = '13';
+    const SCHEMA_VERSION = '14';
 
     /**
      * Run idempotent schema upgrades for the plugin.
@@ -61,8 +61,11 @@ class SVDP_Database {
         $fulfillment_entries_table = $wpdb->prefix . 'svdp_voucher_fulfillment_entries';
         $unavailable_reasons_table = $wpdb->prefix . 'svdp_unavailable_reasons';
         $fulfillment_audit_table = $wpdb->prefix . 'svdp_voucher_fulfillment_audit';
+        $statements_table = $wpdb->prefix . 'svdp_invoice_statements';
+        $batches_table = $wpdb->prefix . 'svdp_accounting_batches';
+        $accounting_audit_table = $wpdb->prefix . 'svdp_accounting_audit';
 
-        if (!self::table_exists($vouchers_table) || !self::table_exists($catalog_items_table) || !self::table_exists($furniture_categories_table) || !self::table_exists($voucher_items_table) || !self::table_exists($managers_table) || !self::table_exists($override_audit_table) || !self::table_exists($voucher_corrections_table) || !self::table_exists($request_groups_table) || !self::table_exists($request_group_delivery_table) || !self::table_exists($voucher_type_capabilities_table) || !self::table_exists($household_goods_browse_groups_table) || !self::table_exists($household_goods_catalog_table) || !self::table_exists($configuration_audit_table) || !self::table_exists($requested_lines_table) || !self::table_exists($fulfillment_entries_table) || !self::table_exists($unavailable_reasons_table) || !self::table_exists($fulfillment_audit_table)) {
+        if (!self::table_exists($vouchers_table) || !self::table_exists($catalog_items_table) || !self::table_exists($furniture_categories_table) || !self::table_exists($voucher_items_table) || !self::table_exists($managers_table) || !self::table_exists($override_audit_table) || !self::table_exists($voucher_corrections_table) || !self::table_exists($request_groups_table) || !self::table_exists($request_group_delivery_table) || !self::table_exists($voucher_type_capabilities_table) || !self::table_exists($household_goods_browse_groups_table) || !self::table_exists($household_goods_catalog_table) || !self::table_exists($configuration_audit_table) || !self::table_exists($requested_lines_table) || !self::table_exists($fulfillment_entries_table) || !self::table_exists($unavailable_reasons_table) || !self::table_exists($fulfillment_audit_table) || !self::table_exists($batches_table) || !self::table_exists($accounting_audit_table)) {
             return false;
         }
 
@@ -97,7 +100,9 @@ class SVDP_Database {
             && self::column_exists($household_goods_catalog_table, 'show_price_as_max')
             && self::column_exists($requested_lines_table, 'requested_pricing_type_snapshot')
             && self::column_exists($requested_lines_table, 'selected_category_limit_snapshot')
-            && self::column_exists($configuration_audit_table, 'human_summary');
+            && self::column_exists($configuration_audit_table, 'human_summary')
+            && self::column_exists($statements_table, 'pdf_file_path')
+            && self::column_exists($statements_table, 'accounting_batch_id');
     }
 
     /**
@@ -180,6 +185,8 @@ class SVDP_Database {
             form_enabled tinyint(1) DEFAULT 1,
             active tinyint(1) NOT NULL DEFAULT 1,
             notification_email varchar(200) DEFAULT NULL,
+            billing_email varchar(200) DEFAULT NULL,
+            quickbooks_customer_name varchar(200) DEFAULT NULL,
             custom_form_text text DEFAULT NULL,
             custom_rules_text text DEFAULT NULL,
             allowed_voucher_types text DEFAULT NULL,
@@ -500,11 +507,64 @@ class SVDP_Database {
             generated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             generated_by_user_id bigint(20) DEFAULT NULL,
             stored_file_path varchar(500) DEFAULT NULL,
+            pdf_file_path varchar(500) DEFAULT NULL,
+            email_to_snapshot varchar(200) DEFAULT NULL,
+            email_status varchar(32) NOT NULL DEFAULT 'not_sent',
+            email_attempts int(11) NOT NULL DEFAULT 0,
+            email_last_attempt_at datetime DEFAULT NULL,
+            email_sent_at datetime DEFAULT NULL,
+            email_last_error text DEFAULT NULL,
+            accounting_batch_id bigint(20) DEFAULT NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
             UNIQUE KEY uniq_svdp_statement_number (statement_number),
             KEY idx_svdp_statement_conference (conference_id),
             KEY idx_svdp_statement_period (period_start, period_end)
+        ) $charset_collate;";
+
+        $accounting_batches_table = $wpdb->prefix . 'svdp_accounting_batches';
+        $accounting_batches_sql = "CREATE TABLE $accounting_batches_table (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            batch_key varchar(100) NOT NULL,
+            batch_type varchar(20) NOT NULL DEFAULT 'monthly',
+            cutoff_date date NOT NULL,
+            status varchar(32) NOT NULL DEFAULT 'processing',
+            trigger_source varchar(32) NOT NULL DEFAULT 'cron',
+            triggered_by_user_id bigint(20) DEFAULT NULL,
+            iif_file_path varchar(500) DEFAULT NULL,
+            manifest_file_path varchar(500) DEFAULT NULL,
+            statement_count int(11) NOT NULL DEFAULT 0,
+            invoice_count int(11) NOT NULL DEFAULT 0,
+            total_amount decimal(12,2) NOT NULL DEFAULT 0.00,
+            bookkeeping_email_snapshot varchar(200) DEFAULT NULL,
+            email_status varchar(32) NOT NULL DEFAULT 'not_sent',
+            email_attempts int(11) NOT NULL DEFAULT 0,
+            email_sent_at datetime DEFAULT NULL,
+            email_last_error text DEFAULT NULL,
+            started_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            completed_at datetime DEFAULT NULL,
+            PRIMARY KEY (id),
+            UNIQUE KEY uniq_svdp_accounting_batch_key (batch_key),
+            KEY idx_svdp_accounting_batch_status (status)
+        ) $charset_collate;";
+
+        $accounting_audit_table = $wpdb->prefix . 'svdp_accounting_audit';
+        $accounting_audit_sql = "CREATE TABLE $accounting_audit_table (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            event_type varchar(80) NOT NULL,
+            decision varchar(10) NOT NULL DEFAULT 'allow',
+            resource_type varchar(50) NOT NULL,
+            resource_id bigint(20) DEFAULT NULL,
+            actor_user_id bigint(20) DEFAULT NULL,
+            actor_source varchar(32) NOT NULL DEFAULT 'user',
+            before_value longtext DEFAULT NULL,
+            after_value longtext DEFAULT NULL,
+            error_message text DEFAULT NULL,
+            human_summary text NOT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY idx_svdp_accounting_audit_resource (resource_type, resource_id),
+            KEY idx_svdp_accounting_audit_created (created_at)
         ) $charset_collate;";
 
         dbDelta($furniture_categories_sql);
@@ -515,6 +575,8 @@ class SVDP_Database {
         dbDelta($cancellation_reasons_sql);
         dbDelta($invoices_sql);
         dbDelta($invoice_statements_sql);
+        dbDelta($accounting_batches_sql);
+        dbDelta($accounting_audit_sql);
     }
 
     /**

@@ -102,6 +102,12 @@ class SVDP_Conference {
         if (isset($data['notification_email'])) {
             $update_data['notification_email'] = sanitize_email($data['notification_email']);
         }
+        if (isset($data['billing_email'])) {
+            $update_data['billing_email'] = sanitize_email($data['billing_email']);
+        }
+        if (isset($data['quickbooks_customer_name'])) {
+            $update_data['quickbooks_customer_name'] = sanitize_text_field($data['quickbooks_customer_name']);
+        }
 
         if (isset($data['eligibility_days'])) {
             $update_data['eligibility_days'] = intval($data['eligibility_days']);

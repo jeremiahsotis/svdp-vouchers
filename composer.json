@@ -1,0 +1,8 @@
+{
+    "name": "svdp-fort-wayne/svdp-vouchers",
+    "description": "SVdP voucher management WordPress plugin runtime dependencies.",
+    "license": "GPL-2.0-or-later",
+    "require": {
+        "dompdf/dompdf": "^3.1"
+    }
+}

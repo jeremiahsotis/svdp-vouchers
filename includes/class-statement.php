@@ -18,6 +18,12 @@ class SVDP_Statement {
      * @return WP_REST_Response
      */
     public static function get_default_range($request) {
+        $email_status = 'not_sent';
+        if (class_exists('SVDP_Accounting')) {
+            SVDP_Accounting::create_statement_pdf($statement_id);
+            $email_status = SVDP_Accounting::send_statement($statement_id) ? 'sent' : 'failed';
+        }
+
         return rest_ensure_response([
             'success' => true,
             'periodStart' => self::get_default_period_range()['periodStart'],
@@ -133,6 +139,7 @@ class SVDP_Statement {
             'statementId' => $statement_id,
             'statementNumber' => $statement_number,
             'statementUrl' => $document['url'],
+            'emailStatus' => $email_status,
             'periodStart' => $period_start,
             'periodEnd' => $period_end,
             'invoiceCount' => count($invoices),

@@ -19,6 +19,12 @@ define('SVDP_VOUCHERS_VERSION', '2.0.0');
 define('SVDP_VOUCHERS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SVDP_VOUCHERS_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SVDP_VOUCHERS_ADMIN_CAP', 'manage_svdp_vouchers');
+define('SVDP_VOUCHERS_ACCOUNTING_CAP', 'svdp_manage_accounting');
+
+$svdp_composer_autoload = SVDP_VOUCHERS_PLUGIN_DIR . 'vendor/autoload.php';
+if (file_exists($svdp_composer_autoload)) {
+    require_once $svdp_composer_autoload;
+}
 
 // Include required files
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-database.php';
@@ -38,6 +44,8 @@ require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-furniture-photo-storage.
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-furniture-receipt.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-invoice.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-statement.php';
+require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-accounting.php';
+require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-neighbor-voucher-print.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-household-goods-fulfillment.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-furniture-voucher.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-cashier-shell.php';
@@ -77,6 +85,8 @@ class SVDP_Vouchers_Plugin {
 
         // Extend cashier sessions beyond the default WordPress cookie lifetime
         add_filter('auth_cookie_expiration', [$this, 'extend_cashier_auth_cookie'], 10, 3);
+        add_action(SVDP_Accounting::CRON_HOOK, ['SVDP_Accounting', 'reconcile']);
+        add_action('admin_post_svdp_print_neighbor_voucher', ['SVDP_Neighbor_Voucher_Print', 'handle']);
     }
     
     /**
@@ -85,6 +95,7 @@ class SVDP_Vouchers_Plugin {
     public function activate() {
         SVDP_Database::maybe_upgrade();
         SVDP_Permissions::register_roles_and_capabilities();
+        SVDP_Accounting::ensure_schedule();
 
         // Flush rewrite rules
         flush_rewrite_rules();
@@ -94,6 +105,7 @@ class SVDP_Vouchers_Plugin {
      * Plugin deactivation
      */
     public function deactivate() {
+        SVDP_Accounting::clear_schedule();
         // Flush rewrite rules
         flush_rewrite_rules();
     }
@@ -104,6 +116,7 @@ class SVDP_Vouchers_Plugin {
     public function init() {
         SVDP_Database::maybe_upgrade();
         SVDP_Permissions::register_roles_and_capabilities();
+        SVDP_Accounting::ensure_schedule();
 
         // Initialize shortcodes
         new SVDP_Shortcodes();
@@ -466,7 +479,7 @@ class SVDP_Vouchers_Plugin {
      * @return bool
      */
     public function user_can_manage_admin() {
-        return current_user_can(SVDP_VOUCHERS_ADMIN_CAP);
+        return SVDP_Permissions::user_can_manage_accounting();
     }
 
     /**

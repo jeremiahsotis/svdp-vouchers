@@ -56,3 +56,7 @@ Furniture category updates carry the last observed `updated_at` value and reject
 Public Assisted Builder submission calls the Release C request-group service, which validates selected voucher types, duplicate eligibility, type-specific selections, requested-line snapshots, and group-level delivery before committing. Request-group rows, child voucher rows, Furniture/Household Goods requested lines, and the delivery snapshot are written in one transaction.
 
 Duplicate child types remain guarded by the unique `(request_group_id, voucher_type)` key. C4 does not add asynchronous processing, saved drafts, dispatch, inventory, POS, or delivery-attempt behavior.
+
+## Slice A1 Implementation Note
+
+Monthly accounting uses a unique monthly batch key, conditional attachment of unstatemented invoices, and one nullable export-batch owner per statement. Cron retries reuse existing state, do not recreate completed batches, and do not resend statements already marked sent. Manual cycle execution uses the same monthly key and guards.

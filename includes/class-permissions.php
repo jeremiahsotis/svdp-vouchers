@@ -16,6 +16,10 @@ class SVDP_Permissions {
         ]);
 
         add_role('svdp_voucher_manager', 'SVdP Voucher Manager', array_fill_keys($admin_caps, true));
+        add_role('svdp_bookkeeper', 'SVdP Bookkeeper', [
+            'read' => true,
+            SVDP_VOUCHERS_ACCOUNTING_CAP => true,
+        ]);
 
         self::grant_caps_to_role('svdp_cashier', [
             'read',
@@ -24,6 +28,7 @@ class SVDP_Permissions {
 
         self::grant_caps_to_role('svdp_voucher_manager', $admin_caps);
         self::grant_caps_to_role('administrator', $admin_caps);
+        self::grant_caps_to_role('svdp_bookkeeper', ['read', SVDP_VOUCHERS_ACCOUNTING_CAP]);
     }
 
     /**
@@ -96,6 +101,10 @@ class SVDP_Permissions {
         return self::user_has_capability($user, 'svdp_view_audit_log') || self::user_can_manage_plugin($user);
     }
 
+    public static function user_can_manage_accounting($user = null) {
+        return self::user_has_capability($user, SVDP_VOUCHERS_ACCOUNTING_CAP) || self::user_can_manage_plugin($user);
+    }
+
     /**
      * Return capabilities granted to plugin administrators.
      *
@@ -112,6 +121,7 @@ class SVDP_Permissions {
             'svdp_manage_household_goods_limits',
             'svdp_view_voucher_configuration_audit',
             'svdp_view_audit_log',
+            SVDP_VOUCHERS_ACCOUNTING_CAP,
         ];
     }
 
