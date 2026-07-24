@@ -1120,7 +1120,7 @@
       const estimate = getFurnitureEstimate(item);
       const categoryLabel = item.categoryLabel || "";
       const titleText = item.name + (showCategory && categoryLabel ? " (" + categoryLabel + ")" : "");
-      const pricingText = "Retail price: " + (item.priceDisplay || "") + " • " + getSelectedOrganizationName() + " pays up to " + formatMoney(estimate);
+      const pricingText = "Retail price: " + (item.priceDisplay || "") + " • " + getCatalogOrganizationPaymentLabel(item.pricingType, getSelectedOrganizationName(), estimate);
       return (
         '<article class="svdp-catalog-item' +
         (quantity > 0 ? " is-selected" : "") +
@@ -1160,7 +1160,7 @@
       const estimate = Number(category.estimatedConferencePartnerCostPerUnit || 0);
       const categoryLabel = category.browseGroupName || "Household Goods";
       const titleText = category.name + (showCategory && categoryLabel ? " (" + categoryLabel + ")" : "");
-      const pricingText = "Retail price: " + (category.priceDisplay || "") + " • " + getSelectedOrganizationName() + " pays up to " + formatMoney(estimate);
+      const pricingText = "Retail price: " + (category.priceDisplay || "") + " • " + getCatalogOrganizationPaymentLabel(category.pricingType, getSelectedOrganizationName(), estimate);
 
       return (
         '<article class="svdp-catalog-item' +
@@ -2018,6 +2018,22 @@
       }
       const hidden = form.find('input[type="hidden"][name="conference"]');
       return typeLabels[hidden.attr("data-organization-type")] || "Organization";
+    }
+
+    function getCatalogOrganizationPaymentLabel(
+      pricingType,
+      organizationLabel,
+      amount,
+    ) {
+      const normalizedPricingType = String(pricingType || "")
+        .trim()
+        .toLowerCase();
+      const paymentVerb =
+        normalizedPricingType === "fixed" || normalizedPricingType === "exact"
+          ? "pays"
+          : "pays up to";
+
+      return organizationLabel + " " + paymentVerb + " " + formatMoney(amount);
     }
 
     function syncRequestorLabels() {

@@ -18,7 +18,7 @@ Database upgrade, Furniture and Household Goods catalog services, request-group 
 Schema version 13 adds Furniture categories, Household Goods retail/coverage fields, Household Goods pricing snapshots, and configurable selected-category limits. Migration is idempotent and preserves historical rows.
 
 ## Contracts
-Priced cards expose `Retail price: … • [Organization Type] pays up to …`, using the friendly Conference, Partner, or Store type instead of the potentially long organization name and falling back to Organization when unresolved. Cards show inline category context only under the All/unset filter and use full-width decrement/increment touch targets. The public builder uses a scoped system-font boundary and an outer maximum width of 1180px with 14px viewport gutters. Range display defaults to Up to. Clothing and legacy `household` behavior do not change.
+Priced cards expose `Retail price: … • [Organization Type] pays …` for Fixed/Exact pricing and `Retail price: … • [Organization Type] pays up to …` for Range or unknown pricing. They use the friendly Conference, Partner, or Store type instead of the potentially long organization name and fall back to Organization when unresolved. A shared pricing-label formatter is the presentation path for current and future priced catalogs. Cards show inline category context only under the All/unset filter and use full-width decrement/increment touch targets. The public builder uses a scoped system-font boundary and an outer maximum width of 1180px with 14px viewport gutters. Range display defaults to Up to. Clothing and legacy `household` behavior do not change.
 
 ## Execution flow
 Upgrade schema and seed categories; normalize catalog data; administer future configuration; return normalized public catalog data; validate and snapshot selections atomically.
@@ -57,7 +57,7 @@ Configuration changes write human-readable before/after audit rows with actor an
 Validate with repository canonical commands; WordPress runtime verification remains a Local by Flywheel manual checkpoint.
 
 ## Testing requirements
-PHP syntax, governance validation, migration idempotency review, pricing/limit validation, public card behavior, category CRUD/archive/conflict, audit, and Clothing/legacy regression checks.
+PHP and JavaScript syntax, governance validation, migration idempotency review, pricing/limit validation, Fixed/Exact versus Range public payment wording, public card behavior, category CRUD/archive/conflict, audit, and Clothing/legacy regression checks.
 
 ## Version context
 Schema version 12 → 13.

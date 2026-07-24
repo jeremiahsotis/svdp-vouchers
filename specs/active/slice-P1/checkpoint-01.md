@@ -7,7 +7,7 @@ Verify the approved unified pricing, configurable limits, and editable Furniture
 Database/catalog/request services, admin and public catalog UI, protected contracts, governance logs, and this P1 execution packet. See the final `git status --short` output.
 
 ## Code changes
-Implemented unified priced catalogs, configurable Household Goods limits, immutable snapshots, editable Furniture categories, audit events, stale category-write rejection, compact shared selection cards, friendly organization-type pricing labels, and a theme-isolated public builder width/typography boundary matching the approved desktop/mobile references.
+Implemented unified priced catalogs, configurable Household Goods limits, immutable snapshots, editable Furniture categories, audit events, stale category-write rejection, compact shared selection cards, pricing-type-aware organization payment labels, and a theme-isolated public builder width/typography boundary matching the approved desktop/mobile references.
 
 ## Data changes
 Schema 13 forward migration; no issued snapshot rewrites. Rollback retains additive columns/tables and can run older code against preserved compatibility fields.
@@ -43,7 +43,7 @@ PASS — DDEV schema upgrade completed against `https://test-site.ddev.site/`; W
 No new dependency expected.
 
 ## Testing
-PASS — DDEV verified that a shortcode-preselected Conference renders `Conference pays up to …` on both Furniture and Household Goods cards instead of the organization’s long proper name. Static branch verification confirms `partner` → `Partner`, `store` → `Store`, and an empty selection, missing type, or unknown type → `Organization`. No organization identity, selector option text, summary, requestor label, or stored data changed. Browser console warnings/errors: none. Prior responsive theme-isolation, Furniture/Household Goods card behavior, schema, admin, limit, audit, and public flow verification remains passing.
+PASS — DDEV verified that the Range Furniture Sofa renders `Conference pays up to $37.50`, the Fixed Furniture Twin Mattress renders `Conference pays $60.00`, and migrated Fixed Household Goods cards render `Conference pays …`. Visible pricing and full `title` text match, remain within the two-line limit, and browser console warnings/errors are absent. Static branch verification confirms case-insensitive `fixed`/`exact` use `pays`, while `range`, missing, and unknown types conservatively use `pays up to`; the organization-label helper continues to supply Conference, Partner, Store, or Organization. Prior organization-type labels, responsive theme-isolation, Furniture/Household Goods card behavior, schema, admin, limit, audit, and public flow verification remains passing.
 
 ## Verification block
 `find includes public admin -name '*.php' ... php -l`: PASS. `node --check` changed JS: PASS. JSON validation: PASS. Governance validators: PASS. `git diff --check`: PASS. DDEV schema 13: PASS. Live browser console warnings/errors: none.
