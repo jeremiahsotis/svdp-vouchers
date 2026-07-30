@@ -1,6 +1,21 @@
 {
   "protected_contracts": [
     {
+      "name": "analytics_reporting_export",
+      "surfaces": [
+        "includes/class-analytics.php",
+        "includes/class-admin.php",
+        "admin/views/tab-analytics.php",
+        "svdp-vouchers.php"
+      ],
+      "rules": [
+        "Analytics visible metrics and CSV export must use the same normalized top filter set.",
+        "Date Range, Organization Type, Specific Organization, and Voucher Type filters must apply consistently across Analytics sections.",
+        "Denied/Blocked vouchers must be included in overview and export populations unless a future explicit status filter changes that contract.",
+        "Analytics reporting must remain read-only and must not mutate voucher, fulfillment, invoice, statement, or accounting batch state."
+      ]
+    },
+    {
       "name": "voucher_identity",
       "surfaces": ["includes/class-voucher.php"],
       "rules": [

@@ -1,142 +1,56 @@
 <?php
-global $wpdb;
-$vouchers_table = $wpdb->prefix . 'svdp_vouchers';
-$conferences_table = $wpdb->prefix . 'svdp_conferences';
+$analytics_data = SVDP_Analytics::get_dashboard_data(SVDP_Analytics::get_default_filters());
+if (is_wp_error($analytics_data)) {
+    echo '<div class="notice notice-error"><p>' . esc_html($analytics_data->get_error_message()) . '</p></div>';
+    return;
+}
 
-// Get date ranges
-$today = date('Y-m-d');
-$thirty_days_ago = date('Y-m-d', strtotime('-30 days'));
-$ninety_days_ago = date('Y-m-d', strtotime('-90 days'));
-$this_year = date('Y-01-01');
+$all_organizations = SVDP_Analytics::get_organizations();
+$voucher_type_options = SVDP_Analytics::get_voucher_type_options();
+$filters = $analytics_data['filters'];
 
-// Overall stats
-$total_vouchers = $wpdb->get_var("SELECT COUNT(*) FROM $vouchers_table WHERE status != 'Denied'");
-$active_vouchers = $wpdb->get_var("SELECT COUNT(*) FROM $vouchers_table WHERE status = 'Active' AND voucher_created_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)");
-$redeemed_vouchers = $wpdb->get_var("SELECT COUNT(*) FROM $vouchers_table WHERE status = 'Redeemed'");
-$denied_vouchers = $wpdb->get_var("SELECT COUNT(*) FROM $vouchers_table WHERE status = 'Denied'");
-
-// Time-based stats
-$vouchers_30_days = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM $vouchers_table WHERE voucher_created_date >= %s AND status != 'Denied'", $thirty_days_ago));
-$vouchers_90_days = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM $vouchers_table WHERE voucher_created_date >= %s AND status != 'Denied'", $ninety_days_ago));
-$vouchers_this_year = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM $vouchers_table WHERE voucher_created_date >= %s AND status != 'Denied'", $this_year));
-
-// Household stats
-$total_adults = $wpdb->get_var("SELECT SUM(adults) FROM $vouchers_table WHERE status != 'Denied'");
-$total_children = $wpdb->get_var("SELECT SUM(children) FROM $vouchers_table WHERE status != 'Denied'");
-$total_people_served = $total_adults + $total_children;
-$total_value = $wpdb->get_var("SELECT SUM(voucher_value) FROM $vouchers_table WHERE status != 'Denied'");
-
-// Per-organization breakdown with redemption metrics
-$organization_stats = $wpdb->get_results("
-    SELECT c.name,
-           c.organization_type,
-           COUNT(v.id) as vouchers_issued,
-           SUM(CASE WHEN v.status = 'Redeemed' THEN 1 ELSE 0 END) as vouchers_redeemed,
-           SUM(CASE WHEN v.status = 'Redeemed' THEN COALESCE(v.items_adult_redeemed, 0) + COALESCE(v.items_children_redeemed, 0) ELSE 0 END) as items_redeemed,
-           SUM(CASE WHEN v.status = 'Redeemed' THEN COALESCE(v.redemption_total_value, 0) ELSE 0 END) as redemption_value,
-           SUM(v.adults + v.children) as people_served
-    FROM $conferences_table c
-    LEFT JOIN $vouchers_table v ON c.id = v.conference_id AND v.status != 'Denied'
-    WHERE c.active = 1
-    GROUP BY c.id, c.name, c.organization_type
-    ORDER BY vouchers_issued DESC
-");
-
-// Coat stats - All Time
-$coats_adults_all_time = $wpdb->get_var("SELECT COALESCE(SUM(coat_adults_issued), 0) FROM $vouchers_table WHERE coat_status = 'Issued'");
-$coats_children_all_time = $wpdb->get_var("SELECT COALESCE(SUM(coat_children_issued), 0) FROM $vouchers_table WHERE coat_status = 'Issued'");
-$coats_total_all_time = $coats_adults_all_time + $coats_children_all_time;
-
-// Calculate the start of current coat season (most recent August 1st)
-$current_month = date('n'); // 1-12
-$current_year = date('Y');
-$season_start_date = ($current_month >= 8) ? "$current_year-08-01" : ($current_year - 1) . "-08-01";
-
-// Coat stats - This Season
-$coats_adults_this_season = $wpdb->get_var($wpdb->prepare(
-    "SELECT COALESCE(SUM(coat_adults_issued), 0) FROM $vouchers_table WHERE coat_status = 'Issued' AND coat_issued_date >= %s",
-    $season_start_date
-));
-$coats_children_this_season = $wpdb->get_var($wpdb->prepare(
-    "SELECT COALESCE(SUM(coat_children_issued), 0) FROM $vouchers_table WHERE coat_status = 'Issued' AND coat_issued_date >= %s",
-    $season_start_date
-));
-$coats_total_this_season = $coats_adults_this_season + $coats_children_this_season;
-
-// Item-based metrics (NEW in Phase 7)
-$items_adult_redeemed = $wpdb->get_var("SELECT COALESCE(SUM(items_adult_redeemed), 0) FROM $vouchers_table WHERE status = 'Redeemed'");
-$items_children_redeemed = $wpdb->get_var("SELECT COALESCE(SUM(items_children_redeemed), 0) FROM $vouchers_table WHERE status = 'Redeemed'");
-$items_total_redeemed = $items_adult_redeemed + $items_children_redeemed;
-$redemption_total_value = $wpdb->get_var("SELECT COALESCE(SUM(redemption_total_value), 0) FROM $vouchers_table WHERE status = 'Redeemed'");
-$avg_items_per_voucher = $redeemed_vouchers > 0 ? round($items_total_redeemed / $redeemed_vouchers, 1) : 0;
-
-// Get item values from settings
-$item_values = SVDP_Settings::get_item_values();
-
-// Organization type breakdown
-$org_type_stats = $wpdb->get_results("
-    SELECT c.organization_type,
-           COUNT(v.id) as voucher_count,
-           SUM(CASE WHEN v.status = 'Redeemed' THEN 1 ELSE 0 END) as redeemed_count,
-           SUM(CASE WHEN v.status = 'Redeemed' THEN COALESCE(v.items_adult_redeemed, 0) + COALESCE(v.items_children_redeemed, 0) ELSE 0 END) as items_provided
-    FROM $conferences_table c
-    LEFT JOIN $vouchers_table v ON c.id = v.conference_id AND v.status != 'Denied'
-    WHERE c.active = 1
-    GROUP BY c.organization_type
-    ORDER BY voucher_count DESC
-");
-
-// Voucher type breakdown
-$voucher_type_stats = $wpdb->get_results("
-    SELECT COALESCE(voucher_type, 'clothing') as type,
-           COUNT(*) as voucher_count,
-           SUM(CASE WHEN status = 'Redeemed' THEN COALESCE(items_adult_redeemed, 0) + COALESCE(items_children_redeemed, 0) ELSE 0 END) as items_redeemed,
-           SUM(CASE WHEN status = 'Redeemed' THEN COALESCE(redemption_total_value, 0) ELSE 0 END) as total_value
-    FROM $vouchers_table
-    WHERE status != 'Denied'
-    GROUP BY voucher_type
-    ORDER BY voucher_count DESC
-");
-// Get all active organizations for filter dropdown
-$all_organizations = $wpdb->get_results("
-    SELECT id, name, organization_type
-    FROM $conferences_table
-    WHERE active = 1
-    ORDER BY organization_type, name
-");
+if (!function_exists('svdp_analytics_stat_box')) {
+    function svdp_analytics_stat_box($id, $label, $class = '') {
+        ?>
+        <div class="stat-box <?php echo esc_attr($class); ?>">
+            <div class="stat-number" id="<?php echo esc_attr($id); ?>">0</div>
+            <div class="stat-label"><?php echo esc_html($label); ?></div>
+            <div class="stat-detail" id="<?php echo esc_attr($id . '_detail'); ?>"></div>
+        </div>
+        <?php
+    }
+}
 ?>
 
 <div class="svdp-analytics-tab">
-
-    <!-- Filters Panel -->
     <div class="svdp-card svdp-filters-panel">
-        <h2>🔍 Filters</h2>
-        <p class="description">Filter all analytics metrics by date range, organization, and voucher type. Click "Apply Filters" to update the data.</p>
+        <h2>Filters</h2>
+        <p class="description">Filter analytics by date range, organization, and voucher type. Month to Date is the default starting view.</p>
 
         <div class="filter-grid">
             <div class="filter-group">
-                <label>📅 Date Range</label>
+                <label for="svdp_filter_date_range">Date Range</label>
                 <select id="svdp_filter_date_range" name="date_range">
+                    <option value="mtd" selected>Month to Date</option>
                     <option value="all">All Time</option>
                     <option value="30">Last 30 Days</option>
                     <option value="90">Last 90 Days</option>
-                    <option value="365">Last Year</option>
                     <option value="ytd">Year to Date</option>
                     <option value="custom">Custom Range</option>
                 </select>
             </div>
 
-            <div class="filter-group" id="custom_date_inputs" style="display: none;">
+            <div class="filter-group custom-date-group" id="custom_date_inputs" hidden>
                 <label>Custom Dates</label>
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <input type="date" id="svdp_filter_start_date" name="start_date" style="flex: 1;">
+                <div class="custom-date-row">
+                    <input type="date" id="svdp_filter_start_date" name="start_date">
                     <span>to</span>
-                    <input type="date" id="svdp_filter_end_date" name="end_date" style="flex: 1;">
+                    <input type="date" id="svdp_filter_end_date" name="end_date">
                 </div>
             </div>
 
             <div class="filter-group">
-                <label>🏢 Organization Type</label>
+                <label for="svdp_filter_org_type">Organization Type</label>
                 <select id="svdp_filter_org_type" name="org_type">
                     <option value="all">All Types</option>
                     <option value="conference">Conference</option>
@@ -146,23 +60,24 @@ $all_organizations = $wpdb->get_results("
             </div>
 
             <div class="filter-group">
-                <label>🏛️ Specific Organization</label>
+                <label for="svdp_filter_org_id">Specific Organization</label>
                 <select id="svdp_filter_org_id" name="org_id">
                     <option value="all">All Organizations</option>
                     <?php foreach ($all_organizations as $org): ?>
                         <option value="<?php echo esc_attr($org->id); ?>" data-type="<?php echo esc_attr($org->organization_type); ?>">
-                            <?php echo esc_html($org->name); ?> (<?php echo ucfirst($org->organization_type); ?>)
+                            <?php echo esc_html($org->name); ?> (<?php echo esc_html(SVDP_Analytics::format_organization_type($org->organization_type)); ?>)
                         </option>
                     <?php endforeach; ?>
                 </select>
             </div>
 
             <div class="filter-group">
-                <label>🎫 Voucher Type</label>
+                <label for="svdp_filter_voucher_type">Voucher Type</label>
                 <select id="svdp_filter_voucher_type" name="voucher_type">
                     <option value="all">All Types</option>
-                    <option value="clothing">Clothing</option>
-                    <option value="furniture">Furniture</option>
+                    <?php foreach ($voucher_type_options as $type => $label): ?>
+                        <option value="<?php echo esc_attr($type); ?>"><?php echo esc_html($label); ?></option>
+                    <?php endforeach; ?>
                 </select>
             </div>
         </div>
@@ -170,166 +85,75 @@ $all_organizations = $wpdb->get_results("
         <div class="filter-actions">
             <button type="button" id="svdp_apply_filters" class="button button-primary">Apply Filters</button>
             <button type="button" id="svdp_reset_filters" class="button">Reset</button>
-            <span id="svdp_filter_loading" style="display: none; margin-left: 10px;">
-                <span class="spinner is-active" style="float: none; margin: 0;"></span> Loading...
+            <span id="svdp_filter_loading" hidden>
+                <span class="spinner is-active"></span> Loading...
             </span>
         </div>
 
-        <div id="svdp_active_filters" style="margin-top: 15px; display: none;">
+        <div id="svdp_active_filters">
             <strong>Active Filters:</strong>
-            <div id="svdp_filter_chips" style="display: inline-block; margin-left: 10px;"></div>
+            <div id="svdp_filter_chips"></div>
         </div>
     </div>
 
-    <!-- Overall Stats -->
     <div class="svdp-card">
-        <h2>📊 Overview Statistics</h2>
+        <h2>Voucher Overview</h2>
+        <p class="description selected-date-label"></p>
         <div class="stats-grid">
-            <div class="stat-box">
-                <div class="stat-number"><?php echo number_format($total_vouchers); ?></div>
-                <div class="stat-label">Total Vouchers</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-number"><?php echo number_format($active_vouchers); ?></div>
-                <div class="stat-label">Active (30 days)</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-number"><?php echo number_format($redeemed_vouchers); ?></div>
-                <div class="stat-label">Redeemed</div>
-            </div>
-            <div class="stat-box warning">
-                <div class="stat-number"><?php echo number_format($denied_vouchers); ?></div>
-                <div class="stat-label">Denied/Blocked</div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Time Period Stats -->
-    <div class="svdp-card">
-        <h2>📅 Time Period Analysis</h2>
-        <div class="stats-grid">
-            <div class="stat-box">
-                <div class="stat-number"><?php echo number_format($vouchers_30_days); ?></div>
-                <div class="stat-label">Last 30 Days</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-number"><?php echo number_format($vouchers_90_days); ?></div>
-                <div class="stat-label">Last 90 Days</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-number"><?php echo number_format($vouchers_this_year); ?></div>
-                <div class="stat-label">This Year (<?php echo date('Y'); ?>)</div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Impact Stats -->
-    <div class="svdp-card">
-        <h2>👥 Community Impact</h2>
-        <div class="stats-grid">
-            <div class="stat-box success">
-                <div class="stat-number"><?php echo number_format($total_people_served); ?></div>
-                <div class="stat-label">People Served</div>
-                <div class="stat-detail"><?php echo number_format($total_adults); ?> adults, <?php echo number_format($total_children); ?> children</div>
-            </div>
-            <div class="stat-box success">
-                <div class="stat-number">$<?php echo number_format($total_value); ?></div>
-                <div class="stat-label">Total Value Provided</div>
-            </div>
-            <div class="stat-box info">
-                <div class="stat-number"><?php echo number_format($coats_total_all_time); ?></div>
-                <div class="stat-label">Winter Coats Issued (All Time)</div>
-                <div class="stat-detail"><?php echo number_format($coats_adults_all_time); ?> adults, <?php echo number_format($coats_children_all_time); ?> children</div>
-            </div>
-            <div class="stat-box info">
-                <div class="stat-number"><?php echo number_format($coats_total_this_season); ?></div>
-                <div class="stat-label">Coats This Season</div>
-                <div class="stat-detail"><?php echo number_format($coats_adults_this_season); ?> adults, <?php echo number_format($coats_children_this_season); ?> children</div>
-            </div>
+            <?php svdp_analytics_stat_box('overview_total_vouchers', 'Total Vouchers'); ?>
+            <?php svdp_analytics_stat_box('overview_total_redeemed', 'Total Redeemed', 'success'); ?>
+            <?php svdp_analytics_stat_box('overview_currently_active', 'Currently Active', 'info'); ?>
+            <?php svdp_analytics_stat_box('overview_total_expired', 'Total Expired', 'warning'); ?>
+            <?php svdp_analytics_stat_box('overview_total_denied', 'Denied/Blocked', 'warning'); ?>
         </div>
     </div>
 
-    <!-- Items Provided (NEW in Phase 7) -->
     <div class="svdp-card">
-        <h2>📦 Items Provided</h2>
+        <h2>Current Month-to-Date Overview</h2>
+        <p class="description">Defaults to Month to Date and updates to the selected Date Range when filters are applied.</p>
         <div class="stats-grid">
-            <div class="stat-box success">
-                <div class="stat-number"><?php echo number_format($items_total_redeemed); ?></div>
-                <div class="stat-label">Total Items Redeemed</div>
-                <div class="stat-detail"><?php echo number_format($items_adult_redeemed); ?> adult, <?php echo number_format($items_children_redeemed); ?> child</div>
-            </div>
-            <div class="stat-box success">
-                <div class="stat-number">$<?php echo number_format($redemption_total_value, 2); ?></div>
-                <div class="stat-label">Redemption Value</div>
-                <div class="stat-detail">Adult: $<?php echo number_format($item_values['adult'], 2); ?>/item, Child: $<?php echo number_format($item_values['child'], 2); ?>/item</div>
-            </div>
-            <div class="stat-box info">
-                <div class="stat-number"><?php echo number_format($avg_items_per_voucher, 1); ?></div>
-                <div class="stat-label">Avg Items per Voucher</div>
-            </div>
+            <?php svdp_analytics_stat_box('period_total_vouchers', 'Total Vouchers'); ?>
+            <?php svdp_analytics_stat_box('period_total_redeemed', 'Total Redeemed', 'success'); ?>
+            <?php svdp_analytics_stat_box('period_currently_active', 'Currently Active', 'info'); ?>
+            <?php svdp_analytics_stat_box('period_total_expired', 'Total Expired', 'warning'); ?>
+            <?php svdp_analytics_stat_box('period_total_denied', 'Denied/Blocked', 'warning'); ?>
         </div>
     </div>
 
-    <!-- Organization Type Breakdown -->
     <div class="svdp-card">
-        <h2>🏢 Voucher Metrics by Organization Type</h2>
-        <table class="wp-list-table widefat fixed striped">
-            <thead>
-                <tr>
-                    <th>Organization Type</th>
-                    <th>Vouchers Issued</th>
-                    <th>Vouchers Redeemed</th>
-                    <th>Redemption Rate</th>
-                    <th>Items Provided</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($org_type_stats as $stat):
-                    $redemption_rate = $stat->voucher_count > 0 ? round(($stat->redeemed_count / $stat->voucher_count) * 100) : 0;
-                    $type_label = ucfirst($stat->organization_type);
-                ?>
-                <tr>
-                    <td><strong><?php echo esc_html($type_label); ?></strong></td>
-                    <td><?php echo number_format($stat->voucher_count); ?></td>
-                    <td><?php echo number_format($stat->redeemed_count); ?></td>
-                    <td><?php echo $redemption_rate; ?>%</td>
-                    <td><?php echo number_format($stat->items_provided); ?></td>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-    </div>
+        <h2>Community Impact</h2>
+        <p class="description selected-date-label"></p>
+        <div class="stats-grid">
+            <?php svdp_analytics_stat_box('impact_people_served', 'People Served', 'success'); ?>
+            <?php svdp_analytics_stat_box('impact_total_value', 'Total Value Provided', 'success'); ?>
+            <?php svdp_analytics_stat_box('impact_total_items', 'Total Items Provided', 'info'); ?>
+        </div>
 
-    <!-- Voucher Type Breakdown -->
-    <div class="svdp-card">
-        <h2>🎫 Breakdown by Voucher Type</h2>
+        <h3>Community Impact by Voucher Type</h3>
         <table class="wp-list-table widefat fixed striped">
             <thead>
                 <tr>
                     <th>Voucher Type</th>
-                    <th>Vouchers Created</th>
-                    <th>Items Redeemed</th>
-                    <th>Redemption Value</th>
+                    <th>People Served</th>
+                    <th>Adults</th>
+                    <th>Children</th>
+                    <th>Total Value Provided</th>
+                    <th>Total Items Provided</th>
                 </tr>
             </thead>
-            <tbody>
-                <?php foreach ($voucher_type_stats as $stat):
-                    $type_label = ucfirst($stat->type);
-                ?>
-                <tr>
-                    <td><strong><?php echo esc_html($type_label); ?></strong></td>
-                    <td><?php echo number_format($stat->voucher_count); ?></td>
-                    <td><?php echo number_format($stat->items_redeemed); ?></td>
-                    <td>$<?php echo number_format($stat->total_value, 2); ?></td>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
+            <tbody id="impact_by_type_body"></tbody>
         </table>
+
+        <h3>Winter Coats</h3>
+        <div class="stats-grid">
+            <?php svdp_analytics_stat_box('coats_total', 'Total Coats', 'info'); ?>
+            <?php svdp_analytics_stat_box('coats_adults', 'Adult Coats', 'info'); ?>
+            <?php svdp_analytics_stat_box('coats_children', 'Child Coats', 'info'); ?>
+        </div>
     </div>
 
-    <!-- Per-Organization Breakdown -->
     <div class="svdp-card">
-        <h2>🏛️ Performance by Organization</h2>
+        <h2>Performance by Organization</h2>
         <p class="description">Detailed redemption metrics for each Conference, Partner, and Store.</p>
         <table class="wp-list-table widefat fixed striped">
             <thead>
@@ -343,168 +167,48 @@ $all_organizations = $wpdb->get_results("
                     <th>Redemption Value</th>
                 </tr>
             </thead>
-            <tbody>
-                <?php foreach ($organization_stats as $stat):
-                    $redemption_rate = $stat->vouchers_issued > 0 ? round(($stat->vouchers_redeemed / $stat->vouchers_issued) * 100) : 0;
-                    $org_type_badge = ucfirst($stat->organization_type);
-                ?>
-                <tr>
-                    <td><strong><?php echo esc_html($stat->name); ?></strong></td>
-                    <td><span class="org-type-badge org-type-<?php echo esc_attr($stat->organization_type); ?>"><?php echo esc_html($org_type_badge); ?></span></td>
-                    <td><?php echo number_format($stat->vouchers_issued); ?></td>
-                    <td><?php echo number_format($stat->vouchers_redeemed); ?></td>
-                    <td><strong><?php echo $redemption_rate; ?>%</strong></td>
-                    <td><?php echo number_format($stat->items_redeemed); ?></td>
-                    <td><strong>$<?php echo number_format($stat->redemption_value, 2); ?></strong></td>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
+            <tbody id="organization_performance_body"></tbody>
         </table>
     </div>
 
-    <!-- Denied Vouchers Analysis -->
     <div class="svdp-card">
-        <h2>🚫 Denied/Blocked Vouchers</h2>
-        <p class="description">These are voucher requests that were blocked due to eligibility rules. This data helps us understand demand and identify people attempting to get multiple vouchers.</p>
-        
-        <?php
-        $denied_30_days = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM $vouchers_table WHERE status = 'Denied' AND voucher_created_date >= %s", $thirty_days_ago));
-        $denied_by_conference = $wpdb->get_results("
-            SELECT c.name, COUNT(v.id) as denied_count
-            FROM $vouchers_table v
-            LEFT JOIN $conferences_table c ON v.conference_id = c.id
-            WHERE v.status = 'Denied'
-            GROUP BY c.id, c.name
-            ORDER BY denied_count DESC
-            LIMIT 10
-        ");
-        
-        // Get recent denied vouchers
-        $recent_denied = $wpdb->get_results("
-            SELECT v.*, c.name as conference_name
-            FROM $vouchers_table v
-            LEFT JOIN $conferences_table c ON v.conference_id = c.id
-            WHERE v.status = 'Denied'
-            ORDER BY v.created_at DESC
-            LIMIT 20
-        ");
-        ?>
-        
-        <div class="stats-grid" style="margin-bottom: 20px;">
-            <div class="stat-box warning">
-                <div class="stat-number"><?php echo number_format($denied_vouchers); ?></div>
-                <div class="stat-label">Total Denied (All Time)</div>
-            </div>
-            <div class="stat-box warning">
-                <div class="stat-number"><?php echo number_format($denied_30_days); ?></div>
-                <div class="stat-label">Denied (Last 30 Days)</div>
-            </div>
+        <h2>Denied/Blocked Vouchers</h2>
+        <p class="description">Voucher requests blocked due to eligibility rules.</p>
+
+        <div class="stats-grid">
+            <?php svdp_analytics_stat_box('denied_total', 'Denied/Blocked', 'warning'); ?>
         </div>
-        
-        <h3>Denied by Conference</h3>
-        <table class="wp-list-table widefat fixed striped" style="margin-bottom: 20px;">
+
+        <h3>Denied by Organization</h3>
+        <table class="wp-list-table widefat fixed striped">
             <thead>
                 <tr>
-                    <th>Conference</th>
+                    <th>Organization</th>
                     <th>Denied Count</th>
                 </tr>
             </thead>
-            <tbody>
-                <?php foreach ($denied_by_conference as $stat): ?>
-                <tr>
-                    <td><?php echo esc_html($stat->name); ?></td>
-                    <td><?php echo number_format($stat->denied_count); ?></td>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
+            <tbody id="denied_by_org_body"></tbody>
         </table>
-        
+
         <h3>Recent Denied Vouchers</h3>
         <table class="wp-list-table widefat fixed striped">
             <thead>
                 <tr>
                     <th>Name</th>
                     <th>DOB</th>
-                    <th>Conference</th>
+                    <th>Organization</th>
+                    <th>Voucher Type</th>
                     <th>Requested By</th>
                     <th>Date</th>
                     <th>Reason</th>
                 </tr>
             </thead>
-            <tbody>
-                <?php foreach ($recent_denied as $voucher): ?>
-                <tr>
-                    <td><?php echo esc_html($voucher->first_name . ' ' . $voucher->last_name); ?></td>
-                    <td><?php echo esc_html($voucher->dob); ?></td>
-                    <td><?php echo esc_html($voucher->conference_name); ?></td>
-                    <td><?php echo esc_html($voucher->vincentian_name ?: $voucher->created_by); ?></td>
-                    <td><?php echo esc_html($voucher->voucher_created_date); ?></td>
-                    <td><small><?php echo esc_html($voucher->denial_reason); ?></small></td>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
+            <tbody id="recent_denied_body"></tbody>
         </table>
     </div>
-    
-    <!-- Export Section -->
+
     <div class="svdp-card">
-        <h2>📥 Export Data</h2>
-        <p>Download voucher data for reporting and analysis.</p>
-        
-        <form id="svdp-export-form" method="post" action="<?php echo admin_url('admin-post.php'); ?>">
-            <input type="hidden" name="action" value="svdp_export_vouchers">
-            <?php wp_nonce_field('svdp_export', 'svdp_export_nonce'); ?>
-
-            <!-- Hidden inputs for filter state -->
-            <input type="hidden" name="filter_date_range" id="export_filter_date_range" value="all">
-            <input type="hidden" name="filter_start_date" id="export_filter_start_date" value="">
-            <input type="hidden" name="filter_end_date" id="export_filter_end_date" value="">
-            <input type="hidden" name="filter_org_type" id="export_filter_org_type" value="all">
-            <input type="hidden" name="filter_org_id" id="export_filter_org_id" value="all">
-            <input type="hidden" name="filter_voucher_type" id="export_filter_voucher_type" value="all">
-
-            <table class="form-table">
-                <tr>
-                    <th><label>Date Range</label></th>
-                    <td>
-                        <select name="date_range" id="export_date_range">
-                            <option value="all">All Time</option>
-                            <option value="30">Last 30 Days</option>
-                            <option value="90">Last 90 Days</option>
-                            <option value="365">Last Year</option>
-                            <option value="ytd">Year to Date</option>
-                            <option value="custom">Custom Range</option>
-                        </select>
-                    </td>
-                </tr>
-                <tr id="custom_date_row" style="display: none;">
-                    <th><label>Custom Dates</label></th>
-                    <td>
-                        <input type="date" name="start_date" id="start_date">
-                        <span> to </span>
-                        <input type="date" name="end_date" id="end_date">
-                    </td>
-                </tr>
-                <tr>
-                    <th><label>Include Denied Vouchers?</label></th>
-                    <td>
-                        <label>
-                            <input type="checkbox" name="include_denied" value="1">
-                            Include blocked/denied vouchers in export
-                        </label>
-                    </td>
-                </tr>
-            </table>
-            
-            <p class="submit">
-                <button type="submit" class="button button-primary">Export to Excel</button>
-            </p>
-        </form>
-    </div>
-
-    <!-- Override Analytics Section -->
-    <div class="svdp-analytics-section">
-        <h3>Emergency Override Statistics</h3>
+        <h2>Emergency Override Statistics</h2>
         <table class="wp-list-table widefat fixed striped">
             <thead>
                 <tr>
@@ -513,27 +217,10 @@ $all_organizations = $wpdb->get_results("
                     <th>Percentage</th>
                 </tr>
             </thead>
-            <tbody>
-                <?php
-                // Total vouchers with overrides
-                $override_count = $wpdb->get_var("
-                    SELECT COUNT(*)
-                    FROM {$wpdb->prefix}svdp_vouchers
-                    WHERE manager_id IS NOT NULL
-                ");
-
-                $total_vouchers = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}svdp_vouchers");
-                $override_pct = $total_vouchers > 0 ? round(($override_count / $total_vouchers) * 100, 1) : 0;
-                ?>
-                <tr>
-                    <td><strong>Total Overrides</strong></td>
-                    <td><?php echo number_format($override_count); ?></td>
-                    <td><?php echo $override_pct; ?>%</td>
-                </tr>
-            </tbody>
+            <tbody id="override_summary_body"></tbody>
         </table>
 
-        <h4>Overrides by Manager</h4>
+        <h3>Overrides by Manager</h3>
         <table class="wp-list-table widefat fixed striped">
             <thead>
                 <tr>
@@ -542,36 +229,10 @@ $all_organizations = $wpdb->get_results("
                     <th>% of Total Overrides</th>
                 </tr>
             </thead>
-            <tbody>
-                <?php
-                $manager_stats = $wpdb->get_results("
-                    SELECT
-                        m.name as manager_name,
-                        COUNT(v.id) as override_count
-                    FROM {$wpdb->prefix}svdp_vouchers v
-                    INNER JOIN {$wpdb->prefix}svdp_managers m ON v.manager_id = m.id
-                    WHERE v.manager_id IS NOT NULL
-                    GROUP BY m.id, m.name
-                    ORDER BY override_count DESC
-                ");
-
-                if (empty($manager_stats)) {
-                    echo '<tr><td colspan="3">No override data yet.</td></tr>';
-                } else {
-                    foreach ($manager_stats as $stat) {
-                        $pct = $override_count > 0 ? round(($stat->override_count / $override_count) * 100, 1) : 0;
-                        echo '<tr>';
-                        echo '<td>' . esc_html($stat->manager_name) . '</td>';
-                        echo '<td>' . number_format($stat->override_count) . '</td>';
-                        echo '<td>' . $pct . '%</td>';
-                        echo '</tr>';
-                    }
-                }
-                ?>
-            </tbody>
+            <tbody id="override_manager_body"></tbody>
         </table>
 
-        <h4>Overrides by Reason</h4>
+        <h3>Overrides by Reason</h3>
         <table class="wp-list-table widefat fixed striped">
             <thead>
                 <tr>
@@ -580,99 +241,157 @@ $all_organizations = $wpdb->get_results("
                     <th>% of Total Overrides</th>
                 </tr>
             </thead>
-            <tbody>
-                <?php
-                $reason_stats = $wpdb->get_results("
-                    SELECT
-                        r.reason_text,
-                        COUNT(v.id) as override_count
-                    FROM {$wpdb->prefix}svdp_vouchers v
-                    INNER JOIN {$wpdb->prefix}svdp_override_reasons r ON v.reason_id = r.id
-                    WHERE v.reason_id IS NOT NULL
-                    GROUP BY r.id, r.reason_text
-                    ORDER BY override_count DESC
-                ");
-
-                if (empty($reason_stats)) {
-                    echo '<tr><td colspan="3">No override data yet.</td></tr>';
-                } else {
-                    foreach ($reason_stats as $stat) {
-                        $pct = $override_count > 0 ? round(($stat->override_count / $override_count) * 100, 1) : 0;
-                        echo '<tr>';
-                        echo '<td>' . esc_html($stat->reason_text) . '</td>';
-                        echo '<td>' . number_format($stat->override_count) . '</td>';
-                        echo '<td>' . $pct . '%</td>';
-                        echo '</tr>';
-                    }
-                }
-                ?>
-            </tbody>
+            <tbody id="override_reason_body"></tbody>
         </table>
     </div>
 
+    <div class="svdp-card">
+        <h2>Export Data</h2>
+        <p class="description">Export voucher rows using the active filters at the top of this page.</p>
+        <p id="export_filter_summary" class="svdp-export-summary"></p>
+
+        <form id="svdp-export-form" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+            <input type="hidden" name="action" value="svdp_export_vouchers">
+            <?php wp_nonce_field('svdp_export', 'svdp_export_nonce'); ?>
+            <input type="hidden" name="filter_date_range" id="export_filter_date_range" value="<?php echo esc_attr($filters['date_range']); ?>">
+            <input type="hidden" name="filter_start_date" id="export_filter_start_date" value="">
+            <input type="hidden" name="filter_end_date" id="export_filter_end_date" value="">
+            <input type="hidden" name="filter_org_type" id="export_filter_org_type" value="all">
+            <input type="hidden" name="filter_org_id" id="export_filter_org_id" value="all">
+            <input type="hidden" name="filter_voucher_type" id="export_filter_voucher_type" value="all">
+
+            <p class="submit">
+                <button type="submit" class="button button-primary">Export Data</button>
+            </p>
+        </form>
+    </div>
 </div>
 
 <style>
-.stats-grid {
+.svdp-analytics-tab .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
     margin: 20px 0;
 }
 
-.stat-box {
-    background: white;
+.svdp-analytics-tab .stat-box {
+    background: #fff;
     border: 1px solid #ddd;
     border-left: 4px solid #006BA8;
-    padding: 20px;
+    padding: 18px;
     text-align: center;
     border-radius: 4px;
 }
 
-.stat-box.success {
+.svdp-analytics-tab .stat-box.success {
     border-left-color: #28a745;
 }
 
-.stat-box.warning {
+.svdp-analytics-tab .stat-box.warning {
     border-left-color: #ffc107;
 }
 
-.stat-box.info {
+.svdp-analytics-tab .stat-box.info {
     border-left-color: #17a2b8;
 }
 
-.stat-number {
-    font-size: 32px;
-    font-weight: bold;
+.svdp-analytics-tab .stat-number {
+    font-size: 30px;
+    font-weight: 700;
     color: #006BA8;
     margin-bottom: 5px;
 }
 
-.stat-box.success .stat-number {
+.svdp-analytics-tab .stat-box.success .stat-number {
     color: #28a745;
 }
 
-.stat-box.warning .stat-number {
-    color: #ff9800;
+.svdp-analytics-tab .stat-box.warning .stat-number {
+    color: #b15d00;
 }
 
-.stat-box.info .stat-number {
-    color: #17a2b8;
+.svdp-analytics-tab .stat-box.info .stat-number {
+    color: #167386;
 }
 
-.stat-label {
+.svdp-analytics-tab .stat-label {
     font-size: 14px;
-    color: #666;
+    color: #555;
     font-weight: 600;
 }
 
-.stat-detail {
+.svdp-analytics-tab .stat-detail {
     font-size: 12px;
-    color: #999;
+    color: #777;
     margin-top: 5px;
 }
 
-.org-type-badge {
+.svdp-analytics-tab .svdp-filters-panel {
+    background: #f8f9fa;
+    border-left: 4px solid #2271b1;
+}
+
+.svdp-analytics-tab .filter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 15px;
+    margin: 20px 0;
+}
+
+.svdp-analytics-tab .filter-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: #1d2327;
+}
+
+.svdp-analytics-tab .filter-group select,
+.svdp-analytics-tab .filter-group input[type="date"] {
+    width: 100%;
+}
+
+.svdp-analytics-tab .custom-date-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.svdp-analytics-tab .filter-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #ddd;
+    margin-top: 10px;
+}
+
+.svdp-analytics-tab #svdp_filter_loading .spinner {
+    float: none;
+    margin: 0 4px 0 0;
+}
+
+.svdp-analytics-tab #svdp_active_filters {
+    margin-top: 15px;
+}
+
+.svdp-analytics-tab #svdp_filter_chips {
+    display: inline-block;
+    margin-left: 10px;
+}
+
+.svdp-analytics-tab .filter-chip {
+    display: inline-block;
+    background: #2271b1;
+    color: #fff;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    margin-right: 8px;
+    margin-bottom: 5px;
+}
+
+.svdp-analytics-tab .org-type-badge {
     display: inline-block;
     padding: 4px 10px;
     border-radius: 12px;
@@ -682,122 +401,53 @@ $all_organizations = $wpdb->get_results("
     letter-spacing: 0.5px;
 }
 
-.org-type-conference {
+.svdp-analytics-tab .org-type-conference {
     background: #e3f2fd;
     color: #1976d2;
 }
 
-.org-type-partner {
+.svdp-analytics-tab .org-type-partner {
     background: #fff3e0;
-    color: #f57c00;
+    color: #a04f00;
 }
 
-.org-type-store {
+.svdp-analytics-tab .org-type-store {
     background: #e8f5e9;
-    color: #388e3c;
+    color: #2f6f33;
 }
 
-/* Filters Panel */
-.svdp-filters-panel {
-    background: #f8f9fa;
-    border-left: 4px solid #2271b1;
-}
-
-.filter-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 15px;
-    margin: 20px 0;
-}
-
-.filter-group label {
-    display: block;
+.svdp-analytics-tab .svdp-export-summary {
     font-weight: 600;
-    margin-bottom: 5px;
-    color: #1d2327;
-}
-
-.filter-group select,
-.filter-group input[type="date"] {
-    width: 100%;
-    padding: 6px 10px;
-    border: 1px solid #8c8f94;
-    border-radius: 4px;
-}
-
-.filter-actions {
-    display: flex;
-    align-items: center;
-    padding-top: 10px;
-    border-top: 1px solid #ddd;
-    margin-top: 10px;
-}
-
-.filter-chip {
-    display: inline-block;
-    background: #2271b1;
-    color: white;
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-size: 12px;
-    margin-right: 8px;
-    margin-bottom: 5px;
-}
-
-.filter-chip .remove-filter {
-    margin-left: 6px;
-    cursor: pointer;
-    font-weight: bold;
-}
-
-.filter-chip .remove-filter:hover {
-    color: #ff4444;
 }
 </style>
 
 <script>
-jQuery(document).ready(function($) {
-    // Handle export date range changes
-    $('#export_date_range').on('change', function() {
-        if ($(this).val() === 'custom') {
-            $('#custom_date_row').show();
-        } else {
-            $('#custom_date_row').hide();
-        }
-    });
+jQuery(function($) {
+    var initialData = <?php echo wp_json_encode($analytics_data); ?>;
 
-    // Handle filter date range changes
-    $('#svdp_filter_date_range').on('change', function() {
-        if ($(this).val() === 'custom') {
-            $('#custom_date_inputs').show();
-        } else {
-            $('#custom_date_inputs').hide();
-        }
-    });
+    function formatNumber(value) {
+        return Number(value || 0).toLocaleString();
+    }
 
-    // Handle organization type filter changes (filter specific org dropdown)
-    $('#svdp_filter_org_type').on('change', function() {
-        var selectedType = $(this).val();
-        var $orgSelect = $('#svdp_filter_org_id');
+    function formatMoney(value) {
+        return '$' + Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
 
-        if (selectedType === 'all') {
-            $orgSelect.find('option').show();
-        } else {
-            $orgSelect.find('option').each(function() {
-                var optionType = $(this).data('type');
-                if (!optionType || optionType === selectedType) {
-                    $(this).show();
-                } else {
-                    $(this).hide();
-                }
-            });
-        }
-        $orgSelect.val('all');
-    });
+    function escapeHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
 
-    // Apply Filters
-    $('#svdp_apply_filters').on('click', function() {
-        var filters = {
+    function pct(part, total) {
+        return total > 0 ? Math.round((Number(part || 0) / Number(total)) * 1000) / 10 : 0;
+    }
+
+    function getFilters() {
+        return {
             date_range: $('#svdp_filter_date_range').val(),
             start_date: $('#svdp_filter_start_date').val(),
             end_date: $('#svdp_filter_end_date').val(),
@@ -805,33 +455,97 @@ jQuery(document).ready(function($) {
             org_id: $('#svdp_filter_org_id').val(),
             voucher_type: $('#svdp_filter_voucher_type').val()
         };
+    }
 
-        // Validate custom date range
-        if (filters.date_range === 'custom' && (!filters.start_date || !filters.end_date)) {
-            alert('Please select both start and end dates for custom range.');
+    function setStat(prefix, data) {
+        $('#' + prefix + '_total_vouchers').text(formatNumber(data.total_vouchers));
+        $('#' + prefix + '_total_redeemed').text(formatNumber(data.total_redeemed));
+        $('#' + prefix + '_currently_active').text(formatNumber(data.currently_active));
+        $('#' + prefix + '_total_expired').text(formatNumber(data.total_expired));
+        $('#' + prefix + '_total_denied').text(formatNumber(data.total_denied));
+    }
+
+    function renderRows($tbody, rows, emptyColspan, renderer) {
+        $tbody.empty();
+        if (!rows || rows.length === 0) {
+            $tbody.append('<tr><td colspan="' + emptyColspan + '">No data found for the selected filters.</td></tr>');
             return;
         }
+        rows.forEach(function(row) {
+            $tbody.append(renderer(row));
+        });
+    }
 
-        applyFilters(filters);
-    });
+    function renderAnalytics(data) {
+        $('.selected-date-label').text(data.date_label);
+        setStat('overview', data.overview);
+        setStat('period', data.period_overview);
 
-    // Reset Filters
-    $('#svdp_reset_filters').on('click', function() {
-        $('#svdp_filter_date_range').val('all');
-        $('#svdp_filter_org_type').val('all');
-        $('#svdp_filter_org_id').val('all');
-        $('#svdp_filter_voucher_type').val('all');
-        $('#svdp_filter_start_date').val('');
-        $('#svdp_filter_end_date').val('');
-        $('#custom_date_inputs').hide();
-        $('#svdp_active_filters').hide();
+        var impact = data.community_impact.total || {};
+        $('#impact_people_served').text(formatNumber(impact.people_served));
+        $('#impact_people_served_detail').text(formatNumber(impact.adults) + ' adults, ' + formatNumber(impact.children) + ' children');
+        $('#impact_total_value').text(formatMoney(impact.total_value));
+        $('#impact_total_items').text(formatNumber(impact.total_items));
 
-        // Reload page to show all data
-        window.location.reload();
-    });
+        renderRows($('#impact_by_type_body'), data.community_impact.by_type, 6, function(row) {
+            return '<tr>' +
+                '<td><strong>' + escapeHtml(row.voucher_type_label) + '</strong></td>' +
+                '<td>' + formatNumber(row.people_served) + '</td>' +
+                '<td>' + formatNumber(row.adults) + '</td>' +
+                '<td>' + formatNumber(row.children) + '</td>' +
+                '<td>' + formatMoney(row.total_value) + '</td>' +
+                '<td>' + formatNumber(row.total_items) + '</td>' +
+                '</tr>';
+        });
+
+        $('#coats_total').text(formatNumber(data.winter_coats.total));
+        $('#coats_adults').text(formatNumber(data.winter_coats.adults));
+        $('#coats_children').text(formatNumber(data.winter_coats.children));
+
+        renderRows($('#organization_performance_body'), data.organizations, 7, function(row) {
+            var rate = pct(row.vouchers_redeemed, row.vouchers_issued);
+            return '<tr>' +
+                '<td><strong>' + escapeHtml(row.name) + '</strong></td>' +
+                '<td><span class="org-type-badge org-type-' + escapeHtml(row.organization_type) + '">' + escapeHtml(row.organization_type_label) + '</span></td>' +
+                '<td>' + formatNumber(row.vouchers_issued) + '</td>' +
+                '<td>' + formatNumber(row.vouchers_redeemed) + '</td>' +
+                '<td><strong>' + rate + '%</strong></td>' +
+                '<td>' + formatNumber(row.items_redeemed) + '</td>' +
+                '<td><strong>' + formatMoney(row.redemption_value) + '</strong></td>' +
+                '</tr>';
+        });
+
+        $('#denied_total').text(formatNumber(data.denied.total));
+        renderRows($('#denied_by_org_body'), data.denied.by_organization, 2, function(row) {
+            return '<tr><td>' + escapeHtml(row.name) + '</td><td>' + formatNumber(row.denied_count) + '</td></tr>';
+        });
+        renderRows($('#recent_denied_body'), data.denied.recent, 7, function(row) {
+            return '<tr>' +
+                '<td>' + escapeHtml(row.name) + '</td>' +
+                '<td>' + escapeHtml(row.dob) + '</td>' +
+                '<td>' + escapeHtml(row.conference_name) + '</td>' +
+                '<td>' + escapeHtml(row.voucher_type_label) + '</td>' +
+                '<td>' + escapeHtml(row.requested_by) + '</td>' +
+                '<td>' + escapeHtml(row.voucher_created_date) + '</td>' +
+                '<td><small>' + escapeHtml(row.denial_reason) + '</small></td>' +
+                '</tr>';
+        });
+
+        var overridePct = Number(data.overrides.override_percentage || 0);
+        $('#override_summary_body').html('<tr><td><strong>Total Overrides</strong></td><td>' + formatNumber(data.overrides.override_count) + '</td><td>' + overridePct + '%</td></tr>');
+        renderRows($('#override_manager_body'), data.overrides.by_manager, 3, function(row) {
+            return '<tr><td>' + escapeHtml(row.manager_name) + '</td><td>' + formatNumber(row.override_count) + '</td><td>' + pct(row.override_count, data.overrides.override_count) + '%</td></tr>';
+        });
+        renderRows($('#override_reason_body'), data.overrides.by_reason, 3, function(row) {
+            return '<tr><td>' + escapeHtml(row.reason_text) + '</td><td>' + formatNumber(row.override_count) + '</td><td>' + pct(row.override_count, data.overrides.override_count) + '%</td></tr>';
+        });
+
+        syncFiltersToExport(data.filters);
+        updateFilterChips(data.filters, data.date_label);
+    }
 
     function applyFilters(filters) {
-        $('#svdp_filter_loading').show();
+        $('#svdp_filter_loading').removeAttr('hidden');
         $('#svdp_apply_filters').prop('disabled', true);
 
         $.ajax({
@@ -839,16 +553,12 @@ jQuery(document).ready(function($) {
             type: 'POST',
             data: {
                 action: 'svdp_apply_analytics_filters',
-                nonce: '<?php echo wp_create_nonce('svdp_analytics_filters'); ?>',
+                nonce: '<?php echo esc_js(wp_create_nonce('svdp_analytics_filters')); ?>',
                 filters: filters
             },
             success: function(response) {
                 if (response.success) {
-                    // Update all metrics with filtered data
-                    updateAnalytics(response.data);
-                    updateFilterChips(filters);
-                    // Sync filter values to export form
-                    syncFiltersToExport(filters);
+                    renderAnalytics(response.data);
                 } else {
                     alert('Error applying filters: ' + (response.data || 'Unknown error'));
                 }
@@ -857,58 +567,13 @@ jQuery(document).ready(function($) {
                 alert('Error communicating with server.');
             },
             complete: function() {
-                $('#svdp_filter_loading').hide();
+                $('#svdp_filter_loading').attr('hidden', 'hidden');
                 $('#svdp_apply_filters').prop('disabled', false);
             }
         });
     }
 
-    function updateAnalytics(data) {
-        // Update overview stats - Total Vouchers
-        $('.stat-box').eq(0).find('.stat-number').text(data.total_vouchers.toLocaleString());
-
-        // Update overview stats - Redeemed
-        $('.stat-box').eq(2).find('.stat-number').text(data.redeemed_vouchers.toLocaleString());
-
-        // Update Items Provided section
-        var itemsCard = $('.svdp-card').filter(function() {
-            return $(this).find('h2').text().includes('Items Provided');
-        });
-        itemsCard.find('.stat-box').eq(0).find('.stat-number').text(data.items_redeemed.toLocaleString());
-        itemsCard.find('.stat-box').eq(1).find('.stat-number').text('$' + data.redemption_value.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
-
-        // Update Per-Organization table
-        var $orgTable = $('.svdp-card').filter(function() {
-            return $(this).find('h2').text().includes('Performance by Organization');
-        }).find('tbody');
-
-        $orgTable.empty();
-
-        if (data.organizations && data.organizations.length > 0) {
-            $.each(data.organizations, function(i, org) {
-                var redemptionRate = org.vouchers_issued > 0 ? Math.round((org.vouchers_redeemed / org.vouchers_issued) * 100) : 0;
-                var orgTypeBadge = org.organization_type.charAt(0).toUpperCase() + org.organization_type.slice(1);
-                var badgeClass = 'org-type-' + org.organization_type;
-
-                var row = '<tr>' +
-                    '<td><strong>' + org.name + '</strong></td>' +
-                    '<td><span class="org-type-badge ' + badgeClass + '">' + orgTypeBadge + '</span></td>' +
-                    '<td>' + parseInt(org.vouchers_issued).toLocaleString() + '</td>' +
-                    '<td>' + parseInt(org.vouchers_redeemed).toLocaleString() + '</td>' +
-                    '<td><strong>' + redemptionRate + '%</strong></td>' +
-                    '<td>' + parseInt(org.items_redeemed).toLocaleString() + '</td>' +
-                    '<td><strong>$' + parseFloat(org.redemption_value).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></td>' +
-                    '</tr>';
-
-                $orgTable.append(row);
-            });
-        } else {
-            $orgTable.append('<tr><td colspan="7" style="text-align: center; padding: 20px;">No data found for the selected filters.</td></tr>');
-        }
-    }
-
     function syncFiltersToExport(filters) {
-        // Sync current filter values to export form hidden inputs
         $('#export_filter_date_range').val(filters.date_range);
         $('#export_filter_start_date').val(filters.start_date || '');
         $('#export_filter_end_date').val(filters.end_date || '');
@@ -917,44 +582,60 @@ jQuery(document).ready(function($) {
         $('#export_filter_voucher_type').val(filters.voucher_type);
     }
 
-    function updateFilterChips(filters) {
-        var chips = [];
-
-        if (filters.date_range !== 'all') {
-            var dateLabel = '';
-            if (filters.date_range === 'custom') {
-                dateLabel = filters.start_date + ' to ' + filters.end_date;
-            } else if (filters.date_range === '30') {
-                dateLabel = 'Last 30 Days';
-            } else if (filters.date_range === '90') {
-                dateLabel = 'Last 90 Days';
-            } else if (filters.date_range === '365') {
-                dateLabel = 'Last Year';
-            } else if (filters.date_range === 'ytd') {
-                dateLabel = 'Year to Date';
-            }
-            chips.push('<span class="filter-chip">📅 ' + dateLabel + '</span>');
-        }
+    function updateFilterChips(filters, dateLabel) {
+        var chips = ['Date: ' + dateLabel];
 
         if (filters.org_type !== 'all') {
-            chips.push('<span class="filter-chip">🏢 ' + filters.org_type.charAt(0).toUpperCase() + filters.org_type.slice(1) + '</span>');
+            chips.push('Organization Type: ' + $('#svdp_filter_org_type option:selected').text());
         }
-
         if (filters.org_id !== 'all') {
-            var orgName = $('#svdp_filter_org_id option:selected').text();
-            chips.push('<span class="filter-chip">🏛️ ' + orgName + '</span>');
+            chips.push('Organization: ' + $('#svdp_filter_org_id option:selected').text());
         }
-
         if (filters.voucher_type !== 'all') {
-            chips.push('<span class="filter-chip">🎫 ' + filters.voucher_type.charAt(0).toUpperCase() + filters.voucher_type.slice(1) + '</span>');
+            chips.push('Voucher Type: ' + $('#svdp_filter_voucher_type option:selected').text());
         }
 
-        if (chips.length > 0) {
-            $('#svdp_filter_chips').html(chips.join(''));
-            $('#svdp_active_filters').show();
-        } else {
-            $('#svdp_active_filters').hide();
-        }
+        $('#svdp_filter_chips').html(chips.map(function(chip) {
+            return '<span class="filter-chip">' + escapeHtml(chip) + '</span>';
+        }).join(''));
+        $('#export_filter_summary').text(chips.join(' | '));
     }
+
+    $('#svdp_filter_date_range').on('change', function() {
+        $('#custom_date_inputs').prop('hidden', $(this).val() !== 'custom');
+    });
+
+    $('#svdp_filter_org_type').on('change', function() {
+        var selectedType = $(this).val();
+        var $orgSelect = $('#svdp_filter_org_id');
+
+        $orgSelect.find('option').each(function() {
+            var optionType = $(this).data('type');
+            $(this).prop('hidden', selectedType !== 'all' && optionType && optionType !== selectedType);
+        });
+        $orgSelect.val('all');
+    });
+
+    $('#svdp_apply_filters').on('click', function() {
+        var filters = getFilters();
+        if (filters.date_range === 'custom' && (!filters.start_date || !filters.end_date)) {
+            alert('Please select both start and end dates for the custom range.');
+            return;
+        }
+        applyFilters(filters);
+    });
+
+    $('#svdp_reset_filters').on('click', function() {
+        $('#svdp_filter_date_range').val('mtd');
+        $('#svdp_filter_org_type').val('all').trigger('change');
+        $('#svdp_filter_org_id').val('all');
+        $('#svdp_filter_voucher_type').val('all');
+        $('#svdp_filter_start_date').val('');
+        $('#svdp_filter_end_date').val('');
+        $('#custom_date_inputs').prop('hidden', true);
+        applyFilters(getFilters());
+    });
+
+    renderAnalytics(initialData);
 });
 </script>

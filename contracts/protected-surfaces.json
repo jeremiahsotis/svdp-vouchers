@@ -1,6 +1,16 @@
 {
   "protected_surfaces": [
     {
+      "path": "includes/class-analytics.php",
+      "type": "php",
+      "reason": "Shared protected Analytics reporting and CSV export query service for voucher, impact, denied, override, and organization metrics."
+    },
+    {
+      "path": "admin/views/tab-analytics.php",
+      "type": "policy_engine",
+      "reason": "Protected Analytics admin view, filters, reporting sections, and export form."
+    },
+    {
       "path": "includes/class-accounting.php",
       "type": "php",
       "reason": "Monthly statement delivery, QuickBooks export integrity, retries, batching, email, and accounting audit."

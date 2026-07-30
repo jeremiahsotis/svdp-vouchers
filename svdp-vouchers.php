@@ -30,6 +30,7 @@ if (file_exists($svdp_composer_autoload)) {
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-database.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-settings.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-permissions.php';
+require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-analytics.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-voucher-type-settings.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-household-goods-catalog.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-conference.php';

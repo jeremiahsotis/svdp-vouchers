@@ -15,6 +15,22 @@
   ],
   "accepted_findings": [
     {
+      "path": "includes/class-analytics.php",
+      "reason": "Slice AN1 centralizes protected Analytics reporting and CSV export queries so visible metrics and export rows share one normalized filter contract."
+    },
+    {
+      "path": "admin/views/tab-analytics.php",
+      "reason": "Slice AN1 rebuilds the protected Analytics admin view with selected-range filters, revised sections, denied voucher type display, and a top-filter-only export form."
+    },
+    {
+      "path": "includes/class-admin.php",
+      "reason": "Slice AN1 routes Analytics AJAX and CSV export through the shared Analytics service while preserving existing accounting/admin permission checks."
+    },
+    {
+      "path": "svdp-vouchers.php",
+      "reason": "Slice AN1 loads the shared Analytics service during plugin bootstrap."
+    },
+    {
       "path": "includes/class-admin.php",
       "reason": "Slice S1 support change only passes optional manual manager code from existing admin AJAX into the protected manager model."
     },
