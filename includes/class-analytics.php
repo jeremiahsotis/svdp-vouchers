@@ -88,10 +88,19 @@ class SVDP_Analytics {
             return $filters;
         }
 
+        $overview_filters = $filters;
+        if (isset($raw_filters['overview_default']) && $raw_filters['overview_default'] === 'all_time') {
+            $overview_filters['date_range'] = 'all';
+            $overview_filters['start_date'] = '';
+            $overview_filters['end_date'] = '';
+        }
+
         return [
             'filters' => $filters,
             'date_label' => self::date_label($filters),
-            'overview' => self::get_status_overview($filters),
+            'overview_date_label' => self::date_label($overview_filters),
+            'overview' => self::get_status_overview($overview_filters),
+            'overview_impact' => self::get_community_impact($overview_filters)['total'],
             'period_overview' => self::get_status_overview($filters),
             'community_impact' => self::get_community_impact($filters),
             'winter_coats' => self::get_winter_coats($filters),

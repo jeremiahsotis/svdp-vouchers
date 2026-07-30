@@ -7,7 +7,7 @@ Verify the reworked Analytics tab, shared filters, selected-range reporting, and
 `includes/class-analytics.php`, `admin/views/tab-analytics.php`, `includes/class-admin.php`, `svdp-vouchers.php`, protected-surface JSON contracts, and AN1 execution docs.
 
 ## Code changes
-Added a shared Analytics query service, rebuilt the Analytics tab sections and filter UI, routed AJAX/export through the shared service, removed export-local filters, included Denied/Blocked rows in export, added Voucher Type to Recent Denied Vouchers, and counted priced-voucher fulfilled items from stored invoice totals.
+Added a shared Analytics query service, rebuilt the Analytics tab sections and filter UI, routed AJAX/export through the shared service, removed export-local filters, included Denied/Blocked rows in export, added Voucher Type to Recent Denied Vouchers, counted priced-voucher fulfilled items from stored invoice totals, and made Voucher Overview default to All Time with people/value/item impact totals.
 
 ## Data changes
 No schema or data migration.
@@ -48,7 +48,7 @@ PASS - PHP lint for all non-vendor/non-output/non-tmp PHP, targeted PHP lint for
 LIMITED - `check_unmapped_changes.py` reports pre-existing/unrelated generated and prior A1 files, including `vendor/`, `tmp/`, `output/`, and accounting/print files outside the AN1 diff.
 
 ## Verification block
-DDEV helper checks: Month to Date returned `2026-07-01 to 2026-07-30`; All Time returned 22 total vouchers, 1 denied, 7 items, and $35.00 value; Furniture-only returned 9 total vouchers. Browser checks: Analytics loaded, default Date Range was `mtd`, All Time updated overview and period totals to 22, Community Impact showed 7 items and $35.00, Furniture filter updated totals to 9 and export hidden state to `furniture`, Recent Denied Vouchers rendered 7 columns, export triggered a CSV download, reset restored Month to Date, and console logs were empty.
+DDEV helper checks: initial Voucher Overview defaulted to All Time with 22 total vouchers and 27 people served while period overview remained Month to Date; All Time returned 22 total vouchers, 1 denied, 7 items, and $35.00 value; Furniture-only returned 9 total vouchers. Browser checks: Analytics loaded, default Date Range was `mtd`, Voucher Overview displayed All Time, 22 vouchers, 27 people served, `21 adults, 6 children`, $35.00, and 7 items; All Time updated overview and period totals to 22; Furniture filter updated totals to 9 and export hidden state to `furniture`; Recent Denied Vouchers rendered 7 columns; export triggered a CSV download; reset restored the starting state; console logs were empty.
 
 ## Editorial check
 PASS - visible headings are Filters, Voucher Overview, Current Month-to-Date Overview, Community Impact, Performance by Organization, Denied/Blocked Vouchers, Emergency Override Statistics, and Export Data.

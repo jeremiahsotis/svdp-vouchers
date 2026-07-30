@@ -1,5 +1,5 @@
 <?php
-$analytics_data = SVDP_Analytics::get_dashboard_data(SVDP_Analytics::get_default_filters());
+$analytics_data = SVDP_Analytics::get_dashboard_data(array_merge(SVDP_Analytics::get_default_filters(), ['overview_default' => 'all_time']));
 if (is_wp_error($analytics_data)) {
     echo '<div class="notice notice-error"><p>' . esc_html($analytics_data->get_error_message()) . '</p></div>';
     return;
@@ -98,13 +98,16 @@ if (!function_exists('svdp_analytics_stat_box')) {
 
     <div class="svdp-card">
         <h2>Voucher Overview</h2>
-        <p class="description selected-date-label"></p>
+        <p class="description" id="overview_date_label"></p>
         <div class="stats-grid">
             <?php svdp_analytics_stat_box('overview_total_vouchers', 'Total Vouchers'); ?>
             <?php svdp_analytics_stat_box('overview_total_redeemed', 'Total Redeemed', 'success'); ?>
             <?php svdp_analytics_stat_box('overview_currently_active', 'Currently Active', 'info'); ?>
             <?php svdp_analytics_stat_box('overview_total_expired', 'Total Expired', 'warning'); ?>
             <?php svdp_analytics_stat_box('overview_total_denied', 'Denied/Blocked', 'warning'); ?>
+            <?php svdp_analytics_stat_box('overview_people_served', 'People Served', 'success'); ?>
+            <?php svdp_analytics_stat_box('overview_total_value', 'Total Value Provided', 'success'); ?>
+            <?php svdp_analytics_stat_box('overview_total_items', 'Total Items Provided', 'info'); ?>
         </div>
     </div>
 
@@ -477,9 +480,16 @@ jQuery(function($) {
     }
 
     function renderAnalytics(data) {
+        $('#overview_date_label').text(data.overview_date_label || data.date_label);
         $('.selected-date-label').text(data.date_label);
         setStat('overview', data.overview);
         setStat('period', data.period_overview);
+
+        var overviewImpact = data.overview_impact || {};
+        $('#overview_people_served').text(formatNumber(overviewImpact.people_served));
+        $('#overview_people_served_detail').text(formatNumber(overviewImpact.adults) + ' adults, ' + formatNumber(overviewImpact.children) + ' children');
+        $('#overview_total_value').text(formatMoney(overviewImpact.total_value));
+        $('#overview_total_items').text(formatNumber(overviewImpact.total_items));
 
         var impact = data.community_impact.total || {};
         $('#impact_people_served').text(formatNumber(impact.people_served));
@@ -633,7 +643,7 @@ jQuery(function($) {
         $('#svdp_filter_start_date').val('');
         $('#svdp_filter_end_date').val('');
         $('#custom_date_inputs').prop('hidden', true);
-        applyFilters(getFilters());
+        renderAnalytics(initialData);
     });
 
     renderAnalytics(initialData);
