@@ -919,9 +919,7 @@
       if (voucherMax > 0 && totalUnits > voucherMax) {
         return showInlineError(
           "household_goods",
-          "This Household Goods voucher is limited to " +
-            voucherMax +
-            " total requested items.",
+          getHouseholdGoodsVoucherLimitMessage(totalUnits, voucherMax),
         );
       }
 
@@ -1161,6 +1159,7 @@
       const categoryLabel = category.browseGroupName || "Household Goods";
       const titleText = category.name + (showCategory && categoryLabel ? " (" + categoryLabel + ")" : "");
       const pricingText = "Retail price: " + (category.priceDisplay || "") + " • " + getCatalogOrganizationPaymentLabel(category.pricingType, getSelectedOrganizationName(), estimate);
+      const plusDisabled = isHouseholdGoodsPlusDisabled(category);
 
       return (
         '<article class="svdp-catalog-item' +
@@ -1187,7 +1186,7 @@
         '<button type="button" class="svdp-qty-btn" data-household-goods-adjust="increment" data-category-id="' +
         category.id +
         '"' +
-        (Number(category.quantityMax || 0) > 0 && quantity >= Number(category.quantityMax) ? " disabled" : "") +
+        (plusDisabled ? " disabled" : "") +
         ' aria-label="Add one ' +
         escapeHtml(category.name) +
         '">+</button>' +
@@ -1220,6 +1219,22 @@
         showInlineError("household_goods", (category.name || "This category") + " is limited to " + categoryMax + ".");
         quantity = categoryMax;
       }
+      const voucherMax = getHouseholdGoodsVoucherQuantityMax();
+      const projectedTotal = getProjectedHouseholdGoodsUnitCount(
+        categoryId,
+        quantity,
+      );
+      if (voucherMax > 0 && projectedTotal > voucherMax) {
+        showInlineError(
+          "household_goods",
+          getHouseholdGoodsVoucherLimitMessage(
+            getHouseholdGoodsUnitCount(),
+            voucherMax,
+          ),
+        );
+        renderHouseholdGoodsCatalog();
+        return;
+      }
       if (quantity > 0 && !state.householdGoods.selected[categoryId]) {
         const selectedCount = Object.keys(state.householdGoods.selected).length;
         const limit = Number(
@@ -1240,6 +1255,50 @@
         delete state.householdGoods.selected[categoryId];
       }
       renderHouseholdGoodsCatalog();
+    }
+
+    function getHouseholdGoodsVoucherQuantityMax() {
+      return Number(state.householdGoods.limits.voucher_quantity_max || 0);
+    }
+
+    function getProjectedHouseholdGoodsUnitCount(categoryId, quantity) {
+      const normalizedCategoryId = Number(categoryId);
+      const proposedQuantity = Math.max(0, Math.floor(Number(quantity || 0)));
+      let total = 0;
+
+      Object.keys(state.householdGoods.selected).forEach(function (selectedId) {
+        if (Number(selectedId) !== normalizedCategoryId) {
+          total += Number(state.householdGoods.selected[selectedId] || 0);
+        }
+      });
+
+      return total + proposedQuantity;
+    }
+
+    function isHouseholdGoodsPlusDisabled(category) {
+      const quantity = Number(state.householdGoods.selected[category.id] || 0);
+      const categoryMax = Number(category.quantityMax || 0);
+      const voucherMax = getHouseholdGoodsVoucherQuantityMax();
+
+      if (categoryMax > 0 && quantity >= categoryMax) {
+        return true;
+      }
+
+      return (
+        voucherMax > 0 &&
+        getProjectedHouseholdGoodsUnitCount(category.id, quantity + 1) >
+          voucherMax
+      );
+    }
+
+    function getHouseholdGoodsVoucherLimitMessage(currentTotal, voucherMax) {
+      return (
+        "This Household Goods voucher is limited to " +
+        voucherMax +
+        " total requested items. You currently have " +
+        currentTotal +
+        " selected."
+      );
     }
 
     function syncDeliveryControls() {

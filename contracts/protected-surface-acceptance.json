@@ -221,6 +221,14 @@
     {
       "path": "public/templates/documents/neighbor-voucher.php",
       "reason": "Slice A1 renders a cashier-authorized neighbor copy containing approved quantities and no pricing or accounting data."
+    },
+    {
+      "path": "public/js/voucher-request.js",
+      "reason": "Slice HG1 enforces the Household Goods voucher-wide total requested quantity limit during increment rendering, increment handling, and review/submit validation without changing pricing or request payload contracts."
+    },
+    {
+      "path": "includes/class-household-goods-catalog.php",
+      "reason": "Slice HG1 strengthens authoritative Household Goods request-line validation so manipulated submissions over the configured total-unit maximum are rejected before snapshots can be returned for insertion."
     }
   ]
 }

@@ -455,6 +455,13 @@ class SVDP_Household_Goods_Catalog {
             }
 
             $total_quantity += $quantity;
+            if ($voucher_quantity_max > 0 && $total_quantity > $voucher_quantity_max) {
+                return new WP_Error(
+                    'household_goods_voucher_limit_exceeded',
+                    'This Household Goods voucher is limited to ' . $voucher_quantity_max . ' total requested items. You submitted ' . $total_quantity . '.'
+                );
+            }
+
             $snapshots[] = [
                 'line_type' => 'household_goods',
                 'source_catalog_id' => (int) $row->id,
@@ -475,10 +482,6 @@ class SVDP_Household_Goods_Catalog {
                 'voucher_quantity_max_snapshot' => $voucher_quantity_max,
                 'selected_category_limit_snapshot' => $selected_category_limit,
             ];
-        }
-
-        if ($voucher_quantity_max > 0 && $total_quantity > $voucher_quantity_max) {
-            return new WP_Error('household_goods_voucher_limit_exceeded', 'This Household Goods voucher is limited to ' . $voucher_quantity_max . ' total requested items.');
         }
 
         return $snapshots;
