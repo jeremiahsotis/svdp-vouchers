@@ -132,7 +132,7 @@ Changed surfaces:
 
 Impact summary:
 
-Slice C3 adds the shared requested-line and fulfillment-entry model, one-screen cashier fulfillment workspace, Save Progress, Finalize Voucher, structured unavailable quantities/reasons, internal voucher-level finalization note, and cashier card status labels for READY TO REDEEM, REDEEMED, and EXPIRED.
+Slice C3 adds the shared requested-line and fulfillment-entry model, one-screen cashier fulfillment workspace, Save Progress, Finalize Voucher, derived not-fulfilled quantities, internal voucher-level finalization note, and cashier card status labels for READY TO REDEEM, REDEEMED, and EXPIRED.
 
 Runtime impact:
 
@@ -141,6 +141,8 @@ Line-backed Furniture and Household Goods vouchers use the shared fulfillment wo
 Governance impact:
 
 Protected contracts now register the shared fulfillment service and template. Data governance records schema version 12 with no destructive backfill, concurrency records last-write Save Progress before finalization, and access audit records fulfillment/finalization audit behavior.
+
+2026-08-06 support update: Shared fulfillment now prevents fulfilled quantities above requested quantities live in the cashier workflow and on the server. Item Unavailable/reason selection is deprecated for ordinary new fulfillment; remaining requested units are recorded as not fulfilled without a reason. Fixed-price requested snapshots prefill redemption prices while remaining editable.
 
 ## 2026-06-22 - Slice C4 Three-Voucher Assisted Builder UI and Request Submission
 

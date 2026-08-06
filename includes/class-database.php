@@ -967,7 +967,7 @@ class SVDP_Database {
     }
 
     /**
-     * Seed operational unavailable reasons used by the shared fulfillment workflow.
+     * Seed unavailable reasons retained for historical/admin compatibility.
      */
     private static function seed_unavailable_reasons() {
         global $wpdb;

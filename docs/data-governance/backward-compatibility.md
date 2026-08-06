@@ -47,6 +47,8 @@ Slice C3 adds shared requested-line and fulfillment-entry tables for new Release
 
 Household Goods and shared Furniture fulfillment require requested-line snapshots. C3 does not backfill historical Furniture items into the new tables and does not reinterpret legacy `household` voucher values as Household Goods.
 
+The 2026-08-06 support update changes ordinary shared fulfillment semantics without schema changes: new saves derive not-fulfilled quantity from requested minus fulfilled quantity and do not require unavailable reasons. Historical unavailable reason snapshots remain readable and are not rewritten.
+
 Voucher finalization notes are voucher-level, internal-only, and not printed on neighbor receipts or Conference/Partner invoices. Existing historical Furniture completion notes remain preserved on legacy records.
 
 ## Slice C4 Compatibility Notes

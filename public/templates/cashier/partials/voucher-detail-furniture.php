@@ -414,10 +414,18 @@ $detail_refresh_trigger = $can_mutate_furniture
                                         data-item-id="<?php echo esc_attr($item['id']); ?>"
                                         data-photo-count="<?php echo esc_attr(intval($item['photo_count'])); ?>"
                                     >
-                                        <div class="svdp-form-group">
-                                            <label>Actual Price *</label>
-                                            <input type="number" name="actualPrice" min="0.01" step="0.01" inputmode="decimal" required>
-                                        </div>
+	                                        <div class="svdp-form-group">
+	                                            <label>Actual Price *</label>
+	                                            <input
+	                                                type="number"
+	                                                name="actualPrice"
+	                                                min="0.01"
+	                                                step="0.01"
+	                                                inputmode="decimal"
+	                                                value="<?php echo esc_attr(($item['requested_pricing_type'] ?? '') === 'fixed' && $item['requested_price_fixed'] !== null ? number_format((float) $item['requested_price_fixed'], 2, '.', '') : ''); ?>"
+	                                                required
+	                                            >
+	                                        </div>
 
                                         <div class="svdp-form-group">
                                             <label>Completion Notes</label>

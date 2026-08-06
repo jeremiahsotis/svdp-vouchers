@@ -124,7 +124,7 @@
     },
     {
       "path": "includes/class-cashier-shell.php",
-      "reason": "Slice C3 passes structured unavailable reasons to the shared fulfillment detail and filters cashier cards by resolved display status."
+      "reason": "Slice C3 passes shared fulfillment state to the detail view and filters cashier cards by resolved display status."
     },
     {
       "path": "svdp-vouchers.php",
@@ -132,7 +132,7 @@
     },
     {
       "path": "public/js/cashier-shell.js",
-      "reason": "Slice C3 adds inline shared fulfillment row management, calculated totals, Save Progress, Finalize Voucher submission, and validation."
+      "reason": "Slice C3 adds inline shared fulfillment row management, calculated totals, Save Progress, Finalize Voucher submission, and validation; later support changes add live quantity caps and fixed-price prefill."
     },
     {
       "path": "public/js/cashier-station.js",
@@ -148,15 +148,15 @@
     },
     {
       "path": "public/templates/cashier/partials/voucher-detail-furniture.php",
-      "reason": "Slice C3 updates legacy Furniture detail to use cashier-facing status labels without changing historical item-resolution behavior."
+      "reason": "Slice C3 updates legacy Furniture detail to use cashier-facing status labels while preserving historical item-resolution behavior; later support changes prefill fixed-price item completion from snapshots."
     },
     {
       "path": "public/templates/cashier/partials/voucher-detail-shared-fulfillment.php",
-      "reason": "Slice C3 adds the one-screen fulfillment workspace for requested lines, multiple price rows, unavailable quantities, internal finalization note, Save Progress, and Finalize Voucher."
+      "reason": "Slice C3 adds the one-screen fulfillment workspace for requested lines, multiple price rows, derived not-fulfilled quantities, internal finalization note, Save Progress, and Finalize Voucher."
     },
     {
       "path": "public/templates/documents/furniture-receipt.php",
-      "reason": "Slice C3 renders shared fulfillment receipt outcomes without prices, internal finalization notes, or staff-only unavailable reason details while preserving legacy Furniture receipt behavior."
+      "reason": "Slice C3 renders shared fulfillment receipt outcomes without prices, internal finalization notes, or staff-only historical unavailable reason details while preserving legacy Furniture receipt behavior."
     },
     {
       "path": "public/templates/documents/furniture-invoice.php",

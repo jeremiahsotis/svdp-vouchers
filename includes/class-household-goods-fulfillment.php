@@ -73,7 +73,7 @@ class SVDP_Household_Goods_Fulfillment {
         }
 
         if (empty($result['summary']['ready_to_finalize'])) {
-            return new WP_Error('fulfillment_unresolved', 'Resolve every requested line before finalizing this voucher.', ['status' => 400]);
+            return new WP_Error('fulfillment_unresolved', 'Fulfillment quantities could not be finalized for this voucher.', ['status' => 400]);
         }
 
         $voucher = SVDP_Voucher::get_cashier_voucher($context['voucher_id']);
@@ -151,7 +151,7 @@ class SVDP_Household_Goods_Fulfillment {
     }
 
     /**
-     * Fetch active structured unavailable reasons.
+     * Fetch active unavailable reasons retained for historical/admin compatibility.
      */
     public static function get_unavailable_reasons() {
         global $wpdb;
@@ -226,8 +226,9 @@ class SVDP_Household_Goods_Fulfillment {
             $fulfilled = array_sum(array_map(function($entry) {
                 return (int) $entry['fulfilled_quantity'];
             }, $entries));
-            $unavailable = (int) $line->unavailable_quantity;
             $requested = (int) $line->requested_quantity;
+            $remaining = max(0, $requested - $fulfilled);
+            $unavailable = $remaining;
             $subtotal = array_sum(array_map(function($entry) {
                 return (float) $entry['line_total'];
             }, $entries));
@@ -241,6 +242,8 @@ class SVDP_Household_Goods_Fulfillment {
                 'requested_group' => $line->requested_group_snapshot,
                 'requested_quantity' => $requested,
                 'estimated_unit_cost' => $line->estimated_conference_partner_cost_per_unit_snapshot !== null ? (float) $line->estimated_conference_partner_cost_per_unit_snapshot : null,
+                'requested_pricing_type' => $line->requested_pricing_type_snapshot,
+                'requested_price_fixed' => $line->requested_price_fixed_snapshot !== null ? (float) $line->requested_price_fixed_snapshot : null,
                 'cashier_guidance' => $line->cashier_guidance_snapshot,
                 'sort_order' => (int) $line->sort_order_snapshot,
                 'unavailable_quantity' => $unavailable,
@@ -249,8 +252,8 @@ class SVDP_Household_Goods_Fulfillment {
                 'resolution_status' => $line->resolution_status,
                 'entries' => $entries,
                 'fulfilled_quantity' => $fulfilled,
-                'resolved_quantity' => $fulfilled + $unavailable,
-                'remaining_quantity' => max(0, $requested - $fulfilled - $unavailable),
+                'resolved_quantity' => $requested,
+                'remaining_quantity' => $remaining,
                 'subtotal' => round($subtotal, 2),
             ];
         }, $line_rows);
@@ -323,7 +326,6 @@ class SVDP_Household_Goods_Fulfillment {
         global $wpdb;
         $lines_table = $wpdb->prefix . 'svdp_voucher_requested_lines';
         $entries_table = $wpdb->prefix . 'svdp_voucher_fulfillment_entries';
-        $reason_map = self::get_reason_map();
         $actor_id = get_current_user_id() ?: null;
 
         foreach ($context['state']['lines'] as $existing_line) {
@@ -345,8 +347,7 @@ class SVDP_Household_Goods_Fulfillment {
                     return $quantity;
                 }
 
-                $price_blank = trim((string) $raw_price) === '';
-                if ($quantity === 0 && $price_blank) {
+                if ($quantity === 0) {
                     continue;
                 }
 
@@ -370,29 +371,11 @@ class SVDP_Household_Goods_Fulfillment {
                 ];
             }
 
-            $unavailable = self::sanitize_quantity($line_payload['unavailableQuantity'] ?? $line_payload['unavailable_quantity'] ?? 0, 'Unavailable quantity');
-            if (is_wp_error($unavailable)) {
-                return $unavailable;
+            if ($fulfilled_total > $requested) {
+                return new WP_Error('fulfillment_quantity_exceeded', 'Fulfilled quantity cannot exceed the requested quantity.', ['status' => 400]);
             }
 
-            if ($fulfilled_total + $unavailable > $requested) {
-                return new WP_Error('fulfillment_quantity_exceeded', 'Fulfilled plus unavailable quantity cannot exceed the requested quantity.', ['status' => 400]);
-            }
-
-            $reason_id = null;
-            $reason_snapshot = null;
-            if ($unavailable > 0) {
-                $reason_id = intval($line_payload['unavailableReasonId'] ?? $line_payload['unavailable_reason_id'] ?? 0);
-                if ($reason_id <= 0 || !isset($reason_map[$reason_id])) {
-                    return new WP_Error('unavailable_reason_required', 'Select a structured unavailable reason for every unavailable quantity.', ['status' => 400]);
-                }
-                $reason_snapshot = $reason_map[$reason_id];
-            }
-
-            if ($require_resolved && ($fulfilled_total + $unavailable) !== $requested) {
-                return new WP_Error('fulfillment_line_unresolved', 'Resolve every requested line before finalizing this voucher.', ['status' => 400]);
-            }
-
+            $unavailable = max(0, $requested - $fulfilled_total);
             $resolution_status = self::resolve_status($requested, $fulfilled_total, $unavailable);
 
             $wpdb->delete($entries_table, ['requested_line_id' => $line_id]);
@@ -404,8 +387,8 @@ class SVDP_Household_Goods_Fulfillment {
                 $lines_table,
                 [
                     'unavailable_quantity' => $unavailable,
-                    'unavailable_reason_id' => $reason_id,
-                    'unavailable_reason_snapshot' => $reason_snapshot,
+                    'unavailable_reason_id' => null,
+                    'unavailable_reason_snapshot' => null,
                     'resolution_status' => $resolution_status,
                 ],
                 ['id' => $line_id]
@@ -455,16 +438,8 @@ class SVDP_Household_Goods_Fulfillment {
             'resolved_units' => $resolved,
             'actual_total' => round($actual_total, 2),
             'estimated_total' => $has_estimate ? round($estimated_total, 2) : null,
-            'ready_to_finalize' => $requested > 0 && $resolved === $requested,
+            'ready_to_finalize' => $requested > 0 && $fulfilled <= $requested,
         ];
-    }
-
-    private static function get_reason_map() {
-        $map = [];
-        foreach (self::get_unavailable_reasons() as $reason) {
-            $map[(int) $reason['id']] = $reason['reason_text'];
-        }
-        return $map;
     }
 
     private static function sanitize_quantity($value, $label) {
@@ -503,12 +478,12 @@ class SVDP_Household_Goods_Fulfillment {
     }
 
     private static function resolve_status($requested, $fulfilled, $unavailable) {
-        if (($fulfilled + $unavailable) < $requested) {
-            return ($fulfilled + $unavailable) > 0 ? 'partially_fulfilled' : 'requested';
+        if ($fulfilled <= 0 && $unavailable >= $requested) {
+            return 'unavailable';
         }
 
-        if ($unavailable >= $requested && $fulfilled === 0) {
-            return 'unavailable';
+        if ($fulfilled < $requested) {
+            return 'partially_fulfilled';
         }
 
         return 'resolved';

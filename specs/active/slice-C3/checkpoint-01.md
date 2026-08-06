@@ -27,8 +27,8 @@ Mark PASS / FAIL.
 - [x] PASS: Add shared requested-line and fulfillment-entry model for new Release C Furniture and Household Goods vouchers.
 - [x] PASS: Implement one-screen fulfillment workspace in cashier detail.
 - [x] PASS: Allow multiple inline price rows per requested line.
-- [x] PASS: Capture Price Each, fulfilled quantity, calculated line total, unavailable quantity, and structured unavailable reason.
-- [x] PASS: Enforce requested quantity equals fulfilled quantity plus unavailable quantity before finalization.
+- [x] PASS: Capture Price Each, fulfilled quantity, calculated line total, and derived not-fulfilled quantity.
+- [x] PASS: Enforce fulfilled quantity never exceeds requested quantity before save or finalization.
 - [x] PASS: Add Save Progress and Finalize Voucher behavior.
 - [x] PASS: Add optional voucher-level Internal Finalization Note before finalization.
 - [x] PASS: Remove Furniture item completion Notes from new workflow.
@@ -54,9 +54,9 @@ Confirm none of the following were implemented:
 - [x] PASS: Furniture and Household Goods fulfillment can be completed on one screen when requested lines exist.
 - [x] PASS: Cashier can add multiple price rows inline without modal/page transitions.
 - [x] PASS: Line totals calculate automatically.
-- [x] PASS: Unavailable quantity requires structured reason.
+- [x] PASS: Requested units left unfulfilled require no reason and are recorded as not fulfilled.
 - [x] PASS: Save Progress does not redeem voucher or generate final documents.
-- [x] PASS: Finalize is blocked until all requested lines are resolved.
+- [x] PASS: Finalize is blocked only when fulfilled quantities exceed requested quantities or positive fulfilled quantities are missing valid prices.
 - [x] PASS: Internal Finalization Note is voucher-level only and hidden from receipt/invoice.
 - [x] PASS: Legacy Furniture vouchers retain historical behavior.
 
@@ -201,6 +201,6 @@ Implementation notes:
 - C3 does not implement C4 three-voucher Assisted Builder UI.
 - Shared fulfillment requires requested-line rows. Line-backed Furniture and Household Goods vouchers use the new one-screen workspace; legacy Furniture vouchers without requested lines continue using the existing path.
 - Request-group delivery snapshots are displayed for grouped vouchers, and invoice totals guard against billing the group-level delivery fee more than once.
-- Structured unavailable reasons are seeded operational data in this slice; no admin unavailable-reason management UI was added.
+- Historical unavailable reasons remain readable operational data; ordinary new fulfillment no longer requires reason selection.
 - Internal Finalization Note is stored only at voucher level and excluded from external receipt/invoice templates.
 ```

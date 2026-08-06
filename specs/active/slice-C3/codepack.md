@@ -78,9 +78,9 @@ If project governance scripts differ in the current repo, use `docs/governance/c
 - Furniture and Household Goods fulfillment can be completed on one screen.
 - Cashier can add multiple price rows inline without modal/page transitions.
 - Line totals calculate automatically.
-- Unavailable quantity requires structured reason.
+- Requested units left unfulfilled require no reason and are recorded as not fulfilled.
 - Save Progress does not redeem voucher or generate final documents.
-- Finalize is blocked until all requested lines are resolved.
+- Finalize is blocked only when fulfilled quantities exceed requested quantities or positive fulfilled quantities are missing valid prices.
 - Internal Finalization Note is voucher-level only and hidden from receipt/invoice.
 - Legacy Furniture vouchers retain historical behavior.
 

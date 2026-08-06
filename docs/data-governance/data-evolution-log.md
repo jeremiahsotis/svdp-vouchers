@@ -27,10 +27,20 @@ Mitigation: The public request availability helper treats the old non-store two-
 ## 2026-06-19 - Slice C3 Shared Fulfillment and Cashier Status
 
 Change: Added schema version 12 with `wp_svdp_voucher_requested_lines`, `wp_svdp_voucher_fulfillment_entries`, `wp_svdp_unavailable_reasons`, and `wp_svdp_voucher_fulfillment_audit`. Added voucher-level `finalized_at`, `finalized_by_user_id`, `finalization_note`, `finalization_note_by_user_id`, `finalization_note_at`, and `receipt_file_path` fields. Seeded starter structured unavailable reasons when the reason table is empty.
-Impact: New Release C Furniture and Household Goods vouchers can use requested lines, multiple fulfillment price rows, unavailable quantities/reasons, Save Progress, Finalize Voucher, internal voucher-level finalization notes, and audit rows. Legacy Furniture voucher item records remain valid and continue through the legacy display/document path unless a voucher has shared requested lines.
+Impact: New Release C Furniture and Household Goods vouchers can use requested lines, multiple fulfillment price rows, derived not-fulfilled quantities, Save Progress, Finalize Voucher, internal voucher-level finalization notes, and audit rows. The unavailable-reason table remains historical/admin compatibility data. Legacy Furniture voucher item records remain valid and continue through the legacy display/document path unless a voucher has shared requested lines.
 Backfill required: No. Historical Clothing, Furniture, delivery, invoice, receipt, completion-note, and legacy `household` records are not rewritten, reinterpreted, or migrated into the shared fulfillment tables.
 Risk: C4 builder work must create requested-line snapshots for new Release C child vouchers; without requested lines, Household Goods and new shared Furniture vouchers cannot be fulfilled through the C3 workspace.
 Mitigation: Shared fulfillment routes refuse vouchers without requested lines, legacy Furniture routes remain available for historical vouchers, finalization requires the requested quantity invariant, and fulfillment/finalization events write audit rows.
+
+## 2026-08-06 - Shared Fulfillment Not-Fulfilled Quantity Semantics
+
+Change: No schema change. Shared Furniture and Household Goods fulfillment now derives `unavailable_quantity` as the not-fulfilled remainder (`requested_quantity - fulfilled_quantity`) and clears unavailable reason fields for new saves/finalizations.
+
+Impact: Cashiers no longer enter Item Unavailable quantities or unavailable reasons in the ordinary workflow. Historical unavailable reason data remains readable for old records, and existing requested-line/fulfillment-entry tables remain compatible.
+
+Backfill required: No. Existing fulfillment entries, invoices, receipts, and historical unavailable reason snapshots are not migrated or rewritten.
+
+Mitigation: Browser controls clamp fulfilled quantities live, and the server rejects any submitted fulfilled total greater than the requested quantity.
 
 ## 2026-06-19 - Slice C2 Household Goods Catalog and Limits
 

@@ -13,7 +13,7 @@ Authoritative implementation brief for Slice C3.
 
 ## Purpose
 
-Replace item-by-item Furniture completion with the Release C one-screen fulfillment workspace for Furniture and Household Goods, including multiple price rows, unavailable quantities, Save Progress, Finalize Voucher, optional internal finalization note, and clearer cashier card statuses.
+Replace item-by-item Furniture completion with the Release C one-screen fulfillment workspace for Furniture and Household Goods, including multiple price rows, derived not-fulfilled quantities, Save Progress, Finalize Voucher, optional internal finalization note, and clearer cashier card statuses.
 
 ## Authoritative Sources
 
@@ -40,8 +40,8 @@ Replace item-by-item Furniture completion with the Release C one-screen fulfillm
 - Add shared requested-line and fulfillment-entry model for new Release C Furniture and Household Goods vouchers.
 - Implement one-screen fulfillment workspace in cashier detail.
 - Allow multiple inline price rows per requested line.
-- Capture Price Each, fulfilled quantity, calculated line total, unavailable quantity, and structured unavailable reason.
-- Enforce requested quantity equals fulfilled quantity plus unavailable quantity before finalization.
+- Capture Price Each, fulfilled quantity, calculated line total, and derived not-fulfilled quantity.
+- Enforce fulfilled quantity never exceeds requested quantity before save or finalization.
 - Add Save Progress and Finalize Voucher behavior.
 - Add optional voucher-level Internal Finalization Note before finalization.
 - Remove Furniture item completion Notes from new workflow.
@@ -82,9 +82,9 @@ These are expected targets. Confirm exact paths against the current repo before 
 - Furniture and Household Goods fulfillment can be completed on one screen.
 - Cashier can add multiple price rows inline without modal/page transitions.
 - Line totals calculate automatically.
-- Unavailable quantity requires structured reason.
+- Requested units left unfulfilled require no reason and are recorded as not fulfilled.
 - Save Progress does not redeem voucher or generate final documents.
-- Finalize is blocked until all requested lines are resolved.
+- Finalize is blocked only when fulfilled quantities exceed requested quantities or positive fulfilled quantities are missing valid prices.
 - Internal Finalization Note is voucher-level only and hidden from receipt/invoice.
 - Legacy Furniture vouchers retain historical behavior.
 
@@ -130,8 +130,8 @@ Slice C3 is governed by the Release C Product Contract for shared cashier fulfil
 The shared fulfillment workspace must preserve these required terms and behaviors:
 
 - Fulfilled quantity is recorded per Price Each row.
-- Item Unavailable is recorded per requested line.
-- Fulfillment in Progress appears as the secondary workflow state when Save Progress has resolved at least part of a voucher but the voucher has not been finalized.
+- Not-fulfilled quantity is derived per requested line.
+- Fulfillment in Progress appears as the secondary workflow state when Save Progress has saved valid fulfillment rows but the voucher has not been finalized.
 - Status precedence is redeemed/finalized first, expired second, and ready to redeem third.
 - A redeemed voucher stays redeemed even after its original expiration date passes.
 - Backward compatibility must preserve existing Clothing vouchers, existing Furniture vouchers, legacy standalone Furniture workflows, and legacy household records that continue to resolve as Furniture history.

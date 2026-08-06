@@ -10,7 +10,7 @@ Accepted
 
 ## Context
 
-Slice C3 implements the Release C contract requirement that new Furniture and Household Goods vouchers use one cashier fulfillment workspace with requested lines, multiple price rows, unavailable quantities, structured unavailable reasons, Save Progress, Finalize Voucher, and an optional voucher-level Internal Finalization Note.
+Slice C3 implements the Release C contract requirement that new Furniture and Household Goods vouchers use one cashier fulfillment workspace with requested lines, multiple price rows, derived not-fulfilled quantities, Save Progress, Finalize Voucher, and an optional voucher-level Internal Finalization Note.
 
 Historical Furniture vouchers already use `wp_svdp_voucher_items` and document generation based on completed/cancelled item outcomes. The Release C contract requires those records to remain valid and not be destructively migrated.
 
@@ -20,7 +20,7 @@ Add additive schema version 12 tables for:
 
 - `wp_svdp_voucher_requested_lines`
 - `wp_svdp_voucher_fulfillment_entries`
-- `wp_svdp_unavailable_reasons`
+- `wp_svdp_unavailable_reasons` for historical/admin compatibility
 - `wp_svdp_voucher_fulfillment_audit`
 
 Add voucher-level finalization fields for finalized timestamp, actor, internal finalization note, note actor/timestamp, and stored neighbor receipt path.
@@ -40,8 +40,10 @@ Save Progress replaces unfinalized fulfillment entries for each requested line u
 Finalize Voucher requires every requested line to satisfy:
 
 ```text
-requested quantity = fulfilled quantity + unavailable quantity
+0 <= fulfilled quantity <= requested quantity
 ```
+
+The system derives not-fulfilled quantity as requested quantity minus fulfilled quantity. The ordinary cashier workflow does not require a reason when requested units are left unfulfilled.
 
 Finalization records actual redemption totals, locks ordinary editing by setting the voucher to `Redeemed`, generates/enables receipt and invoice documents, and stores the optional Internal Finalization Note only on the voucher row. Receipts and invoices omit the Internal Finalization Note.
 

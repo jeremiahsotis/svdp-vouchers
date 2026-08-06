@@ -58,6 +58,7 @@
     document.body.addEventListener("submit", handleSubmit);
     document.body.addEventListener("input", handleInput, true);
     document.body.addEventListener("change", handleChange, true);
+    document.body.addEventListener("focusout", handleFocusOut, true);
     document.body.addEventListener("htmx:configRequest", handleHtmxConfig);
     document.body.addEventListener("htmx:afterSwap", handleHtmxAfterSwap);
     document.body.addEventListener("htmx:responseError", handleHtmxError);
@@ -230,6 +231,17 @@
     }
   }
 
+  function handleFocusOut(event) {
+    if (!event.target || !event.target.matches("[data-fulfilled-quantity]")) {
+      return;
+    }
+
+    normalizeSharedFulfillmentQuantity(event.target);
+    updateSharedFulfillmentSummary(
+      event.target.closest('form[data-cashier-action="shared-fulfillment"]'),
+    );
+  }
+
   function handleHtmxConfig(event) {
     if (!event.detail || typeof event.detail.path !== "string") {
       return;
@@ -263,6 +275,13 @@
       );
       if (coatForm) {
         updateCoatSummary(coatForm);
+      }
+
+      const sharedFulfillmentForm = event.target.querySelector(
+        'form[data-cashier-action="shared-fulfillment"]',
+      );
+      if (sharedFulfillmentForm) {
+        updateSharedFulfillmentSummary(sharedFulfillmentForm);
       }
 
       maybeScrollDetailIntoView(event.target);
@@ -1322,6 +1341,14 @@
       return;
     }
 
+    syncSharedFulfillmentLine(line);
+    if (getSharedLineFulfilledQuantity(line) >= getSharedLineRequestedQuantity(line)) {
+      updateSharedFulfillmentSummary(
+        button.closest('form[data-cashier-action="shared-fulfillment"]'),
+      );
+      return;
+    }
+
     const row = document.createElement("div");
     row.className = "svdp-fulfillment-entry";
     row.setAttribute("data-fulfillment-entry", "");
@@ -1331,6 +1358,13 @@
       '<div class="svdp-line-total" data-line-total>$0.00</div>' +
       '<button type="button" class="svdp-btn svdp-btn-secondary svdp-remove-row" data-remove-fulfillment-row>Remove</button>';
     entries.appendChild(row);
+    const fixedPrice = line.getAttribute("data-fixed-price") || "";
+    if (fixedPrice) {
+      const priceInput = row.querySelector("[data-unit-price]");
+      if (priceInput) {
+        priceInput.value = fixedPrice;
+      }
+    }
     updateSharedFulfillmentSummary(
       button.closest('form[data-cashier-action="shared-fulfillment"]'),
     );
@@ -1357,17 +1391,83 @@
     updateSharedFulfillmentSummary(form);
   }
 
+  function syncSharedFulfillmentLine(line) {
+    if (!line) {
+      return;
+    }
+
+    const requested = getSharedLineRequestedQuantity(line);
+    const quantityInputs = Array.from(
+      line.querySelectorAll("[data-fulfilled-quantity]"),
+    );
+
+    quantityInputs.forEach(normalizeSharedFulfillmentQuantity);
+
+    let total = quantityInputs.reduce(function (sum, input) {
+      return sum + parseNumber(input.value);
+    }, 0);
+
+    quantityInputs.forEach(function (input) {
+      const current = parseNumber(input.value);
+      const otherTotal = Math.max(0, total - current);
+      const maxForInput = Math.max(0, requested - otherTotal);
+      input.setAttribute("max", String(maxForInput));
+
+      if (current > maxForInput) {
+        input.value = String(maxForInput);
+        total = otherTotal + maxForInput;
+      }
+    });
+  }
+
+  function normalizeSharedFulfillmentQuantity(input) {
+    if (!input) {
+      return;
+    }
+
+    const rawValue = valueOf(input);
+    if (rawValue === "") {
+      return;
+    }
+
+    const parsed = Number(rawValue);
+    if (!Number.isFinite(parsed)) {
+      input.value = "";
+      return;
+    }
+
+    const maxValue = input.hasAttribute("max")
+      ? parseNumber(input.getAttribute("max"))
+      : Infinity;
+    const normalized = Math.min(
+      maxValue,
+      Math.max(0, Math.floor(parsed)),
+    );
+    input.value = String(normalized);
+  }
+
+  function getSharedLineRequestedQuantity(line) {
+    return parseNumber(line ? line.getAttribute("data-requested-quantity") : 0);
+  }
+
+  function getSharedLineFulfilledQuantity(line) {
+    if (!line) {
+      return 0;
+    }
+
+    return Array.from(line.querySelectorAll("[data-fulfilled-quantity]")).reduce(
+      function (sum, input) {
+        return sum + parseNumber(input.value);
+      },
+      0,
+    );
+  }
+
   function collectSharedFulfillmentLines(form) {
     return Array.from(form.querySelectorAll("[data-fulfillment-line]")).map(
       function (line) {
         return {
           lineId: parseNumber(line.getAttribute("data-line-id")),
-          unavailableQuantity: parseNumber(
-            valueOf(line.querySelector("[data-unavailable-quantity]")),
-          ),
-          unavailableReasonId: parseNumber(
-            valueOf(line.querySelector("[data-unavailable-reason]")),
-          ),
           entries: Array.from(
             line.querySelectorAll("[data-fulfillment-entry]"),
           ).map(function (entry) {
@@ -1398,21 +1498,33 @@
     };
 
     form.querySelectorAll("[data-fulfillment-line]").forEach(function (line) {
-      const requested = parseNumber(
-        line.getAttribute("data-requested-quantity"),
-      );
+      const requested = getSharedLineRequestedQuantity(line);
       let fulfilled = 0;
       let subtotal = 0;
+      const lineErrors = [];
+      syncSharedFulfillmentLine(line);
 
       line
         .querySelectorAll("[data-fulfillment-entry]")
         .forEach(function (entry) {
+          const priceValue = valueOf(entry.querySelector("[data-unit-price]"));
           const price = parseDecimal(
-            valueOf(entry.querySelector("[data-unit-price]")),
+            priceValue,
           );
           const quantity = parseNumber(
             valueOf(entry.querySelector("[data-fulfilled-quantity]")),
           );
+          if (
+            quantity > 0 &&
+            (!Number.isFinite(price) || price <= 0)
+          ) {
+            lineErrors.push("Enter a valid price for fulfilled quantities.");
+            totals.hasErrors = true;
+            totals.errors.push(
+              "Price Each must be greater than zero when quantity is entered.",
+            );
+          }
+
           const lineTotal =
             Number.isFinite(price) && quantity > 0 ? price * quantity : 0;
           fulfilled += quantity;
@@ -1424,38 +1536,27 @@
           }
         });
 
-      const unavailable = parseNumber(
-        valueOf(line.querySelector("[data-unavailable-quantity]")),
-      );
-      const reason = valueOf(line.querySelector("[data-unavailable-reason]"));
-      const resolved = fulfilled + unavailable;
+      const unavailable = Math.max(0, requested - fulfilled);
       totals.requested += requested;
       totals.fulfilled += fulfilled;
       totals.unavailable += unavailable;
       totals.actual += subtotal;
 
-      if (resolved > requested) {
+      if (fulfilled > requested) {
+        lineErrors.push("Quantity exceeds request.");
         totals.hasErrors = true;
         totals.errors.push(
-          "Fulfilled plus unavailable quantity cannot exceed requested quantity.",
+          "Fulfilled quantity cannot exceed requested quantity.",
         );
-      }
-
-      if (unavailable > 0 && !reason) {
-        totals.hasErrors = true;
-        totals.errors.push(
-          "Select an unavailable reason when unavailable quantity is greater than zero.",
-        );
-      }
-
-      const reasonWrap = line.querySelector("[data-unavailable-reason-wrap]");
-      if (reasonWrap) {
-        reasonWrap.hidden = unavailable <= 0;
       }
 
       setText(
-        line.querySelector("[data-line-resolved]"),
-        "Resolved: " + resolved + " of " + requested,
+        line.querySelector("[data-line-fulfilled]"),
+        "Fulfilled: " + fulfilled + " of " + requested,
+      );
+      setText(
+        line.querySelector("[data-line-remaining]"),
+        "Not fulfilled: " + unavailable,
       );
       setText(
         line.querySelector("[data-line-subtotal]"),
@@ -1463,19 +1564,26 @@
       );
       setText(
         line.querySelector("[data-line-status]"),
-        resolved === requested
+        fulfilled >= requested
           ? "Resolved"
-          : resolved > 0
+          : fulfilled > 0
             ? "Partially Fulfilled"
-            : "Requested",
+            : "Not Fulfilled",
       );
+      setText(
+        line.querySelector("[data-line-validation]"),
+        lineErrors.join(" "),
+      );
+
+      const addButton = line.querySelector("[data-add-fulfillment-row]");
+      if (addButton) {
+        addButton.disabled =
+          fulfilled >= requested || form.getAttribute("data-readonly") === "1";
+      }
     });
 
-    const resolved = totals.fulfilled + totals.unavailable;
-    const ready =
-      totals.requested > 0 &&
-      resolved === totals.requested &&
-      !totals.hasErrors;
+    const resolved = totals.requested;
+    const ready = totals.requested > 0 && !totals.hasErrors;
     setText(
       form.querySelector("[data-summary-requested]"),
       String(totals.requested),
@@ -1504,6 +1612,11 @@
       finalizeButton.disabled =
         !ready || form.getAttribute("data-readonly") === "1";
     }
+    const saveButton = form.querySelector('[data-fulfillment-submit="save"]');
+    if (saveButton) {
+      saveButton.disabled =
+        totals.hasErrors || form.getAttribute("data-readonly") === "1";
+    }
 
     return {
       requested: totals.requested,
@@ -1522,30 +1635,9 @@
       ? totals.errors.slice()
       : ["Fulfillment details could not be read."];
 
-    form.querySelectorAll("[data-fulfillment-entry]").forEach(function (entry) {
-      const priceValue = valueOf(entry.querySelector("[data-unit-price]"));
-      const quantity = parseNumber(
-        valueOf(entry.querySelector("[data-fulfilled-quantity]")),
-      );
-      if (
-        quantity > 0 &&
-        (!Number.isFinite(parseDecimal(priceValue)) ||
-          parseDecimal(priceValue) <= 0)
-      ) {
-        errors.push(
-          "Price Each must be greater than zero when quantity is entered.",
-        );
-      }
-      if (priceValue && quantity <= 0) {
-        errors.push(
-          "Fulfilled quantity must be greater than zero when Price Each is entered.",
-        );
-      }
-    });
-
-    if (requireResolved && totals && !totals.ready) {
+    if (requireResolved && totals && totals.requested <= 0) {
       errors.push(
-        "Resolve every requested line before finalizing this voucher.",
+        "This voucher has no requested quantity to finalize.",
       );
     }
 
@@ -1569,7 +1661,7 @@
       "",
       "Actual Redemption Total: " + formatMoney(totals.actual),
       "Fulfilled units: " + totals.fulfilled,
-      "Unavailable units: " + totals.unavailable,
+      "Not fulfilled units: " + totals.unavailable,
       "Internal finalization note: " + (note ? "Yes" : "No"),
       "",
       "Once finalized, redemption details cannot be edited through the ordinary cashier workflow.",

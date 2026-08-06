@@ -48,7 +48,7 @@
     {
       "path": "includes/class-household-goods-fulfillment.php",
       "type": "php",
-      "reason": "Release C shared Furniture and Household Goods requested-line fulfillment, Save Progress, finalization, unavailable quantities, finalization notes, document generation, and audit mutation surface."
+      "reason": "Release C shared Furniture and Household Goods requested-line fulfillment, Save Progress, finalization, derived not-fulfilled quantities, finalization notes, document generation, and audit mutation surface."
     },
     {
       "path": "includes/class-database.php",
@@ -108,7 +108,7 @@
     {
       "path": "public/templates/cashier/partials/voucher-detail-shared-fulfillment.php",
       "type": "php-template",
-      "reason": "Release C one-screen Furniture and Household Goods fulfillment workspace contract, including inline price rows, unavailable quantities, Save Progress, and Finalize Voucher."
+      "reason": "Release C one-screen Furniture and Household Goods fulfillment workspace contract, including inline price rows, live quantity caps, derived not-fulfilled quantities, Save Progress, and Finalize Voucher."
     },
     {
       "path": "public/templates/documents/furniture-receipt.php",

@@ -40,9 +40,9 @@ Administrators receive these capabilities by default. Cashiers and Vincentians d
 
 ## Slice C3 Implementation Note
 
-Shared Furniture and Household Goods fulfillment mutations require the existing cashier access and furniture-redemption capability checks. Vincentians receive no cashier, catalog, unavailable-reason, or finalization authority in C3.
+Shared Furniture and Household Goods fulfillment mutations require the existing cashier access and furniture-redemption capability checks. Vincentians receive no cashier, catalog, unavailable-reason administration, or finalization authority in C3.
 
-Save Progress and Finalize Voucher write `wp_svdp_voucher_fulfillment_audit` rows with voucher, event type, actor, timestamp, human summary, and serialized after-state. Finalization stores the optional Internal Finalization Note only on the voucher row with author and timestamp, and external receipts/invoices omit that note.
+Save Progress and Finalize Voucher write `wp_svdp_voucher_fulfillment_audit` rows with voucher, event type, actor, timestamp, human summary, and serialized after-state. Not-fulfilled quantities are derived from requested minus fulfilled quantities without a cashier-entered reason. Finalization stores the optional Internal Finalization Note only on the voucher row with author and timestamp, and external receipts/invoices omit that note.
 
 ## Slice C4 Implementation Note
 

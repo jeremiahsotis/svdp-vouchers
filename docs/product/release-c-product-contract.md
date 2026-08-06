@@ -1829,7 +1829,7 @@ Bath Towels                                      Requested: 6
 Dining Chairs                                    Requested: 4
 ```
 
-Each requested line contains its own fulfillment rows, unavailable quantity control, resolution status, and calculated subtotal.
+Each requested line contains its own fulfillment rows, fulfillment status, calculated subtotal, and derived not-fulfilled count.
 
 #### 4.3 Required visible fields
 
@@ -1838,13 +1838,12 @@ For each requested line, the cashier sees all of the following without opening a
 | Field              | Requirement                                            |
 | ------------------ | ------------------------------------------------------ |
 | Requested quantity | Read-only and always visible                           |
-| Price Each         | Cashier-entered reimbursable amount                    |
+| Price Each         | Cashier-entered reimbursable amount; fixed-price lines prefill from the issued snapshot |
 | Fulfilled quantity | Cashier-entered quantity for that price                |
 | Line total         | Automatically calculated                               |
-| Item Unavailable   | Visible unavailable quantity control                   |
-| Unavailable reason | Appears when unavailable quantity is greater than zero |
 | Add another price  | Visible inline control                                 |
-| Resolved count     | Always visible                                         |
+| Fulfilled count    | Always visible                                         |
+| Not fulfilled count | Derived from requested quantity minus fulfilled quantity |
 
 #### 4.4 Meaning of Price Each
 
@@ -1873,10 +1872,8 @@ Price Each          Quantity          Line Total
 
 [+ Add another price]
 
-Item Unavailable: [2]
-Reason: [Not currently in stock]
-
-Resolved: 6 of 6
+Fulfilled: 4 of 6
+Not fulfilled: 2
 ```
 
 The cashier stays on the same screen.
@@ -1888,7 +1885,7 @@ The **Add another price** control:
 - adds a new inline fulfillment row beneath the existing rows;
 - does not open a modal;
 - does not navigate to another screen;
-- creates a blank Price Each and Quantity row;
+- creates a blank Price Each and Quantity row, except fixed-price requested lines may prefill Price Each from the issued fixed-price snapshot;
 - may be removed while the voucher remains unfinalized;
 - is available for both Furniture and Household Goods.
 
@@ -1917,19 +1914,13 @@ The cashier does not calculate:
 - voucher total;
 - Conference or Partner billing total.
 
-#### 4.8 Item Unavailable behavior
+#### 4.8 Not fulfilled behavior
 
-The requested line includes a visible **Item Unavailable** field.
+The ordinary cashier workflow does not include a visible **Item Unavailable** field.
 
-For requests with quantity greater than one, it is a numeric quantity field.
+If the cashier leaves any requested units unfulfilled, the system records the remaining quantity as not fulfilled without requiring a reason.
 
-For a Furniture item requested at quantity one, it may be presented as a clear checkbox or toggle that sets:
-
-```text
-Item Unavailable: 1
-```
-
-The interface must still communicate the numeric result.
+The interface must communicate fulfilled quantity and derived not-fulfilled quantity.
 
 Examples:
 
@@ -1937,41 +1928,40 @@ Examples:
 Bath Towels
 Requested: 6
 Fulfilled: 4
-Item Unavailable: 2
+Not fulfilled: 2
 ```
 
 ```text
 Dining Table
 Requested: 1
 Fulfilled: 0
-Item Unavailable: 1
+Not fulfilled: 1
 ```
 
-#### 4.9 Structured unavailable reasons
+#### 4.9 Fixed-price prefill
 
-When Item Unavailable is greater than zero, the cashier must select a structured reason.
+When a requested Furniture or Household Goods line was issued with fixed pricing, the redemption Price Each field prepopulates from the issued fixed-price snapshot.
 
-The reason list remains administrator-managed.
+The cashier may override the prefilled price before saving or finalizing.
 
-Examples may include:
+The prefill must not look up the current catalog price, because issued vouchers must preserve historical request snapshots.
 
-- Not currently in stock
-- Item condition not suitable
-- Item could not be located
-- Other approved operational reason
+Archived historical unavailable reasons remain readable for old records, but they are not required in the ordinary new fulfillment workflow.
 
 The system must not add an item-level open Notes field.
 
-#### 4.10 Resolution invariant
+#### 4.10 Quantity invariant
 
 Every requested line must satisfy:
 
 ```text
-Requested Quantity
-=
-Total Fulfilled Quantity Across All Price Rows
-+
-Item Unavailable Quantity
+0 <= Total Fulfilled Quantity Across All Price Rows <= Requested Quantity
+```
+
+The not-fulfilled quantity is derived as:
+
+```text
+Requested Quantity - Total Fulfilled Quantity Across All Price Rows
 ```
 
 The interface displays progress in plain language.
@@ -1979,13 +1969,15 @@ The interface displays progress in plain language.
 Example:
 
 ```text
-Resolved: 4 of 6
+Fulfilled: 4 of 6
+Not fulfilled: 2
 ```
 
 Example when complete:
 
 ```text
-Resolved: 6 of 6
+Fulfilled: 6 of 6
+Not fulfilled: 0
 ```
 
 #### 4.11 Validation behavior
@@ -1995,10 +1987,7 @@ The system must prevent:
 - negative quantities;
 - zero or negative prices for fulfilled rows;
 - fulfilled quantities exceeding requested quantity;
-- unavailable quantity exceeding remaining quantity;
-- total fulfilled plus unavailable quantity exceeding requested quantity;
-- finalization with unresolved requested quantity;
-- unavailable quantity without a structured reason;
+- finalization when any fulfilled quantity total exceeds requested quantity;
 - empty fulfillment rows being saved as completed entries.
 
 The system must preserve entered data when a validation error occurs.
@@ -2017,8 +2006,7 @@ Furniture and Household Goods share the cashier interaction pattern but retain s
 | Multiple fulfillment rows     | Allowed                     | Allowed                           |
 | Mixed unit prices             | Allowed                     | Allowed                           |
 | Partial fulfillment           | Allowed                     | Allowed                           |
-| Unavailable quantity          | Allowed                     | Allowed                           |
-| Structured unavailable reason | Required when unavailable   | Required when unavailable         |
+| Not fulfilled quantity        | Derived without reason      | Derived without reason            |
 | Delivery eligibility          | Voucher-type setting        | Voucher-type setting              |
 
 No implementation may force Household Goods into the old Furniture item table merely because both types use a shared cashier experience.
@@ -2039,8 +2027,8 @@ On mobile, it must remain reachable without forcing the cashier to scroll excess
 | ----------------------------------- | --------------------------------------------------------------- |
 | Requested units                     | Total across all requested lines                                |
 | Fulfilled units                     | Total across all fulfillment entries                            |
-| Unavailable units                   | Total across all requested lines                                |
-| Resolved units                      | Fulfilled plus unavailable                                      |
+| Not fulfilled units                 | Total requested units minus total fulfilled units               |
+| Resolved units                      | Requested units represented as fulfilled plus not fulfilled     |
 | Actual redemption total             | Sum of all fulfillment line totals                              |
 | Estimated Conference / Partner Cost | Request-time estimate, shown as comparison only when applicable |
 | Finalization readiness              | Clear ready or unresolved state                                 |
@@ -2098,7 +2086,7 @@ Save Progress
 Save Progress:
 
 - saves current fulfillment rows;
-- saves unavailable quantities and reasons;
+- saves derived not-fulfilled quantities;
 - saves the current calculation state;
 - does not redeem or finalize the voucher;
 - leaves the voucher’s primary card status as READY TO REDEEM;
@@ -2113,7 +2101,7 @@ The action label is:
 Finalize Voucher
 ```
 
-Finalize Voucher is enabled only when all requested lines are fully resolved.
+Finalize Voucher is enabled when every requested line has valid prices for positive fulfilled quantities and no fulfilled quantity total exceeds the requested quantity.
 
 Before finalization, the cashier sees:
 
@@ -2132,7 +2120,7 @@ It must show:
 
 - actual redemption total;
 - fulfilled-unit total;
-- unavailable-unit total;
+- not-fulfilled-unit total;
 - whether an internal finalization note will be saved;
 - finality warning.
 
@@ -2143,7 +2131,7 @@ Finalize this voucher?
 
 Actual Redemption Total: $74.00
 Fulfilled units: 8
-Unavailable units: 2
+Not fulfilled units: 2
 
 Once finalized, redemption details cannot be edited through the ordinary cashier workflow.
 
@@ -2160,7 +2148,8 @@ Finalization:
 - locks normal fulfillment editing;
 - changes primary cashier status to REDEEMED;
 - generates or enables the appropriate receipt and invoice records;
-- retains all fulfillment entries and unavailable reasons as historical records;
+- retains all fulfillment entries and derived not-fulfilled quantities as historical records;
+- keeps any historical unavailable reasons readable for old records;
 - creates necessary audit entries.
 
 ---
@@ -2205,14 +2194,14 @@ For Furniture and Household Goods, it shows:
 - voucher type;
 - fulfilled items or categories;
 - fulfilled quantities;
-- unavailable quantities, when applicable;
+- not-fulfilled quantities, when applicable;
 - redemption date;
 - any relevant next-step information.
 
 It does not show:
 
 - Internal Finalization Notes;
-- staff-only unavailable-reason details;
+- staff-only historical unavailable-reason details;
 - technical audit data;
 - estimated Conference or Partner cost;
 - actual billing totals, unless existing approved receipt policy already requires them.
@@ -2229,7 +2218,7 @@ The Conference or Partner invoice or billing record includes:
 - actual redemption total;
 - applicable delivery fee, once per request group when delivery was selected;
 - fulfillment and finalization date;
-- unavailable quantities where relevant for reconciliation.
+- not-fulfilled quantities where relevant for reconciliation.
 
 It does not include the Internal Finalization Note.
 
@@ -2303,7 +2292,7 @@ Release C must make the following operationally configurable:
 - Household Goods voucher-wide quantity limits
 - delivery availability by voucher type
 - delivery fee configuration
-- structured unavailable reasons
+- historical unavailable reasons
 
 These controls must support normal program management while preserving the historical accuracy of issued vouchers.
 
@@ -2421,7 +2410,7 @@ Recommended capability boundaries:
 | `svdp_manage_delivery_settings`         | Manage request-group delivery fee configuration                          |
 | `svdp_manage_household_goods_catalog`   | Manage Household Goods browse groups and catalog categories              |
 | `svdp_manage_household_goods_limits`    | Manage quantity-limit settings                                           |
-| `svdp_manage_unavailable_reasons`       | Manage structured unavailable reasons                                    |
+| `svdp_manage_unavailable_reasons`       | Manage historical unavailable reasons                                    |
 | `svdp_view_voucher_configuration_audit` | Review configuration-change history                                      |
 
 The final role mapping must be reconciled to the existing Voucher System roles and capabilities before implementation.
@@ -3060,7 +3049,7 @@ The release includes:
 7. One group-level delivery fee and delivery record per voucher request group.
 8. A single-screen cashier fulfillment workspace for Furniture and Household Goods.
 9. Multiple inline price rows per requested item or category.
-10. Visible unavailable quantity and structured unavailable reason capture.
+10. Derived not-fulfilled quantity without reason capture.
 11. Optional internal voucher-level finalization note for cashiers or managers.
 12. Removal of Furniture item-level completion Notes.
 13. No Vincentian Notes fields on any voucher type.
@@ -3503,9 +3492,8 @@ Each requested line displays:
 - requested name;
 - requested quantity;
 - fulfillment rows;
-- unavailable quantity;
-- unavailable reason when needed;
-- resolved count;
+- fulfilled quantity;
+- derived not-fulfilled quantity;
 - subtotal;
 - add another price control.
 
@@ -3525,27 +3513,29 @@ The system calculates:
 Price Each × Fulfilled Quantity = Line Total
 ```
 
-#### 8.4 Unavailable quantity
+#### 8.4 Not fulfilled quantity
 
-Each requested line includes a visible unavailable quantity control.
+Each requested line includes a derived not-fulfilled quantity.
 
-For a single-quantity Furniture item, the UI may present this as a clear checkbox or toggle, but the stored result must still be numeric.
+The ordinary cashier workflow does not require a reason when requested units are left unfulfilled.
 
-#### 8.5 Structured unavailable reason
+#### 8.5 Fixed-price prefill
 
-If unavailable quantity is greater than zero, the cashier must select a structured unavailable reason.
+Fixed-price requested lines prefill Price Each from the issued fixed-price snapshot.
+
+The cashier may override the prefilled price.
 
 The system must not add an item-level free-text note.
 
-#### 8.6 Resolution invariant
+#### 8.6 Quantity invariant
 
 For each requested line:
 
 ```text
-Requested Quantity = Sum of Fulfilled Quantities + Unavailable Quantity
+0 <= Sum of Fulfilled Quantities <= Requested Quantity
 ```
 
-The voucher cannot be finalized until every requested line satisfies this invariant.
+The voucher may be finalized with unfulfilled requested units, including all-zero fulfillment, as long as fulfilled quantities do not exceed requested quantities.
 
 #### 8.7 Save Progress
 
@@ -3554,15 +3544,14 @@ The cashier may save fulfillment work without finalizing the voucher.
 Save Progress:
 
 - saves fulfillment rows;
-- saves unavailable quantities;
-- saves unavailable reasons;
+- saves derived not-fulfilled quantities;
 - does not redeem the voucher;
 - does not generate a final receipt or invoice;
 - leaves the primary cashier card label as READY TO REDEEM.
 
 #### 8.8 Finalize Voucher
 
-Finalize Voucher is enabled only when all requested lines are resolved.
+Finalize Voucher is enabled when all line quantities and positive-quantity prices are valid.
 
 Finalization:
 
@@ -3797,7 +3786,7 @@ The system must audit changes to:
 - category quantity maximum;
 - voucher-wide Household Goods maximum;
 - cashier guidance;
-- unavailable reasons.
+- historical unavailable reasons.
 
 #### 12.4 Audit immutability
 
@@ -3824,7 +3813,7 @@ Vincentians may not:
 - enter unrestricted Notes;
 - edit Household Goods catalog;
 - edit delivery settings;
-- edit unavailable reasons;
+- edit historical unavailable reasons;
 - redeem vouchers;
 - add finalization notes;
 - alter cashier fulfillment entries.
@@ -3837,8 +3826,7 @@ Cashiers may:
 - redeem Clothing vouchers according to existing workflow;
 - enter Furniture and Household Goods fulfillment rows;
 - save progress;
-- mark unavailable quantities;
-- select unavailable reasons;
+- leave requested units unfulfilled without reason capture;
 - add optional Internal Finalization Note;
 - finalize vouchers if permitted by existing role rules.
 

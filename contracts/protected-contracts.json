@@ -207,7 +207,8 @@
       ],
       "rules": [
         "New Release C Furniture and Household Goods vouchers use requested lines and fulfillment entries for one-screen cashier fulfillment.",
-        "Finalization must require every requested line to resolve requested quantity through fulfilled quantities plus unavailable quantity.",
+        "Shared fulfillment must prevent fulfilled quantity totals from exceeding requested quantity, including live cashier workflow enforcement and server-side rejection.",
+        "Finalization may leave requested units unfulfilled; not-fulfilled quantity is derived without requiring a reason.",
         "Fulfillment rows must preserve actor, timestamp, actual unit price, fulfilled quantity, and calculated line total.",
         "Historical Furniture fulfillment data must remain valid and must not be destructively rewritten."
       ]

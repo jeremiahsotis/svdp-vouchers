@@ -1,7 +1,6 @@
 <?php
 $household_total = intval($voucher['adults']) + intval($voucher['children']);
 $can_mutate_furniture = !empty($can_mutate_furniture);
-$unavailable_reasons = is_array($unavailable_reasons ?? null) ? $unavailable_reasons : [];
 $summary = is_array($voucher['fulfillment_summary'] ?? null) ? $voucher['fulfillment_summary'] : [
     'requested_units' => 0,
     'fulfilled_units' => 0,
@@ -14,7 +13,7 @@ $summary = is_array($voucher['fulfillment_summary'] ?? null) ? $voucher['fulfill
 $lines = is_array($voucher['fulfillment_lines'] ?? null) ? $voucher['fulfillment_lines'] : [];
 $is_mutable = $can_mutate_furniture && ($voucher['cashier_status'] ?? '') === 'ready' && ($voucher['stored_status'] ?? '') === 'Active';
 $detail_state_label = $voucher['workflow_status'] === 'completed'
-    ? ((intval($summary['unavailable_units']) > 0) ? 'Finalized with Unavailable Items' : 'Finalized')
+    ? ((intval($summary['unavailable_units']) > 0) ? 'Finalized with Not Fulfilled Items' : 'Finalized')
     : (!empty($summary['ready_to_finalize']) ? 'Ready to Finalize' : 'Fulfillment in Progress');
 $delivery_copy = SVDP_Voucher_Copy::get_delivery_copy();
 $document_copy = SVDP_Voucher_Copy::get_document_copy();
@@ -59,11 +58,12 @@ $document_copy = SVDP_Voucher_Copy::get_document_copy();
         </div>
     </div>
 
-    <div class="svdp-cashier-inline-summary">
-        <span><?php echo esc_html($detail_state_label); ?></span>
-        <span>Resolved: <?php echo esc_html(intval($summary['resolved_units'])); ?> of <?php echo esc_html(intval($summary['requested_units'])); ?></span>
-        <span>Actual Redemption Total: $<?php echo esc_html(number_format((float) $summary['actual_total'], 2)); ?></span>
-    </div>
+	    <div class="svdp-cashier-inline-summary">
+	        <span><?php echo esc_html($detail_state_label); ?></span>
+	        <span>Fulfilled: <?php echo esc_html(intval($summary['fulfilled_units'])); ?> of <?php echo esc_html(intval($summary['requested_units'])); ?></span>
+	        <span>Not fulfilled: <?php echo esc_html(intval($summary['unavailable_units'])); ?></span>
+	        <span>Actual Redemption Total: $<?php echo esc_html(number_format((float) $summary['actual_total'], 2)); ?></span>
+	    </div>
 
     <?php if (!empty($voucher['request_group_id'])): ?>
         <section class="svdp-cashier-info-panel">
@@ -102,18 +102,19 @@ $document_copy = SVDP_Voucher_Copy::get_document_copy();
                 <div class="svdp-cashier-panel-header">
                     <div>
                         <h3>Fulfillment Workspace</h3>
-                        <p>Enter fulfilled quantities, price rows, and unavailable quantities for this voucher.</p>
+                        <p>Enter fulfilled quantities and price rows for this voucher. Any requested units left at 0 are recorded as not fulfilled.</p>
                     </div>
                 </div>
 
                 <div class="svdp-fulfillment-lines">
                     <?php foreach ($lines as $line): ?>
-                        <article
-                            class="svdp-fulfillment-line"
-                            data-fulfillment-line
-                            data-line-id="<?php echo esc_attr($line['id']); ?>"
-                            data-requested-quantity="<?php echo esc_attr($line['requested_quantity']); ?>"
-                        >
+	                        <article
+	                            class="svdp-fulfillment-line"
+	                            data-fulfillment-line
+	                            data-line-id="<?php echo esc_attr($line['id']); ?>"
+	                            data-requested-quantity="<?php echo esc_attr($line['requested_quantity']); ?>"
+	                            data-fixed-price="<?php echo esc_attr(($line['requested_pricing_type'] ?? '') === 'fixed' && $line['requested_price_fixed'] !== null ? number_format((float) $line['requested_price_fixed'], 2, '.', '') : ''); ?>"
+	                        >
                             <div class="svdp-furniture-request-item-header">
                                 <div>
                                     <h4><?php echo esc_html($line['requested_name']); ?></h4>
@@ -124,10 +125,10 @@ $document_copy = SVDP_Voucher_Copy::get_document_copy();
                                         <?php endif; ?>
                                     </p>
                                 </div>
-                                <div class="svdp-card-badges">
-                                    <span class="svdp-type-badge">Requested: <?php echo esc_html(intval($line['requested_quantity'])); ?></span>
-                                    <span class="svdp-type-badge svdp-type-workflow" data-line-status><?php echo esc_html(ucfirst(str_replace('_', ' ', $line['resolution_status']))); ?></span>
-                                </div>
+	                                <div class="svdp-card-badges">
+	                                    <span class="svdp-type-badge">Requested: <?php echo esc_html(intval($line['requested_quantity'])); ?></span>
+	                                    <span class="svdp-type-badge svdp-type-workflow" data-line-status><?php echo esc_html($line['resolution_status'] === 'unavailable' ? 'Not Fulfilled' : ucfirst(str_replace('_', ' ', $line['resolution_status']))); ?></span>
+	                                </div>
                             </div>
 
                             <div class="svdp-fulfillment-row-head" aria-hidden="true">
@@ -137,11 +138,14 @@ $document_copy = SVDP_Voucher_Copy::get_document_copy();
                                 <span></span>
                             </div>
 
-                            <div class="svdp-fulfillment-entries" data-fulfillment-entries>
-                                <?php
-                                $entries = !empty($line['entries']) ? $line['entries'] : [['unit_price' => '', 'fulfilled_quantity' => '', 'line_total' => 0]];
-                                foreach ($entries as $entry):
-                                ?>
+	                            <div class="svdp-fulfillment-entries" data-fulfillment-entries>
+	                                <?php
+	                                $fixed_price_prefill = ($line['requested_pricing_type'] ?? '') === 'fixed' && $line['requested_price_fixed'] !== null
+	                                    ? number_format((float) $line['requested_price_fixed'], 2, '.', '')
+	                                    : '';
+	                                $entries = !empty($line['entries']) ? $line['entries'] : [['unit_price' => $fixed_price_prefill, 'fulfilled_quantity' => '', 'line_total' => 0]];
+	                                foreach ($entries as $entry):
+	                                ?>
                                     <div class="svdp-fulfillment-entry" data-fulfillment-entry>
                                         <label>
                                             <span>Price Each</span>
@@ -161,28 +165,12 @@ $document_copy = SVDP_Voucher_Copy::get_document_copy();
                                 <button type="button" class="svdp-btn svdp-btn-secondary" data-add-fulfillment-row>Add another price</button>
                             <?php endif; ?>
 
-                            <div class="svdp-form-row svdp-unavailable-row">
-                                <div class="svdp-form-group">
-                                    <label>Item Unavailable</label>
-                                    <input type="number" min="0" step="1" data-unavailable-quantity value="<?php echo esc_attr(intval($line['unavailable_quantity'])); ?>" <?php disabled(!$is_mutable); ?>>
-                                </div>
-                                <div class="svdp-form-group" data-unavailable-reason-wrap>
-                                    <label>Unavailable Reason</label>
-                                    <select data-unavailable-reason <?php disabled(!$is_mutable); ?>>
-                                        <option value="">Select a reason...</option>
-                                        <?php foreach ($unavailable_reasons as $reason): ?>
-                                            <option value="<?php echo esc_attr(intval($reason['id'])); ?>" <?php selected(intval($line['unavailable_reason_id']), intval($reason['id'])); ?>>
-                                                <?php echo esc_html($reason['reason_text']); ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div class="svdp-cashier-inline-summary">
-                                <span data-line-resolved>Resolved: <?php echo esc_html(intval($line['resolved_quantity'])); ?> of <?php echo esc_html(intval($line['requested_quantity'])); ?></span>
-                                <span data-line-subtotal>Subtotal: $<?php echo esc_html(number_format((float) $line['subtotal'], 2)); ?></span>
-                            </div>
+	                            <div class="svdp-cashier-inline-summary">
+	                                <span data-line-fulfilled>Fulfilled: <?php echo esc_html(intval($line['fulfilled_quantity'])); ?> of <?php echo esc_html(intval($line['requested_quantity'])); ?></span>
+	                                <span data-line-remaining>Not fulfilled: <?php echo esc_html(intval($line['remaining_quantity'])); ?></span>
+	                                <span data-line-subtotal>Subtotal: $<?php echo esc_html(number_format((float) $line['subtotal'], 2)); ?></span>
+	                                <span data-line-validation></span>
+	                            </div>
                         </article>
                     <?php endforeach; ?>
                 </div>
@@ -199,10 +187,10 @@ $document_copy = SVDP_Voucher_Copy::get_document_copy();
                         <span class="svdp-detail-label">Fulfilled Units</span>
                         <span class="svdp-detail-value" data-summary-fulfilled><?php echo esc_html(intval($summary['fulfilled_units'])); ?></span>
                     </div>
-                    <div class="svdp-detail-item">
-                        <span class="svdp-detail-label">Unavailable Units</span>
-                        <span class="svdp-detail-value" data-summary-unavailable><?php echo esc_html(intval($summary['unavailable_units'])); ?></span>
-                    </div>
+	                    <div class="svdp-detail-item">
+	                        <span class="svdp-detail-label">Not Fulfilled Units</span>
+	                        <span class="svdp-detail-value" data-summary-unavailable><?php echo esc_html(intval($summary['unavailable_units'])); ?></span>
+	                    </div>
                     <div class="svdp-detail-item">
                         <span class="svdp-detail-label">Actual Redemption Total</span>
                         <span class="svdp-detail-value" data-summary-actual-total>$<?php echo esc_html(number_format((float) $summary['actual_total'], 2)); ?></span>

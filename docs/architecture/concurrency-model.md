@@ -43,7 +43,7 @@ C2 does not add asynchronous processing, public request submission, or cashier f
 
 ## Slice C3 Implementation Note
 
-Shared fulfillment Save Progress uses last-write-wins replacement of unfinalized fulfillment entries for each requested line. The finalization endpoint refuses already redeemed, denied, dynamically expired, or line-less vouchers, and finalization locks ordinary editing by changing the voucher to `Redeemed`.
+Shared fulfillment Save Progress uses last-write-wins replacement of unfinalized fulfillment entries for each requested line. Fulfilled quantities are capped against requested quantities in the cashier workflow and rechecked on the server; not-fulfilled quantities are derived from the saved entries. The finalization endpoint refuses already redeemed, denied, dynamically expired, line-less, or over-fulfilled vouchers, and finalization locks ordinary editing by changing the voucher to `Redeemed`.
 
 Retries after successful finalization are guarded by the redeemed status and existing invoice uniqueness. C3 does not add asynchronous processing, dispatch, inventory, POS, or delivery-attempt behavior.
 
