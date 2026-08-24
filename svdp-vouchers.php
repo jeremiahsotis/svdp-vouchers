@@ -21,6 +21,22 @@ define('SVDP_VOUCHERS_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SVDP_VOUCHERS_ADMIN_CAP', 'manage_svdp_vouchers');
 define('SVDP_VOUCHERS_ACCOUNTING_CAP', 'svdp_manage_accounting');
 
+if (!function_exists('svdp_vouchers_same_origin_rest_url')) {
+    /**
+     * Build a browser-safe REST URL that follows the current page origin.
+     *
+     * Pilot environments may serve the same WordPress install from a different
+     * public host than WordPress' configured site URL. Root-relative REST URLs
+     * keep AJAX and HTMX requests on the host that rendered the page.
+     *
+     * @param string $path Optional REST path.
+     * @return string
+     */
+    function svdp_vouchers_same_origin_rest_url($path = '') {
+        return wp_make_link_relative(rest_url($path));
+    }
+}
+
 $svdp_composer_autoload = SVDP_VOUCHERS_PLUGIN_DIR . 'vendor/autoload.php';
 if (file_exists($svdp_composer_autoload)) {
     require_once $svdp_composer_autoload;
@@ -596,7 +612,7 @@ class SVDP_Vouchers_Plugin {
         $item_values = SVDP_Settings::get_item_values();
         $script_data = [
             'ajaxUrl' => admin_url('admin-ajax.php'),
-            'restUrl' => rest_url(),
+            'restUrl' => svdp_vouchers_same_origin_rest_url(),
             'nonce' => wp_create_nonce('wp_rest'),
             'deliveryFee' => SVDP_Voucher_Type_Settings::get_delivery_fee(),
             'copy' => SVDP_Voucher_Rules::get_client_copy_payload(),
@@ -635,7 +651,7 @@ document.addEventListener('alpine:init', function() {
 JS, 'before');
             wp_enqueue_script('svdp-cashier-shell', SVDP_VOUCHERS_PLUGIN_URL . 'public/js/cashier-shell.js', ['svdp-htmx', 'svdp-alpine'], $this->get_asset_version('public/js/cashier-shell.js'), true);
             wp_localize_script('svdp-cashier-shell', 'svdpCashierShell', [
-                'restUrl' => rest_url(),
+                'restUrl' => svdp_vouchers_same_origin_rest_url(),
                 'nonce' => wp_create_nonce('wp_rest'),
                 'loginUrl' => wp_login_url($this->current_frontend_url()),
                 'pingInterval' => 60000,

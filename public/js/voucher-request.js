@@ -206,6 +206,10 @@
         );
       });
 
+      form.on("click", "[data-catalog-retry]", function () {
+        retryCatalogLoad($(this).attr("data-catalog-retry"));
+      });
+
       form.on("change", "[data-household-goods-quantity]", function () {
         setHouseholdGoodsQuantity(
           Number($(this).attr("data-household-goods-quantity")),
@@ -931,9 +935,10 @@
         return;
       }
 
+      const catalogUrl = svdpVouchers.restUrl + "svdp/v1/catalog-items";
       state.furniture.loading = true;
       $.ajax({
-        url: svdpVouchers.restUrl + "svdp/v1/catalog-items",
+        url: catalogUrl,
         method: "GET",
         headers: { "X-WP-Nonce": svdpVouchers.nonce },
         success: function (response) {
@@ -948,9 +953,19 @@
           $("#svdpFurnitureSearch").prop("disabled", false);
           renderFurnitureCatalog();
         },
-        error: function () {
-          $("#svdpFurnitureCatalog").html(
-            '<div class="svdp-message error">Unable to load furniture catalog items right now. Please try again.</div>',
+        error: function (xhr, textStatus, errorThrown) {
+          $("#svdpFurnitureSearch").prop("disabled", true);
+          logCatalogLoadFailure(
+            "Furniture catalog",
+            catalogUrl,
+            xhr,
+            textStatus,
+            errorThrown,
+          );
+          renderCatalogLoadError(
+            $("#svdpFurnitureCatalog"),
+            "Unable to load furniture catalog items right now. Please try again.",
+            "furniture",
           );
         },
         complete: function () {
@@ -964,9 +979,10 @@
         return;
       }
 
+      const catalogUrl = svdpVouchers.restUrl + "svdp/v1/household-goods/catalog";
       state.householdGoods.loading = true;
       $.ajax({
-        url: svdpVouchers.restUrl + "svdp/v1/household-goods/catalog",
+        url: catalogUrl,
         method: "GET",
         headers: { "X-WP-Nonce": svdpVouchers.nonce },
         success: function (response) {
@@ -983,14 +999,82 @@
           $("#svdpHouseholdGoodsSearch").prop("disabled", false);
           renderHouseholdGoodsCatalog();
         },
-        error: function () {
-          $("#svdpHouseholdGoodsCatalog").html(
-            '<div class="svdp-message error">Unable to load Household Goods categories right now. Please try again.</div>',
+        error: function (xhr, textStatus, errorThrown) {
+          $("#svdpHouseholdGoodsSearch").prop("disabled", true);
+          logCatalogLoadFailure(
+            "Household Goods catalog",
+            catalogUrl,
+            xhr,
+            textStatus,
+            errorThrown,
+          );
+          renderCatalogLoadError(
+            $("#svdpHouseholdGoodsCatalog"),
+            "Unable to load Household Goods categories right now. Please try again.",
+            "household_goods",
           );
         },
         complete: function () {
           state.householdGoods.loading = false;
         },
+      });
+    }
+
+    function retryCatalogLoad(type) {
+      if (type === "furniture") {
+        state.furniture.loaded = false;
+        state.furniture.loading = false;
+        $("#svdpFurnitureCatalog").html(
+          renderCatalogLoading("Loading furniture catalog..."),
+        );
+        ensureFurnitureCatalogLoaded();
+      }
+
+      if (type === "household_goods") {
+        state.householdGoods.loaded = false;
+        state.householdGoods.loading = false;
+        $("#svdpHouseholdGoodsCatalog").html(
+          renderCatalogLoading("Loading Household Goods catalog..."),
+        );
+        ensureHouseholdGoodsCatalogLoaded();
+      }
+    }
+
+    function renderCatalogLoading(message) {
+      return (
+        '<div class="svdp-loading">' +
+        '<div class="svdp-spinner"></div>' +
+        "<p>" +
+        escapeHtml(message) +
+        "</p>" +
+        "</div>"
+      );
+    }
+
+    function renderCatalogLoadError(container, message, type) {
+      container.html(
+        '<div class="svdp-message error">' +
+          "<p>" +
+          escapeHtml(message) +
+          "</p>" +
+          '<button type="button" class="svdp-btn svdp-btn-secondary" data-catalog-retry="' +
+          escapeHtml(type) +
+          '">Retry</button>' +
+          "</div>",
+      );
+    }
+
+    function logCatalogLoadFailure(label, url, xhr, textStatus, errorThrown) {
+      if (!window.console || !window.console.warn) {
+        return;
+      }
+
+      window.console.warn(label + " failed to load.", {
+        url: url,
+        status: xhr && xhr.status ? xhr.status : null,
+        statusText: xhr && xhr.statusText ? xhr.statusText : textStatus,
+        error: errorThrown || null,
+        response: xhr && xhr.responseText ? xhr.responseText : null,
       });
     }
 

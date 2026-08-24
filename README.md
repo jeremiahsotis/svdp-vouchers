@@ -211,6 +211,17 @@ Retrieve all active conferences
 
 ## Development
 
+This repository is maintained as a deployable WordPress plugin codebase. Runtime PHP,
+public JavaScript/CSS/templates, committed third-party runtime dependencies, Composer
+metadata, CI configuration, governance contracts, and validation scripts stay in the
+repo so the plugin can be installed directly from the checkout.
+
+Generated guide documents, PDF/PNG render outputs, historical recon notes, and older
+planning/spec working artifacts are externalized outside the plugin repo. The cleanup
+package for this pass is:
+
+`/Users/jeremiahotis/dev/wordpress/svdp/wp-content/plugins/svdp-vouchers-externalized-docs-2026-08-24.zip`
+
 ### File Structure
 svdp-vouchers/
 ├── svdp-vouchers.php           # Main plugin file
@@ -236,6 +247,11 @@ svdp-vouchers/
 │   ├── css/voucher-forms.css
 │   ├── js/voucher-request.js
 │   └── js/cashier-station.js
+├── vendor/                      # Committed PHP runtime dependencies
+├── contracts/                   # Protected surface and contract registry
+├── standards/                   # Governance standards
+├── specs/                       # Current/archived implementation packets
+├── scripts/                     # Validation and maintenance scripts
 └── README.md
 
 ### Hooks & Filters

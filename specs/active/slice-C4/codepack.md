@@ -114,8 +114,17 @@ Stop and ask for direction if:
 - public/css/voucher-forms.css
 - includes/class-admin.php
 - includes/class-conference.php
+- includes/class-database.php
+- includes/class-household-goods-fulfillment.php
 - includes/class-settings.php
 - includes/class-voucher-request-group.php
+- public/js/cashier-shell.js
 - public/js/voucher-request.js
 - public/templates/voucher-request-form.php
 - public/templates/cashier/partials/voucher-card.php
+- public/templates/cashier/partials/voucher-detail-furniture.php
+- public/templates/cashier/partials/voucher-detail-shared-fulfillment.php
+
+## 14. Slice Size Justification
+
+Slice C4 intentionally spans more than the default file threshold because the assisted builder UI crosses the public request template, JavaScript state model, styling, request-group submission, catalog integration, and protected contract metadata. The work remains bounded to the Release C public request flow and does not introduce schema changes or out-of-scope delivery/POS behavior.

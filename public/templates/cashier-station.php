@@ -66,7 +66,7 @@ $cashier_connecting_json = esc_attr(wp_json_encode($cashier_copy['connecting']))
             <div
                 id="svdpCashierListRegion"
                 class="svdp-cashier-list-region"
-                hx-get="<?php echo esc_url(rest_url('svdp/v1/cashier/vouchers')); ?>"
+                hx-get="<?php echo esc_url(svdp_vouchers_same_origin_rest_url('svdp/v1/cashier/vouchers')); ?>"
                 hx-trigger="load, every 30s, svdp:list-refresh from:body, keyup changed delay:250ms from:#svdpCashierSearch, change from:#svdpCashierFilter, change from:#svdpCashierSort"
                 hx-include="#svdpCashierFilters"
                 hx-target="this"

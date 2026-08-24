@@ -229,6 +229,34 @@
     {
       "path": "includes/class-household-goods-catalog.php",
       "reason": "Slice HG1 strengthens authoritative Household Goods request-line validation so manipulated submissions over the configured total-unit maximum are rejected before snapshots can be returned for insertion."
+    },
+    {
+      "path": "svdp-vouchers.php",
+      "reason": "Slice PCL1 emits same-origin REST bases for public request and cashier shell scripts so pilot pages do not call the wrong WordPress host."
+    },
+    {
+      "path": "includes/class-admin.php",
+      "reason": "Slice PCL1 emits a same-origin admin REST base for browser-side admin REST calls without changing admin permissions."
+    },
+    {
+      "path": "public/js/voucher-request.js",
+      "reason": "Slice PCL1 keeps catalog AJAX calls on the page origin and adds retry and console diagnostics for Furniture and Household Goods catalog load failures."
+    },
+    {
+      "path": "public/templates/cashier/partials/voucher-card.php",
+      "reason": "Slice PCL1 keeps cashier detail HTMX requests on the page origin without changing card behavior."
+    },
+    {
+      "path": "public/templates/cashier/partials/voucher-detail.php",
+      "reason": "Slice PCL1 keeps clothing/detail HTMX refresh requests on the page origin without changing voucher detail behavior."
+    },
+    {
+      "path": "public/templates/cashier/partials/voucher-detail-furniture.php",
+      "reason": "Slice PCL1 keeps legacy Furniture detail HTMX refresh requests on the page origin without changing fulfillment behavior."
+    },
+    {
+      "path": "public/templates/cashier/partials/voucher-detail-shared-fulfillment.php",
+      "reason": "Slice PCL1 keeps shared Furniture and Household Goods fulfillment detail HTMX refresh requests on the page origin without changing fulfillment behavior."
     }
   ]
 }

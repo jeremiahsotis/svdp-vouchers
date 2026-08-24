@@ -24,7 +24,7 @@ $detail_refresh_trigger = $can_mutate_furniture
 <div
     class="svdp-cashier-detail svdp-cashier-detail-furniture"
     data-current-voucher-id="<?php echo esc_attr($voucher['id']); ?>"
-    hx-get="<?php echo esc_url(rest_url('svdp/v1/cashier/vouchers/' . intval($voucher['id']))); ?>"
+    hx-get="<?php echo esc_url(svdp_vouchers_same_origin_rest_url('svdp/v1/cashier/vouchers/' . intval($voucher['id']))); ?>"
     hx-trigger="<?php echo esc_attr($detail_refresh_trigger); ?>"
     hx-target="this"
     hx-swap="outerHTML"

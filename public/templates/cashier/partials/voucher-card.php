@@ -8,7 +8,7 @@ $voucher_type = $voucher['voucher_type'] ?? 'clothing';
 $is_furniture = $voucher_type === 'furniture';
 $is_household_goods = $voucher_type === 'household_goods';
 $is_fulfillment_voucher = $is_furniture || $is_household_goods;
-$detail_url = rest_url('svdp/v1/cashier/vouchers/' . intval($voucher['id']));
+$detail_url = svdp_vouchers_same_origin_rest_url('svdp/v1/cashier/vouchers/' . intval($voucher['id']));
 $item_progress = $voucher['item_progress'] ?? null;
 $remaining_items = intval($voucher['remaining_items'] ?? ($item_progress['requested'] ?? 0));
 $delivery_copy = SVDP_Voucher_Copy::get_delivery_copy();

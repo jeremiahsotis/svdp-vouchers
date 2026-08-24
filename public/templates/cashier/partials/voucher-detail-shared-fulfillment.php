@@ -21,7 +21,7 @@ $document_copy = SVDP_Voucher_Copy::get_document_copy();
 <div
     class="svdp-cashier-detail svdp-cashier-detail-furniture svdp-shared-fulfillment"
     data-current-voucher-id="<?php echo esc_attr($voucher['id']); ?>"
-    hx-get="<?php echo esc_url(rest_url('svdp/v1/cashier/vouchers/' . intval($voucher['id']))); ?>"
+    hx-get="<?php echo esc_url(svdp_vouchers_same_origin_rest_url('svdp/v1/cashier/vouchers/' . intval($voucher['id']))); ?>"
     hx-trigger="<?php echo $is_mutable ? 'svdp:detail-refresh from:body' : 'svdp:detail-refresh from:body, every 30s'; ?>"
     hx-target="this"
     hx-swap="outerHTML"

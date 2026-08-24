@@ -97,7 +97,7 @@ class SVDP_Admin {
         wp_localize_script('svdp-vouchers-admin', 'svdpAdmin', [
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('svdp_admin_nonce'),
-            'restUrl' => esc_url_raw(rest_url('svdp/v1/')),
+            'restUrl' => esc_url_raw(svdp_vouchers_same_origin_rest_url('svdp/v1/')),
             'restNonce' => wp_create_nonce('wp_rest'),
         ]);
     }

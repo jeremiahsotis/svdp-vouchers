@@ -1,1 +1,4 @@
 .DS_Store
+tmp/
+output/docs/
+svdp-vouchers-externalized-docs-*.zip

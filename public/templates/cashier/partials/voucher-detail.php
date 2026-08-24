@@ -29,7 +29,7 @@ $correction_reasons = SVDP_Override_Reason::get_active();
 <div
     class="svdp-cashier-detail"
     data-current-voucher-id="<?php echo esc_attr($voucher['id']); ?>"
-    hx-get="<?php echo esc_url(rest_url('svdp/v1/cashier/vouchers/' . intval($voucher['id']))); ?>"
+    hx-get="<?php echo esc_url(svdp_vouchers_same_origin_rest_url('svdp/v1/cashier/vouchers/' . intval($voucher['id']))); ?>"
     hx-trigger="svdp:detail-refresh from:body, every 30s"
     hx-target="this"
     hx-swap="outerHTML"
